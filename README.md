@@ -1,11 +1,11 @@
-# Nuitka-Python-packages
+# MonolithPy-packages
 
-This repository contains the build scripts for Nuitka-Python packages as well as their dependencies.
+This repository contains the build scripts for MonolithPy packages as well as their dependencies.
 
 ## Developing
 
-To use the scripts from a local checkout of this repo, set the `NUITKA_PYTHON_PACKAGE_URL` environment variable.
+To use the scripts from a local checkout of this repo, set the `MONOLITHPY_PACKAGE_URL` environment variable.
 
 ```
-NUITKA_PYTHON_PACKAGE_URL=file:///Users/maxwell/nuitka/Nuitka-Python-packages
+MONOLITHPY_PACKAGE_URL=file:///Users/maxwell/nuitka/MonolithPy-packages
 ```
