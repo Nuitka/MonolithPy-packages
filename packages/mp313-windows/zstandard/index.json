@@ -1,0 +1,18 @@
+{
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": [],
+      "dependencies": [],
+      "files": [
+        "build.py"
+      ],
+      "build_requires": [
+        "setuptools"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

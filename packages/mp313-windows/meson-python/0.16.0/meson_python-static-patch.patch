@@ -1,0 +1,42 @@
+diff --git a/mesonpy/__init__.py b/mesonpy/__init__.py
+index 6db5b5b..cb7ec5e 100644
+--- a/mesonpy/__init__.py
++++ b/mesonpy/__init__.py
+@@ -76,7 +76,7 @@ _MESON_ARGS_KEYS = ['dist', 'setup', 'compile', 'install']
+ 
+ _SUFFIXES = importlib.machinery.all_suffixes()
+ _EXTENSION_SUFFIX_REGEX = re.compile(r'^[^.]+\.(?:(?P<abi>[^.]+)\.)?(?:so|pyd|dll)$')
+-assert all(re.match(_EXTENSION_SUFFIX_REGEX, f'foo{x}') for x in importlib.machinery.EXTENSION_SUFFIXES)
++#assert all(re.match(_EXTENSION_SUFFIX_REGEX, f'foo{x}') for x in importlib.machinery.EXTENSION_SUFFIXES)
+ 
+ # Map Meson installation path placeholders to wheel installation paths.
+ # See https://docs.python.org/3/library/sysconfig.html#installation-paths
+@@ -346,7 +346,8 @@ class _WheelBuilder():
+             # distribute any file in {platlib}) thus use generic
+             # implementation and ABI tags.
+             return mesonpy._tags.Tag('py3', 'none', None)
+-        return mesonpy._tags.Tag(None, self._stable_abi, None)
++        import packaging
++        return list(packaging.tags.generic_tags())[0]
+ 
+     @property
+     def name(self) -> str:
+@@ -409,7 +410,7 @@ class _WheelBuilder():
+         if self._limited_api:
+             # PyPy does not use a special extension module filename
+             # suffix for modules targeting the stable API.
+-            if '__pypy__' not in sys.builtin_module_names:
++            if '__pypy__' not in sys.builtin_module_names and sys.implementation.name != 'nuitkapython':
+                 # Verify stable ABI compatibility: examine files installed
+                 # in {platlib} that look like extension modules, and raise
+                 # an exception if any of them has a Python version
+@@ -776,7 +777,8 @@ class Project():
+             # default build options
+             '-Dbuildtype=release',
+             '-Db_ndebug=if-release',
+-            '-Db_vscrt=md',
++            '-Db_vscrt=mt',
++            '-Dprefer_static=True',
+             # user build options
+             *self._meson_args['setup'],
+             # pass native file last to have it override the python

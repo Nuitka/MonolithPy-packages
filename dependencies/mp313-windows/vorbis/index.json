@@ -1,0 +1,14 @@
+{
+  "version": "1.3.7",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "dependencies": [
+    "ogg"
+  ],
+  "files": [
+    "build.py"
+  ],
+  "build_script": "build.py"
+}

@@ -1,0 +1,16 @@
+{
+  "version": "0.12",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "dependencies": [
+    "ogg",
+    "opus"
+  ],
+  "files": [
+    "build.py",
+    "libopusfile.cmake"
+  ],
+  "build_script": "build.py"
+}

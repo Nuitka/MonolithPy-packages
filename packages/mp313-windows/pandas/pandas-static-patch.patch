@@ -1,0 +1,459 @@
+diff --git a/pandas/_libs/include/pandas/portable.h b/pandas/_libs/include/pandas/portable.h
+index 1d0509d..68a9342 100644
+--- a/pandas/_libs/include/pandas/portable.h
++++ b/pandas/_libs/include/pandas/portable.h
+@@ -35,3 +35,153 @@ The full license is in the LICENSE file, distributed with this software.
+   do {                                                                         \
+   } while (0) /* fallthrough */
+ #endif
++
++#if defined(_WIN32)
++#include <limits.h>
++
++// Unfortunately we have to implement overflow-safe arithmetic ourselves
++// since intsafe.h has linkage issues...
++
++static inline int checked_add_int64(long long a, long long b, long long *res) {
++  unsigned long long ua = (unsigned long long)a;
++  unsigned long long ub = (unsigned long long)b;
++  unsigned long long ures = ua + ub;
++  *res = (long long)ures;
++
++  // Check for overflow
++  if (a >= 0 && b >= 0 && *res < 0) return 1;  // positive overflow
++  if (a < 0 && b < 0 && *res >= 0) return 1;   // negative overflow
++  return 0;
++}
++
++static inline int checked_sub_int64(long long a, long long b, long long *res) {
++  unsigned long long ua = (unsigned long long)a;
++  unsigned long long ub = (unsigned long long)b;
++  unsigned long long ures = ua - ub;
++  *res = (long long)ures;
++
++  // Check for overflow
++  if (a >= 0 && b < 0 && *res < 0) return 1;   // positive overflow
++  if (a < 0 && b >= 0 && *res >= 0) return 1;  // negative overflow
++  return 0;
++}
++
++static inline int checked_mul_int64(long long a, long long b, long long *res) {
++  // Use 128-bit multiplication if available, otherwise check bounds
++  if (a == 0 || b == 0) {
++    *res = 0;
++    return 0;
++  }
++
++  // Check if multiplication would overflow
++  if (a > 0) {
++    if (b > 0) {
++      if (a > LLONG_MAX / b) return 1;
++    } else {
++      if (b < LLONG_MIN / a) return 1;
++    }
++  } else {
++    if (b > 0) {
++      if (a < LLONG_MIN / b) return 1;
++    } else {
++      if (a != 0 && b < LLONG_MAX / a) return 1;
++    }
++  }
++
++  *res = a * b;
++  return 0;
++}
++
++static inline int checked_add_int32(long a, long b, long *res) {
++  long long result = (long long)a + (long long)b;
++  if (result > LONG_MAX || result < LONG_MIN) return 1;
++  *res = (long)result;
++  return 0;
++}
++
++static inline int checked_sub_int32(long a, long b, long *res) {
++  long long result = (long long)a - (long long)b;
++  if (result > LONG_MAX || result < LONG_MIN) return 1;
++  *res = (long)result;
++  return 0;
++}
++
++static inline int checked_mul_int32(long a, long b, long *res) {
++  long long result = (long long)a * (long long)b;
++  if (result > LONG_MAX || result < LONG_MIN) return 1;
++  *res = (long)result;
++  return 0;
++}
++
++static inline int checked_add_int(int a, int b, int *res) {
++  long long result = (long long)a + (long long)b;
++  if (result > INT_MAX || result < INT_MIN) return 1;
++  *res = (int)result;
++  return 0;
++}
++
++static inline int checked_sub_int(int a, int b, int *res) {
++  long long result = (long long)a - (long long)b;
++  if (result > INT_MAX || result < INT_MIN) return 1;
++  *res = (int)result;
++  return 0;
++}
++
++static inline int checked_mul_int(int a, int b, int *res) {
++  long long result = (long long)a * (long long)b;
++  if (result > INT_MAX || result < INT_MIN) return 1;
++  *res = (int)result;
++  return 0;
++}
++
++static inline int checked_add_short(short a, short b, short *res) {
++  int result = (int)a + (int)b;
++  if (result > SHRT_MAX || result < SHRT_MIN) return 1;
++  *res = (short)result;
++  return 0;
++}
++
++static inline int checked_sub_short(short a, short b, short *res) {
++  int result = (int)a - (int)b;
++  if (result > SHRT_MAX || result < SHRT_MIN) return 1;
++  *res = (short)result;
++  return 0;
++}
++
++static inline int checked_mul_short(short a, short b, short *res) {
++  int result = (int)a * (int)b;
++  if (result > SHRT_MAX || result < SHRT_MIN) return 1;
++  *res = (short)result;
++  return 0;
++}
++
++#define checked_add(a, b, res)                                                 \
++  _Generic((res),                                                              \
++      int *: checked_add_int,                                                  \
++      long *: checked_add_int32,                                               \
++      long long *: checked_add_int64,                                          \
++      short *: checked_add_short)(a, b, res)
++
++#define checked_sub(a, b, res)                                                 \
++  _Generic((res),                                                              \
++      int *: checked_sub_int,                                                  \
++      long *: checked_sub_int32,                                               \
++      long long *: checked_sub_int64,                                          \
++      short *: checked_sub_short)(a, b, res)
++
++#define checked_mul(a, b, res)                                                 \
++  _Generic((res),                                                              \
++      int *: checked_mul_int,                                                  \
++      long *: checked_mul_int32,                                               \
++      long long *: checked_mul_int64,                                          \
++      short *: checked_mul_short)(a, b, res)
++
++#elif (defined(__has_builtin) && __has_builtin(__builtin_add_overflow)) ||     \
++    __GNUC__ > 7
++#define checked_add(a, b, res) __builtin_add_overflow(a, b, res)
++#define checked_sub(a, b, res) __builtin_sub_overflow(a, b, res)
++#define checked_mul(a, b, res) __builtin_mul_overflow(a, b, res)
++#else
++_Static_assert(0,
++               "Overflow checking not detected; please try a newer compiler");
++#endif
+diff --git a/pandas/_libs/include/pandas/vendored/ujson/lib/ultrajson.h b/pandas/_libs/include/pandas/vendored/ujson/lib/ultrajson.h
+index 0d62bb0..8b0851d 100644
+--- a/pandas/_libs/include/pandas/vendored/ujson/lib/ultrajson.h
++++ b/pandas/_libs/include/pandas/vendored/ujson/lib/ultrajson.h
+@@ -93,7 +93,7 @@ typedef unsigned __int16 JSUTF16;
+ typedef unsigned __int32 JSUTF32;
+ typedef __int64 JSLONG;
+ 
+-#define EXPORTFUNCTION __declspec(dllexport)
++#define EXPORTFUNCTION
+ 
+ #define FASTCALL_MSVC __fastcall
+ 
+diff --git a/pandas/_libs/src/vendored/numpy/datetime/np_datetime.c b/pandas/_libs/src/vendored/numpy/datetime/np_datetime.c
+index 934c54f..194eda8 100644
+--- a/pandas/_libs/src/vendored/numpy/datetime/np_datetime.c
++++ b/pandas/_libs/src/vendored/numpy/datetime/np_datetime.c
+@@ -26,38 +26,10 @@ This file is derived from NumPy 1.7. See NUMPY_LICENSE.txt
+ 
+ #define NO_IMPORT_ARRAY
+ #define PY_ARRAY_UNIQUE_SYMBOL PANDAS_DATETIME_NUMPY
++#include "pandas/portable.h"
+ #include <numpy/ndarrayobject.h>
+ #include <numpy/npy_common.h>
+ 
+-#if defined(_WIN32)
+-#ifndef ENABLE_INTSAFE_SIGNED_FUNCTIONS
+-#define ENABLE_INTSAFE_SIGNED_FUNCTIONS
+-#endif
+-#include <intsafe.h>
+-#define checked_int64_add(a, b, res) LongLongAdd(a, b, res)
+-#define checked_int64_sub(a, b, res) LongLongSub(a, b, res)
+-#define checked_int64_mul(a, b, res) LongLongMult(a, b, res)
+-#else
+-#if defined __has_builtin
+-#if __has_builtin(__builtin_add_overflow)
+-#define checked_int64_add(a, b, res) __builtin_add_overflow(a, b, res)
+-#define checked_int64_sub(a, b, res) __builtin_sub_overflow(a, b, res)
+-#define checked_int64_mul(a, b, res) __builtin_mul_overflow(a, b, res)
+-#else
+-_Static_assert(0,
+-               "Overflow checking not detected; please try a newer compiler");
+-#endif
+-// __has_builtin was added in gcc 10, but our muslinux_1_1 build environment
+-// only has gcc-9.3, so fall back to __GNUC__ macro as long as we have that
+-#elif __GNUC__ > 7
+-#define checked_int64_add(a, b, res) __builtin_add_overflow(a, b, res)
+-#define checked_int64_sub(a, b, res) __builtin_sub_overflow(a, b, res)
+-#define checked_int64_mul(a, b, res) __builtin_mul_overflow(a, b, res)
+-#else
+-_Static_assert(0, "__has_builtin not detected; please try a newer compiler");
+-#endif
+-#endif
+-
+ #define PD_CHECK_OVERFLOW(FUNC)                                                \
+   do {                                                                         \
+     if ((FUNC) != 0) {                                                         \
+@@ -139,8 +111,8 @@ npy_int64 get_datetimestruct_days(const npy_datetimestruct *dts) {
+   npy_int64 year, days = 0;
+   const int *month_lengths;
+ 
+-  year = dts->year - 1970;
+-  days = year * 365;
++  PD_CHECK_OVERFLOW(checked_sub(dts->year, 1970, &year));
++  PD_CHECK_OVERFLOW(checked_mul(year, 365, &days));
+ 
+   /* Adjust for leap years */
+   if (days >= 0) {
+@@ -148,32 +120,32 @@ npy_int64 get_datetimestruct_days(const npy_datetimestruct *dts) {
+      * 1968 is the closest leap year before 1970.
+      * Exclude the current year, so add 1.
+      */
+-    year += 1;
++    PD_CHECK_OVERFLOW(checked_add(year, 1, &year));
+     /* Add one day for each 4 years */
+-    days += year / 4;
++    PD_CHECK_OVERFLOW(checked_add(days, year / 4, &days));
+     /* 1900 is the closest previous year divisible by 100 */
+-    year += 68;
++    PD_CHECK_OVERFLOW(checked_add(year, 68, &year));
+     /* Subtract one day for each 100 years */
+-    days -= year / 100;
++    PD_CHECK_OVERFLOW(checked_sub(days, year / 100, &days));
+     /* 1600 is the closest previous year divisible by 400 */
+-    year += 300;
++    PD_CHECK_OVERFLOW(checked_add(year, 300, &year));
+     /* Add one day for each 400 years */
+-    days += year / 400;
++    PD_CHECK_OVERFLOW(checked_add(days, year / 400, &days));
+   } else {
+     /*
+      * 1972 is the closest later year after 1970.
+      * Include the current year, so subtract 2.
+      */
+-    year -= 2;
++    PD_CHECK_OVERFLOW(checked_sub(year, 2, &year));
+     /* Subtract one day for each 4 years */
+-    days += year / 4;
++    PD_CHECK_OVERFLOW(checked_add(days, year / 4, &days));
+     /* 2000 is the closest later year divisible by 100 */
+-    year -= 28;
++    PD_CHECK_OVERFLOW(checked_sub(year, 28, &year));
+     /* Add one day for each 100 years */
+-    days -= year / 100;
++    PD_CHECK_OVERFLOW(checked_sub(days, year / 100, &days));
+     /* 2000 is also the closest later year divisible by 400 */
+     /* Subtract one day for each 400 years */
+-    days += year / 400;
++    PD_CHECK_OVERFLOW(checked_add(days, year / 400, &days));
+   }
+ 
+   month_lengths = days_per_month_table[is_leapyear(dts->year)];
+@@ -181,11 +153,11 @@ npy_int64 get_datetimestruct_days(const npy_datetimestruct *dts) {
+ 
+   /* Add the months */
+   for (i = 0; i < month; ++i) {
+-    days += month_lengths[i];
++    PD_CHECK_OVERFLOW(checked_add(days, month_lengths[i], &days));
+   }
+ 
+   /* Add the days */
+-  days += dts->day - 1;
++  PD_CHECK_OVERFLOW(checked_add(days, dts->day - 1, &days));
+ 
+   return days;
+ }
+@@ -340,11 +312,11 @@ PyObject *extract_utc_offset(PyObject *obj) {
+ }
+ 
+ static inline int scaleYearToEpoch(int64_t year, int64_t *result) {
+-  return checked_int64_sub(year, 1970, result);
++  return checked_sub(year, 1970, result);
+ }
+ 
+ static inline int scaleYearsToMonths(int64_t years, int64_t *result) {
+-  return checked_int64_mul(years, 12, result);
++  return checked_mul(years, 12, result);
+ }
+ 
+ static inline int scaleDaysToWeeks(int64_t days, int64_t *result) {
+@@ -354,7 +326,7 @@ static inline int scaleDaysToWeeks(int64_t days, int64_t *result) {
+   } else {
+     int res;
+     int64_t checked_days;
+-    if ((res = checked_int64_sub(days, 6, &checked_days))) {
++    if ((res = checked_sub(days, 6, &checked_days))) {
+       return res;
+     }
+ 
+@@ -364,43 +336,43 @@ static inline int scaleDaysToWeeks(int64_t days, int64_t *result) {
+ }
+ 
+ static inline int scaleDaysToHours(int64_t days, int64_t *result) {
+-  return checked_int64_mul(days, 24, result);
++  return checked_mul(days, 24, result);
+ }
+ 
+ static inline int scaleHoursToMinutes(int64_t hours, int64_t *result) {
+-  return checked_int64_mul(hours, 60, result);
++  return checked_mul(hours, 60, result);
+ }
+ 
+ static inline int scaleMinutesToSeconds(int64_t minutes, int64_t *result) {
+-  return checked_int64_mul(minutes, 60, result);
++  return checked_mul(minutes, 60, result);
+ }
+ 
+ static inline int scaleSecondsToMilliseconds(int64_t seconds, int64_t *result) {
+-  return checked_int64_mul(seconds, 1000, result);
++  return checked_mul(seconds, 1000, result);
+ }
+ 
+ static inline int scaleSecondsToMicroseconds(int64_t seconds, int64_t *result) {
+-  return checked_int64_mul(seconds, 1000000, result);
++  return checked_mul(seconds, 1000000, result);
+ }
+ 
+ static inline int scaleMicrosecondsToNanoseconds(int64_t microseconds,
+                                                  int64_t *result) {
+-  return checked_int64_mul(microseconds, 1000, result);
++  return checked_mul(microseconds, 1000, result);
+ }
+ 
+ static inline int scaleMicrosecondsToPicoseconds(int64_t microseconds,
+                                                  int64_t *result) {
+-  return checked_int64_mul(microseconds, 1000000, result);
++  return checked_mul(microseconds, 1000000, result);
+ }
+ 
+ static inline int64_t scalePicosecondsToFemtoseconds(int64_t picoseconds,
+                                                      int64_t *result) {
+-  return checked_int64_mul(picoseconds, 1000, result);
++  return checked_mul(picoseconds, 1000, result);
+ }
+ 
+ static inline int64_t scalePicosecondsToAttoseconds(int64_t picoseconds,
+                                                     int64_t *result) {
+-  return checked_int64_mul(picoseconds, 1000000, result);
++  return checked_mul(picoseconds, 1000000, result);
+ }
+ 
+ /*
+@@ -421,8 +393,8 @@ npy_datetime npy_datetimestruct_to_datetime(NPY_DATETIMEUNIT base,
+     PD_CHECK_OVERFLOW(scaleYearsToMonths(years, &months));
+ 
+     int64_t months_adder;
+-    PD_CHECK_OVERFLOW(checked_int64_sub(dts->month, 1, &months_adder));
+-    PD_CHECK_OVERFLOW(checked_int64_add(months, months_adder, &months));
++    PD_CHECK_OVERFLOW(checked_sub(dts->month, 1, &months_adder));
++    PD_CHECK_OVERFLOW(checked_add(months, months_adder, &months));
+ 
+     if (base == NPY_FR_M) {
+       return months;
+@@ -442,7 +414,7 @@ npy_datetime npy_datetimestruct_to_datetime(NPY_DATETIMEUNIT base,
+ 
+   int64_t hours;
+   PD_CHECK_OVERFLOW(scaleDaysToHours(days, &hours));
+-  PD_CHECK_OVERFLOW(checked_int64_add(hours, dts->hour, &hours));
++  PD_CHECK_OVERFLOW(checked_add(hours, dts->hour, &hours));
+ 
+   if (base == NPY_FR_h) {
+     return hours;
+@@ -450,7 +422,7 @@ npy_datetime npy_datetimestruct_to_datetime(NPY_DATETIMEUNIT base,
+ 
+   int64_t minutes;
+   PD_CHECK_OVERFLOW(scaleHoursToMinutes(hours, &minutes));
+-  PD_CHECK_OVERFLOW(checked_int64_add(minutes, dts->min, &minutes));
++  PD_CHECK_OVERFLOW(checked_add(minutes, dts->min, &minutes));
+ 
+   if (base == NPY_FR_m) {
+     return minutes;
+@@ -458,7 +430,7 @@ npy_datetime npy_datetimestruct_to_datetime(NPY_DATETIMEUNIT base,
+ 
+   int64_t seconds;
+   PD_CHECK_OVERFLOW(scaleMinutesToSeconds(minutes, &seconds));
+-  PD_CHECK_OVERFLOW(checked_int64_add(seconds, dts->sec, &seconds));
++  PD_CHECK_OVERFLOW(checked_add(seconds, dts->sec, &seconds));
+ 
+   if (base == NPY_FR_s) {
+     return seconds;
+@@ -467,15 +439,14 @@ npy_datetime npy_datetimestruct_to_datetime(NPY_DATETIMEUNIT base,
+   if (base == NPY_FR_ms) {
+     int64_t milliseconds;
+     PD_CHECK_OVERFLOW(scaleSecondsToMilliseconds(seconds, &milliseconds));
+-    PD_CHECK_OVERFLOW(
+-        checked_int64_add(milliseconds, dts->us / 1000, &milliseconds));
++    PD_CHECK_OVERFLOW(checked_add(milliseconds, dts->us / 1000, &milliseconds));
+ 
+     return milliseconds;
+   }
+ 
+   int64_t microseconds;
+   PD_CHECK_OVERFLOW(scaleSecondsToMicroseconds(seconds, &microseconds));
+-  PD_CHECK_OVERFLOW(checked_int64_add(microseconds, dts->us, &microseconds));
++  PD_CHECK_OVERFLOW(checked_add(microseconds, dts->us, &microseconds));
+ 
+   if (base == NPY_FR_us) {
+     return microseconds;
+@@ -489,13 +460,12 @@ npy_datetime npy_datetimestruct_to_datetime(NPY_DATETIMEUNIT base,
+     if (microseconds == min_nanoseconds / 1000 - 1) {
+       // For values within one microsecond of min_nanoseconds, use it as base
+       // and offset it with nanosecond delta to avoid overflow during scaling.
+-      PD_CHECK_OVERFLOW(checked_int64_add(
++      PD_CHECK_OVERFLOW(checked_add(
+           min_nanoseconds, (dts->ps - _NS_MIN_DTS.ps) / 1000, &nanoseconds));
+     } else {
+       PD_CHECK_OVERFLOW(
+           scaleMicrosecondsToNanoseconds(microseconds, &nanoseconds));
+-      PD_CHECK_OVERFLOW(
+-          checked_int64_add(nanoseconds, dts->ps / 1000, &nanoseconds));
++      PD_CHECK_OVERFLOW(checked_add(nanoseconds, dts->ps / 1000, &nanoseconds));
+     }
+ 
+     return nanoseconds;
+@@ -503,7 +473,7 @@ npy_datetime npy_datetimestruct_to_datetime(NPY_DATETIMEUNIT base,
+ 
+   int64_t picoseconds;
+   PD_CHECK_OVERFLOW(scaleMicrosecondsToPicoseconds(microseconds, &picoseconds));
+-  PD_CHECK_OVERFLOW(checked_int64_add(picoseconds, dts->ps, &picoseconds));
++  PD_CHECK_OVERFLOW(checked_add(picoseconds, dts->ps, &picoseconds));
+ 
+   if (base == NPY_FR_ps) {
+     return picoseconds;
+@@ -513,15 +483,14 @@ npy_datetime npy_datetimestruct_to_datetime(NPY_DATETIMEUNIT base,
+     int64_t femtoseconds;
+     PD_CHECK_OVERFLOW(
+         scalePicosecondsToFemtoseconds(picoseconds, &femtoseconds));
+-    PD_CHECK_OVERFLOW(
+-        checked_int64_add(femtoseconds, dts->as / 1000, &femtoseconds));
++    PD_CHECK_OVERFLOW(checked_add(femtoseconds, dts->as / 1000, &femtoseconds));
+     return femtoseconds;
+   }
+ 
+   if (base == NPY_FR_as) {
+     int64_t attoseconds;
+     PD_CHECK_OVERFLOW(scalePicosecondsToAttoseconds(picoseconds, &attoseconds));
+-    PD_CHECK_OVERFLOW(checked_int64_add(attoseconds, dts->as, &attoseconds));
++    PD_CHECK_OVERFLOW(checked_add(attoseconds, dts->as, &attoseconds));
+     return attoseconds;
+   }
+ 

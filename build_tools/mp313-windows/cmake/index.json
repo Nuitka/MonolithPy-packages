@@ -1,0 +1,7 @@
+{
+  "version": "3.30.5",
+  "files": [
+    "build.py"
+  ],
+  "build_script": "build.py"
+}

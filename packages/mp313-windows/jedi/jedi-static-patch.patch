@@ -1,0 +1,14 @@
+diff --git a/jedi/inference/compiled/subprocess/functions.py b/jedi/inference/compiled/subprocess/functions.py
+index 50c47b8..8dff8c2 100644
+--- a/jedi/inference/compiled/subprocess/functions.py
++++ b/jedi/inference/compiled/subprocess/functions.py
+@@ -46,7 +46,8 @@ def get_module_info(inference_state, sys_path=None, full_name=None, **kwargs):
+ 
+ 
+ def get_builtin_module_names(inference_state):
+-    return sys.builtin_module_names
++    import pkgutil
++    return list(set([x.name.split('.')[0] for x in pkgutil.iter_modules()]))
+ 
+ 
+ def _test_raise_error(inference_state, exception_type):

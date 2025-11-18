@@ -1,0 +1,725 @@
+diff --git a/scipy/_lib/_testutils.py b/scipy/_lib/_testutils.py
+index 442bb53..70d8137 100644
+--- a/scipy/_lib/_testutils.py
++++ b/scipy/_lib/_testutils.py
+@@ -93,7 +93,7 @@ class PytestTester:
+         module = sys.modules[self.module_name]
+         module_path = os.path.abspath(module.__path__[0])
+ 
+-        pytest_args = ['--showlocals', '--tb=short']
++        pytest_args = ['--showlocals', '--tb=short', '--continue-on-collection-errors']
+ 
+         if extra_argv is None:
+             extra_argv = []
+diff --git a/scipy/_lib/pocketfft/pocketfft_hdronly.h b/scipy/_lib/pocketfft/pocketfft_hdronly.h
+index 66eea06..2645a6b 100644
+--- a/scipy/_lib/pocketfft/pocketfft_hdronly.h
++++ b/scipy/_lib/pocketfft/pocketfft_hdronly.h
+@@ -7,7 +7,7 @@ Copyright (C) 2019-2020 Peter Bell
+ For the odd-sized DCT-IV transforms:
+   Copyright (C) 2003, 2007-14 Matteo Frigo
+   Copyright (C) 2003, 2007-14 Massachusetts Institute of Technology
+-  
++
+ For the prev_good_size search:
+   Copyright (C) 2024 Tan Ping Liang, Peter Bell
+ 
+@@ -54,6 +54,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ #define POCKETFFT_CACHE_SIZE 0
+ #endif
+ 
++#define POCKETFFT_NO_MULTITHREADING
++#define POCKETFFT_NO_VECTORS
++
+ #include <cmath>
+ #include <cstdlib>
+ #include <stdexcept>
+@@ -470,12 +473,12 @@ struct util // hack to avoid duplicate symbols
+           size_t x = f1175;
+           while (x*2 <= n) x *= 2;
+           if (x > bestfound) bestfound = x;
+-          while (true) 
++          while (true)
+           {
+             if (x * 3 <= n) x *= 3;
+             else if (x % 2 == 0) x /= 2;
+             else break;
+-              
++
+             if (x > bestfound) bestfound = x;
+           }
+         }
+@@ -493,12 +496,12 @@ struct util // hack to avoid duplicate symbols
+       size_t x = f5;
+       while (x*2 <= n) x *= 2;
+       if (x > bestfound) bestfound = x;
+-      while (true) 
++      while (true)
+       {
+         if (x * 3 <= n) x *= 3;
+         else if (x % 2 == 0) x /= 2;
+         else break;
+-      
++
+         if (x > bestfound) bestfound = x;
+       }
+     }
+diff --git a/scipy/integrate/meson.build b/scipy/integrate/meson.build
+index 206d504..59c4d9e 100644
+--- a/scipy/integrate/meson.build
++++ b/scipy/integrate/meson.build
+@@ -82,7 +82,7 @@ py3.extension_module('_odepack',
+ py3.extension_module('_vode',
+   f2py_gen.process('vode.pyf'),
+   link_with: [vode_lib],
+-  c_args: [Wno_unused_variable],
++  c_args: [Wno_unused_variable, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_vode'],
+   link_args: version_link_args,
+   dependencies: [lapack_dep, blas_dep, fortranobject_dep],
+   install: true,
+@@ -93,7 +93,7 @@ py3.extension_module('_vode',
+ py3.extension_module('_lsoda',
+   f2py_gen.process('lsoda.pyf'),
+   link_with: [lsoda_lib, mach_lib],
+-  c_args: [Wno_unused_variable],
++  c_args: [Wno_unused_variable, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_vode'],
+   dependencies: [lapack_dep, fortranobject_dep],
+   link_args: version_link_args,
+   install: true,
+@@ -104,7 +104,7 @@ py3.extension_module('_lsoda',
+ py3.extension_module('_dop',
+   f2py_gen.process('dop.pyf'),
+   link_with: [dop_lib],
+-  c_args: [Wno_unused_variable],
++  c_args: [Wno_unused_variable, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_dop'],
+   dependencies: [fortranobject_dep],
+   link_args: version_link_args,
+   install: true,
+diff --git a/scipy/interpolate/meson.build b/scipy/interpolate/meson.build
+index e0e2867..87689b7 100644
+--- a/scipy/interpolate/meson.build
++++ b/scipy/interpolate/meson.build
+@@ -154,7 +154,7 @@ py3.extension_module('_fitpack',
+ # TODO: Add flags for 64 bit ints
+ py3.extension_module('_dfitpack',
+   f2py_gen.process('src/dfitpack.pyf'),
+-  c_args: [Wno_unused_variable],
++  c_args: [Wno_unused_variable, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_dfitpack'],
+   link_args: version_link_args,
+   dependencies: [lapack_dep, fortranobject_dep],
+   link_with: [fitpack_lib],
+diff --git a/scipy/linalg/meson.build b/scipy/linalg/meson.build
+index 77caa98..93d7a20 100644
+--- a/scipy/linalg/meson.build
++++ b/scipy/linalg/meson.build
+@@ -68,6 +68,7 @@ py3.extension_module('_fblas',
+   fblas_module,
+   link_args: version_link_args,
+   dependencies: [lapack_dep, blas_dep, fortranobject_dep],
++  c_args: ['-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_fblas'],
+   install: true,
+   subdir: 'scipy/linalg'
+ )
+@@ -94,7 +95,7 @@ flapack_module = custom_target('flapack_module',
+ # in flapack_other.pyf.src
+ py3.extension_module('_flapack',
+   flapack_module,
+-  c_args: [Wno_empty_body],
++  c_args: [Wno_empty_body, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_dfitpack'],
+   link_args: version_link_args,
+   dependencies: [lapack_dep, blas_dep, fortranobject_dep],
+   install: true,
+diff --git a/scipy/meson.build b/scipy/meson.build
+index 1bc50f5..754dc75 100644
+--- a/scipy/meson.build
++++ b/scipy/meson.build
+@@ -144,9 +144,12 @@ fortranobject_lib = static_library('_fortranobject',
+   dependencies: py3_dep,
+   include_directories: [inc_np, inc_f2py],
+   gnu_symbol_visibility: 'hidden',
++  install: true,
++  install_dir: py3.get_install_dir() / 'scipy',
+ )
+ fortranobject_dep = declare_dependency(
+-  link_with: fortranobject_lib,
++  compile_args: numpy_nodepr_api,
++  dependencies: py3_dep,
+   include_directories: [inc_np, inc_f2py],
+ )
+ 
+diff --git a/scipy/sparse/linalg/_propack/meson.build b/scipy/sparse/linalg/_propack/meson.build
+index d33cdc0..5c9f69c 100644
+--- a/scipy/sparse/linalg/_propack/meson.build
++++ b/scipy/sparse/linalg/_propack/meson.build
+@@ -102,7 +102,7 @@ foreach ele: elements
+   propacklib = py3.extension_module(ele[0],
+     f2py_gen.process(ele[2]),
+     link_with: propack_lib,
+-    c_args: ['-U_OPENMP', _cpp_Wno_cpp],
++    c_args: ['-U_OPENMP', _cpp_Wno_cpp, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_' + ele[0]],
+     fortran_args: _fflag_Wno_maybe_uninitialized,
+     dependencies: [lapack_dep, blas_dep, fortranobject_dep],
+     link_args: version_link_args,
+diff --git a/scipy/special/_ellip_harm_2.pyx b/scipy/special/_ellip_harm_2.pyx
+index 35ff34c..2e4e472 100644
+--- a/scipy/special/_ellip_harm_2.pyx
++++ b/scipy/special/_ellip_harm_2.pyx
+@@ -190,15 +190,7 @@ cimport numpy as np
+ np.import_array()
+ np.import_ufunc()
+ 
+-cdef extern from "numpy/ufuncobject.h":
+-    int PyUFunc_getfperr() nogil
+-
+-cdef public int wrap_PyUFunc_getfperr() noexcept nogil:
+-    """
+-    Call PyUFunc_getfperr in a context where PyUFunc_API array is initialized;
+-    this avoids messing with the UNIQUE_SYMBOL #defines
+-    """
+-    return PyUFunc_getfperr()
++
+ 
+ 
+ cdef void _set_action(
+diff --git a/scipy/special/_ufuncs_extra_code_common.pxi b/scipy/special/_ufuncs_extra_code_common.pxi
+index 8e1ff08..ce867bc 100644
+--- a/scipy/special/_ufuncs_extra_code_common.pxi
++++ b/scipy/special/_ufuncs_extra_code_common.pxi
+@@ -9,15 +9,7 @@ from numpy cimport (
+ 
+ ctypedef double complex double_complex
+ 
+-cdef extern from "numpy/ufuncobject.h":
+-    int PyUFunc_getfperr() nogil
+ 
+-cdef public int wrap_PyUFunc_getfperr() noexcept nogil:
+-    """
+-    Call PyUFunc_getfperr in a context where PyUFunc_API array is initialized;
+-    this avoids messing with the UNIQUE_SYMBOL #defines
+-    """
+-    return PyUFunc_getfperr()
+ 
+ cimport libc
+ 
+diff --git a/scipy/special/meson.build b/scipy/special/meson.build
+index eb840af..7f31dcc 100644
+--- a/scipy/special/meson.build
++++ b/scipy/special/meson.build
+@@ -56,7 +56,7 @@ py3.extension_module('_special_ufuncs',
+   include_directories: ['..', '../_lib', '../_build_utils/src'],
+   dependencies: [xsf_dep, np_dep],
+   link_args: version_link_args,
+-  cpp_args: ufuncs_cpp_args,
++  cpp_args: ufuncs_cpp_args + ['-DDEFINE_xsf_ufunc'],
+   install: true,
+   subdir: 'scipy/special',
+ )
+@@ -66,7 +66,7 @@ py3.extension_module('_gufuncs',
+   include_directories: ['..', '../_lib', '../_build_utils/src'],
+   dependencies: [xsf_dep, np_dep],
+   link_args: version_link_args,
+-  cpp_args: ufuncs_cpp_args,
++  cpp_args: ufuncs_cpp_args + ['-DDEFINE_xsf_numpy'],
+   install: true,
+   subdir: 'scipy/special',
+ )
+@@ -190,7 +190,7 @@ py3.extension_module('cython_special',
+     'dd_real_wrappers.cpp'
+   ],
+   c_args: [cython_c_args, Wno_maybe_uninitialized],
+-  cpp_args: ['-DSP_SPECFUN_ERROR'],
++  cpp_args: ['-DSP_SPECFUN_ERROR',  '-DDEFINE_chbevl', '-DDEFINE_rgamma', '-DDEFINE_k1e', '-DDEFINE_psi', '-DDEFINE_lanczos', '-DDEFINE_igami', '-DDEFINE_loggamma', '-DDEFINE_hys2f1', '-DDEFINE_xsf_hyp2f1', '-DDEFINE_struve', '-DDEFINE_numbers', '-DDEFINE_faddeeva', '-DDEFINE_pow2', '-DDEFINE_chdtr'],
+   include_directories: ['..', '../_lib', '../_build_utils/src'],
+   link_args: version_link_args,
+   dependencies: [xsf_dep, np_dep, npymath_lib, lapack_dep],
+@@ -206,22 +206,6 @@ py3.extension_module('_comb',
+   subdir: 'scipy/special'
+ )
+ 
+-py3.extension_module('_test_internal',
+-  [cython_gen.process('_test_internal.pyx'), 'dd_real_wrappers.cpp'],
+-  include_directories: ['../_lib', '../_build_utils/src'],
+-  dependencies: [xsf_dep, np_dep],
+-  link_args: version_link_args,
+-  install: true,
+-  subdir: 'scipy/special',
+-  install_tag: 'tests'
+-)
+-
+-py3.install_sources(
+-  '_test_internal.pyi',
+-  subdir: 'scipy/special',
+-  install_tag: 'tests'
+-)
+-
+ # Must use `custom_target`, because `py3.install_sources` does not work with
+ # generated sources - see https://github.com/mesonbuild/meson/issues/7372
+ npz_files = [
+diff --git a/scipy/stats/_rcont/meson.build b/scipy/stats/_rcont/meson.build
+index c57472f..3a015cc 100644
+--- a/scipy/stats/_rcont/meson.build
++++ b/scipy/stats/_rcont/meson.build
+@@ -8,8 +8,8 @@ py3.install_sources([
+ py3.extension_module('rcont',
+   [
+     '_rcont.c',
+-    '../libnpyrandom/logfactorial.c',
+-    '../libnpyrandom/distributions.c',
++    #'../libnpyrandom/logfactorial.c',
++    #'../libnpyrandom/distributions.c',
+   ],
+   cython_gen.process('rcont.pyx'),
+   include_directories: ['../libnpyrandom'],
+diff --git a/scipy/stats/meson.build b/scipy/stats/meson.build
+index 282c250..0455349 100644
+--- a/scipy/stats/meson.build
++++ b/scipy/stats/meson.build
+@@ -64,7 +64,7 @@ py3.extension_module('_biasedurn',
+     'biasedurn/stoc3.cpp',
+     'biasedurn/stocR.h',
+     'biasedurn/wnchyppr.cpp',
+-    'libnpyrandom/distributions.c',
++    #'libnpyrandom/distributions.c',
+   ],
+   cpp_args: ['-DR_BUILD', cython_cpp_args],
+   include_directories: ['libnpyrandom'],
+diff --git a/subprojects/xsf/include/xsf/cephes/chbevl.h b/subprojects/xsf/include/xsf/cephes/chbevl.h
+index caaa74f..3f13222 100644
+--- a/subprojects/xsf/include/xsf/cephes/chbevl.h
++++ b/subprojects/xsf/include/xsf/cephes/chbevl.h
+@@ -63,6 +63,7 @@
+ namespace xsf {
+ namespace cephes {
+ 
++#ifdef DEFINE_chbevl
+     XSF_HOST_DEVICE double chbevl(double x, const double array[], int n) {
+         double b0, b1, b2;
+         const double *p;
+@@ -81,5 +82,8 @@ namespace cephes {
+ 
+         return (0.5 * (b0 - b2));
+     }
++#else
++    XSF_HOST_DEVICE double chbevl(double x, const double array[], int n);
++#endif
+ } // namespace cephes
+ } // namespace xsf
+diff --git a/subprojects/xsf/include/xsf/cephes/chdtr.h b/subprojects/xsf/include/xsf/cephes/chdtr.h
+index 30ee84d..7108055 100644
+--- a/subprojects/xsf/include/xsf/cephes/chdtr.h
++++ b/subprojects/xsf/include/xsf/cephes/chdtr.h
+@@ -178,6 +178,7 @@ namespace cephes {
+         return (igam(df / 2.0, x / 2.0));
+     }
+ 
++#ifdef DEFINE_chdtr
+     XSF_HOST_DEVICE double chdtri(double df, double y) {
+         double x;
+ 
+@@ -189,6 +190,9 @@ namespace cephes {
+         x = igamci(0.5 * df, y);
+         return (2.0 * x);
+     }
++#else
++    XSF_HOST_DEVICE double chdtri(double df, double y);
++#endif
+ 
+ } // namespace cephes
+ } // namespace xsf
+diff --git a/subprojects/xsf/include/xsf/cephes/hyp2f1.h b/subprojects/xsf/include/xsf/cephes/hyp2f1.h
+index 819512f..2398fbc 100644
+--- a/subprojects/xsf/include/xsf/cephes/hyp2f1.h
++++ b/subprojects/xsf/include/xsf/cephes/hyp2f1.h
+@@ -90,6 +90,7 @@ namespace cephes {
+         /* hys2f1 and hyp2f1ra depend on each other, so we need this prototype */
+         XSF_HOST_DEVICE double hyp2f1ra(double a, double b, double c, double x, double *loss);
+ 
++#ifdef DEFINE_hys2f1
+         /* Defining power series expansion of Gauss hypergeometric function */
+         /* The `loss` parameter estimates loss of significance */
+         XSF_HOST_DEVICE double hys2f1(double a, double b, double c, double x, double *loss) {
+@@ -410,8 +411,15 @@ namespace cephes {
+ 
+             return f0;
+         }
++#else
++    XSF_HOST_DEVICE double hys2f1(double a, double b, double c, double x, double *loss);
++    XSF_HOST_DEVICE double hyt2f1(double a, double b, double c, double x, double *loss);
++    XSF_HOST_DEVICE double hyp2f1_neg_c_equal_bc(double a, double b, double x);
++    XSF_HOST_DEVICE double hyp2f1ra(double a, double b, double c, double x, double *loss);
++#endif
+     } // namespace detail
+ 
++#ifdef DEFINE_hys2f1
+     XSF_HOST_DEVICE double hyp2f1(double a, double b, double c, double x) {
+         double d, d1, d2, e;
+         double p, q, r, s, y, ax;
+@@ -590,6 +598,9 @@ namespace cephes {
+         set_error("hyp2f1", SF_ERROR_OVERFLOW, NULL);
+         return std::numeric_limits<double>::infinity();
+     }
++#else
++    XSF_HOST_DEVICE double hyp2f1(double a, double b, double c, double x);
++#endif
+ 
+ } // namespace cephes
+ } // namespace xsf
+diff --git a/subprojects/xsf/include/xsf/cephes/igami.h b/subprojects/xsf/include/xsf/cephes/igami.h
+index ff82c35..df828f9 100644
+--- a/subprojects/xsf/include/xsf/cephes/igami.h
++++ b/subprojects/xsf/include/xsf/cephes/igami.h
+@@ -23,6 +23,7 @@ namespace cephes {
+ 
+     namespace detail {
+ 
++#ifdef DEFINE_igami
+         XSF_HOST_DEVICE double find_inverse_s(double p, double q) {
+             /*
+              * Computation of the Incomplete Gamma Function Ratios and their Inverse
+@@ -46,6 +47,9 @@ namespace cephes {
+                 s = -s;
+             return s;
+         }
++#else
++        XSF_HOST_DEVICE double find_inverse_s(double p, double q);
++#endif
+ 
+         XSF_HOST_DEVICE inline double didonato_SN(double a, double x, unsigned N, double tolerance) {
+             /*
+diff --git a/subprojects/xsf/include/xsf/cephes/k1.h b/subprojects/xsf/include/xsf/cephes/k1.h
+index b64d0d7..fa9c935 100644
+--- a/subprojects/xsf/include/xsf/cephes/k1.h
++++ b/subprojects/xsf/include/xsf/cephes/k1.h
+@@ -141,6 +141,7 @@ namespace cephes {
+         return (std::exp(-x) * chbevl(8.0 / x - 2.0, detail::k1_B, 25) / std::sqrt(x));
+     }
+ 
++#ifdef DEFINE_k1e
+     XSF_HOST_DEVICE double k1e(double x) {
+         double y;
+ 
+@@ -160,6 +161,9 @@ namespace cephes {
+ 
+         return (chbevl(8.0 / x - 2.0, detail::k1_B, 25) / std::sqrt(x));
+     }
++#else
++    XSF_HOST_DEVICE double k1e(double x);
++#endif
+ 
+ } // namespace cephes
+ } // namespace xsf
+diff --git a/subprojects/xsf/include/xsf/cephes/kolmogorov.h b/subprojects/xsf/include/xsf/cephes/kolmogorov.h
+index b3c4e85..c4b3739 100644
+--- a/subprojects/xsf/include/xsf/cephes/kolmogorov.h
++++ b/subprojects/xsf/include/xsf/cephes/kolmogorov.h
+@@ -445,6 +445,7 @@ namespace cephes {
+             *Cman = man2;
+         }
+ 
++#ifdef DEFINE_pow2
+         XSF_HOST_DEVICE double_double pow_D(const double_double &a, int m) {
+             /*
+              * Using dd_npwr() here would be quite time-consuming.
+@@ -475,6 +476,9 @@ namespace cephes {
+             }
+             return double_double(ans) + ans * adj;
+         }
++#else
++        XSF_HOST_DEVICE double_double pow_D(const double_double &a, int m);
++#endif
+ 
+         XSF_HOST_DEVICE inline double pow2(double a, double b, int m) {
+             return static_cast<double>(pow_D(double_double(a) + b, m));
+@@ -486,6 +490,7 @@ namespace cephes {
+          */
+         constexpr int SM_MAX_EXPONENT = 960;
+ 
++#ifdef DEFINE_pow2
+         XSF_HOST_DEVICE double_double pow2Scaled_D(const double_double &a, int m, int *pExponent) {
+             /* Compute a^m = significand*2^expt and return as (significand, expt) */
+             double_double ans, y;
+@@ -547,6 +552,9 @@ namespace cephes {
+             *pExponent = ansE;
+             return ans;
+         }
++#else
++        XSF_HOST_DEVICE double_double pow2Scaled_D(const double_double &a, int m, int *pExponent);
++#endif
+ 
+         XSF_HOST_DEVICE inline double_double pow4_D(double a, double b, double c, double d, int m) {
+             /* Compute ((a+b)/(c+d)) ^ m */
+diff --git a/subprojects/xsf/include/xsf/cephes/lanczos.h b/subprojects/xsf/include/xsf/cephes/lanczos.h
+index f387412..f529848 100644
+--- a/subprojects/xsf/include/xsf/cephes/lanczos.h
++++ b/subprojects/xsf/include/xsf/cephes/lanczos.h
+@@ -85,6 +85,7 @@ namespace cephes {
+             -9.8907772644920670589288081640128194231,       6.565936202082889535528455955485877361223
+         };
+ 
++#ifdef DEFINE_lanczos
+         XSF_HOST_DEVICE double lanczos_sum(double x) { return ratevl(x, lanczos_num, 12, lanczos_denom, 12); }
+ 
+         XSF_HOST_DEVICE double lanczos_sum_near_1(double dx) {
+@@ -107,11 +108,20 @@ namespace cephes {
+             }
+             return result;
+         }
++#else
++        XSF_HOST_DEVICE double lanczos_sum(double x);
++        XSF_HOST_DEVICE double lanczos_sum_near_1(double dx);
++        XSF_HOST_DEVICE double lanczos_sum_near_2(double dx);
++#endif
+     } // namespace detail
+ 
+     constexpr double lanczos_g = 6.024680040776729583740234375;
++#ifdef DEFINE_lanczos
+     XSF_HOST_DEVICE double lanczos_sum_expg_scaled(double x) {
+         return ratevl(x, detail::lanczos_sum_expg_scaled_num, 12, detail::lanczos_sum_expg_scaled_denom, 12);
+     }
++#else
++    XSF_HOST_DEVICE double lanczos_sum_expg_scaled(double x);
++#endif
+ } // namespace cephes
+ } // namespace xsf
+diff --git a/subprojects/xsf/include/xsf/cephes/psi.h b/subprojects/xsf/include/xsf/cephes/psi.h
+index bcc3c61..fc8bdd2 100644
+--- a/subprojects/xsf/include/xsf/cephes/psi.h
++++ b/subprojects/xsf/include/xsf/cephes/psi.h
+@@ -99,6 +99,7 @@ namespace cephes {
+             1.0
+         };
+ 
++#ifdef DEFINE_psi
+         XSF_HOST_DEVICE double digamma_imp_1_2(double x) {
+             /*
+              * Rational approximation on [1, 2] taken from Boost.
+@@ -136,8 +137,13 @@ namespace cephes {
+ 
+             return std::log(x) - (0.5 / x) - y;
+         }
++#else
++        XSF_HOST_DEVICE double digamma_imp_1_2(double x);
++        XSF_HOST_DEVICE double psi_asy(double x);
++#endif
+     } // namespace detail
+ 
++#ifdef DEFINE_psi
+     XSF_HOST_DEVICE double psi(double x) {
+         double y = 0.0;
+         double q, r;
+@@ -192,5 +198,8 @@ namespace cephes {
+         y += detail::psi_asy(x);
+         return y;
+     }
++#else
++        XSF_HOST_DEVICE double psi(double x);
++#endif
+ } // namespace cephes
+ } // namespace xsf
+diff --git a/subprojects/xsf/include/xsf/cephes/rgamma.h b/subprojects/xsf/include/xsf/cephes/rgamma.h
+index 7c41601..845c8ec 100644
+--- a/subprojects/xsf/include/xsf/cephes/rgamma.h
++++ b/subprojects/xsf/include/xsf/cephes/rgamma.h
+@@ -72,6 +72,7 @@ namespace cephes {
+ 
+     } // namespace detail
+ 
++#ifdef DEFINE_rgamma
+     XSF_HOST_DEVICE double rgamma(double x) {
+         double w, y, z;
+ 
+@@ -108,5 +109,8 @@ namespace cephes {
+         y = w * (1.0 + chbevl(4.0 * w - 2.0, detail::rgamma_R, 16)) / z;
+         return (y);
+     }
++#else
++    XSF_HOST_DEVICE double rgamma(double x);
++#endif
+ } // namespace cephes
+ } // namespace xsf
+diff --git a/subprojects/xsf/include/xsf/faddeeva.h b/subprojects/xsf/include/xsf/faddeeva.h
+index d4c67d1..946e9d6 100644
+--- a/subprojects/xsf/include/xsf/faddeeva.h
++++ b/subprojects/xsf/include/xsf/faddeeva.h
+@@ -148,6 +148,7 @@ double erfc(double x); // special case for real x
+ std::complex<double> Dawson(std::complex<double> z, double relerr = 0);
+ double Dawson(double x); // special case for real x
+ 
++#ifdef DEFINE_faddeeva
+ // compute erfcx(z) = exp(z^2) erfz(z)
+ std::complex<double> erfcx(std::complex<double> z, double relerr) { return w(std::complex<double>(-imag(z), real(z))); }
+ 
+@@ -431,6 +432,8 @@ taylor_realaxis: {
+ }
+ }
+ 
++#endif
++
+ // return sinc(x) = sin(x)/x, given both x and sin(x)
+ // [since we only use this in cases where sin(x) has already been computed]
+ inline double sinc(double x, double sinx) { return fabs(x) < 1e-4 ? 1 - (0.1666666666666666666667) * x * x : sinx / x; }
+@@ -503,6 +506,7 @@ static const double expa2n2[] = {
+ 
+ /////////////////////////////////////////////////////////////////////////
+ 
++#ifdef DEFINE_faddeeva
+ std::complex<double> w(std::complex<double> z, double relerr) {
+     if (real(z) == 0.0)
+         return std::complex<double>(erfcx(imag(z)),
+@@ -3300,5 +3304,6 @@ double w_im(double x) {
+         return -w_im_y100(100 / (1 - x), -x);
+     }
+ }
++#endif
+ 
+ } // namespace Faddeeva
+diff --git a/subprojects/xsf/include/xsf/hyp2f1.h b/subprojects/xsf/include/xsf/hyp2f1.h
+index bdecebf..a80c854 100644
+--- a/subprojects/xsf/include/xsf/hyp2f1.h
++++ b/subprojects/xsf/include/xsf/hyp2f1.h
+@@ -458,6 +458,7 @@ namespace detail {
+         std::complex<double> z_, Z_;
+     };
+ 
++#ifdef DEFINE_xsf_hyp2f1
+     XSF_HOST_DEVICE std::complex<double>
+     hyp2f1_transform1_limiting_case(double a, double b, double c, double m, std::complex<double> z) {
+         /* 1 - z transform in limiting case where c - a - b approaches an integer m. */
+@@ -516,6 +517,12 @@ namespace detail {
+                   series_eval(series_generator2, std::complex<double>{0.0, 0.0}, hyp2f1_EPS, hyp2f1_MAXITER, "hyp2f1");
+         return result;
+     }
++#else
++    XSF_HOST_DEVICE std::complex<double> hyp2f1_transform1_limiting_case(double a, double b, double c, double m,
++                                                                             std::complex<double> z);
++    XSF_HOST_DEVICE std::complex<double> hyp2f1_transform2_limiting_case(double a, double b, double c, double m,
++                                                                             std::complex<double> z);
++#endif
+ 
+ } // namespace detail
+ 
+diff --git a/subprojects/xsf/include/xsf/loggamma.h b/subprojects/xsf/include/xsf/loggamma.h
+index 2394a65..1fcadbc 100644
+--- a/subprojects/xsf/include/xsf/loggamma.h
++++ b/subprojects/xsf/include/xsf/loggamma.h
+@@ -38,6 +38,7 @@ namespace detail {
+     constexpr double loggamma_LOGPI = 1.1447298858494001741434262; // log(pi)
+     constexpr double loggamma_TAYLOR_RADIUS = 0.2;
+ 
++#ifdef DEFINE_loggamma
+     XSF_HOST_DEVICE std::complex<double> loggamma_stirling(std::complex<double> z) {
+         /* Stirling series for log-Gamma
+          *
+@@ -97,6 +98,11 @@ namespace detail {
+         z -= 1.0;
+         return z * cevalpoly(coeffs, 22, z);
+     }
++#else
++    XSF_HOST_DEVICE std::complex<double> loggamma_stirling(std::complex<double> z);
++    XSF_HOST_DEVICE std::complex<double> loggamma_recurrence(std::complex<double> z);
++    XSF_HOST_DEVICE std::complex<double> loggamma_taylor(std::complex<double> z);
++#endif
+ } // namespace detail
+ 
+ XSF_HOST_DEVICE inline double loggamma(double x) {
+diff --git a/subprojects/xsf/include/xsf/numbers.h b/subprojects/xsf/include/xsf/numbers.h
+index da4e241..64971cb 100644
+--- a/subprojects/xsf/include/xsf/numbers.h
++++ b/subprojects/xsf/include/xsf/numbers.h
+@@ -8,11 +8,18 @@ namespace numbers {
+     template <typename T>
+     std::complex<T> i_v;
+ 
++#ifdef DEFINE_numbers
+     template <>
+     std::complex<float> i_v<float> = std::literals::complex_literals::operator""if(1.0L);
+ 
+     template <>
+     std::complex<double> i_v<double> = std::literals::complex_literals::operator""i(1.0L);
++#else
++    extern template
++    std::complex<float> i_v<float>;
++    extern template
++    std::complex<double> i_v<double>;
++#endif
+ 
+ } // namespace numbers
+ } // namespace xsf
+diff --git a/subprojects/xsf/include/xsf/numpy.h b/subprojects/xsf/include/xsf/numpy.h
+index e1153ee..c494476 100644
+--- a/subprojects/xsf/include/xsf/numpy.h
++++ b/subprojects/xsf/include/xsf/numpy.h
+@@ -27,11 +27,12 @@
+ /* PyUFunc_getfperr gets bits for current floating point error (fpe) status codes so we
+  * can check for floating point errors and make proper calls to set_error in ufunc loops.
+  * Define a wrapper so it can be given C linkage within this C++ header. */
+-extern "C" int wrap_PyUFunc_getfperr() { return PyUFunc_getfperr(); }
++extern "C" int wrap_PyUFunc_getfperr(); // { return PyUFunc_getfperr(); }
+ 
+ namespace xsf {
+ namespace numpy {
+ 
++#ifdef DEFINE_xsf_numpy
+     void set_error_check_fpe(const char *func_name) {
+         int status = wrap_PyUFunc_getfperr();
+         if (status & NPY_FPE_DIVIDEBYZERO) {
+@@ -47,6 +48,9 @@ namespace numpy {
+             xsf::set_error(func_name, SF_ERROR_DOMAIN, "floating point invalid value");
+         }
+     }
++#else
++    void set_error_check_fpe(const char *func_name);
++#endif
+ 
+     namespace detail {
+ 
+@@ -965,6 +969,7 @@ namespace numpy {
+         }
+     };
+ 
++#ifdef DEFINE_xsf_ufunc
+     PyObject *ufunc(ufunc_overloads func, int nout, const char *name, const char *doc) {
+         static std::vector<ufunc_overloads> ufuncs;
+ 
+@@ -1015,6 +1020,17 @@ namespace numpy {
+ 
+         return gufunc(std::move(overloads), nout, name, doc, signature, map_dims);
+     }
++#else
++    PyObject *ufunc(ufunc_overloads func, int nout, const char *name, const char *doc);
++    PyObject *ufunc(ufunc_overloads overloads, const char *name, const char *doc);
++    PyObject *gufunc(
++        ufunc_overloads overloads, int nout, const char *name, const char *doc, const char *signature,
++        map_dims_type map_dims
++    );
++    PyObject *gufunc(
++        ufunc_overloads overloads, const char *name, const char *doc, const char *signature, map_dims_type map_dims
++    );
++#endif
+ 
+     // rename to autodiff_var?
+     template <typename T>
+diff --git a/subprojects/xsf/include/xsf/struve.h b/subprojects/xsf/include/xsf/struve.h
+index d9541aa..202ed1c 100644
+--- a/subprojects/xsf/include/xsf/struve.h
++++ b/subprojects/xsf/include/xsf/struve.h
+@@ -217,6 +217,7 @@ T itmodstruve0(T x) {
+     return out;
+ }
+ 
++#ifdef DEFINE_struve
+ double struve_h(double v, double z) { return cephes::struve_h(v, z); }
+ 
+ float struve_h(float v, float z) { return struve_h(static_cast<double>(v), static_cast<double>(z)); }
+@@ -224,5 +225,11 @@ float struve_h(float v, float z) { return struve_h(static_cast<double>(v), stati
+ double struve_l(double v, double z) { return cephes::struve_l(v, z); }
+ 
+ float struve_l(float v, float z) { return struve_l(static_cast<double>(v), static_cast<double>(z)); }
++#else
++double struve_h(double v, double z);
++float struve_h(float v, float z);
++double struve_l(double v, double z);
++float struve_l(float v, float z);
++#endif
+ 
+ } // namespace xsf

@@ -1,0 +1,17 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f38613e..02ea2c8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -62,11 +62,6 @@ else()
+ endif()
+ 
+ # Disable CTest targets
+-set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
+-include(CTest)
+ 
+-include(c)
+ 
+-option(BUILD_EXAMPLES "Build examples" ON)
+-message(STATUS "Build examples: ${BUILD_EXAMPLES}")
+-add_subdirectory(examples)
++include(c)

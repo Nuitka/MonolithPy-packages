@@ -1,0 +1,10 @@
+{
+  "version": "24.09",
+  "build_tools": [
+    "lessmsi"
+  ],
+  "files": [
+    "build.py"
+  ],
+  "build_script": "build.py"
+}

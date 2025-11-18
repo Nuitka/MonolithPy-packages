@@ -1,0 +1,367 @@
+diff --git a/extern/agg24-svn/meson.build b/extern/agg24-svn/meson.build
+index a1c0884..83c9793 100644
+--- a/extern/agg24-svn/meson.build
++++ b/extern/agg24-svn/meson.build
+@@ -14,6 +14,8 @@ agg_lib = static_library('agg',
+   'src/agg_vpgen_segmentator.cpp',
+   include_directories : agg_incdir,
+   gnu_symbol_visibility: 'inlineshidden',
++  install: true,
++  install_dir: py3.get_install_dir() / 'matplotlib'
+ )
+ 
+ agg_dep = declare_dependency(
+diff --git a/extern/meson.build b/extern/meson.build
+index 5463183..18178d1 100644
+--- a/extern/meson.build
++++ b/extern/meson.build
+@@ -7,7 +7,7 @@ subdir('agg24-svn')
+ # For FreeType>=2.4, there is a conversion table in docs/VERSIONS.txt in the
+ # FreeType source tree.
+ if get_option('system-freetype')
+-  freetype_dep = dependency('freetype2', version: '>=9.11.3')
++  freetype_dep = dependency('freetype', version: '>=0.0.0')
+ else
+   # This is the version of FreeType to use when building a local version. It
+   # must match the value in `lib/matplotlib.__init__.py`. Also update the docs
+@@ -29,5 +29,6 @@ if get_option('system-qhull')
+   endif
+ else
+   qhull_proj = subproject('qhull')
++  qhull_lib = qhull_proj.get_variable('qhull_lib')
+   qhull_dep = qhull_proj.get_variable('qhull_dep')
+ endif
+diff --git a/pyproject.toml b/pyproject.toml
+index 832d763..38dd216 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -76,7 +76,7 @@ requires = [
+ ]
+ 
+ [tool.meson-python.args]
+-install = ['--tags=data,python-runtime,runtime']
++install = ['--tags=data,python-runtime,runtime,devel']
+ 
+ [tool.setuptools_scm]
+ version_scheme = "release-branch-semver"
+diff --git a/src/_enums.h b/src/_enums.h
+index 18f3d9a..1dd9682 100644
+--- a/src/_enums.h
++++ b/src/_enums.h
+@@ -52,21 +52,6 @@ namespace p11x {
+ // Immediately converting the args to a vector outside of the lambda avoids
+ // name collisions.
+ #define P11X_DECLARE_ENUM(py_name, py_base_cls, ...) \
+-  namespace p11x { \
+-    namespace { \
+-      [[maybe_unused]] auto const P11X_CAT(enum_placeholder_, __COUNTER__) = \
+-        [](auto args) { \
+-          py::gil_scoped_acquire gil; \
+-          using int_t = std::underlying_type_t<decltype(args[0].second)>; \
+-          auto pairs = std::vector<std::pair<std::string, int_t>>{}; \
+-          for (auto& [k, v]: args) { \
+-            pairs.emplace_back(k, int_t(v)); \
+-          } \
+-          p11x::enums[py_name] = pybind11::cast(std::pair{py_base_cls, pairs}); \
+-          return 0; \
+-        } (std::vector{std::pair __VA_ARGS__}); \
+-    } \
+-  } \
+   namespace pybind11::detail { \
+     template<> struct type_caster<P11X_ENUM_TYPE(__VA_ARGS__)> { \
+       using type = P11X_ENUM_TYPE(__VA_ARGS__); \
+@@ -92,4 +77,18 @@ namespace p11x {
+     }; \
+   }
+ 
++#define P11X_INIT_ENUM(py_name, py_base_cls, ...) \
++  { \
++      [](auto args) { \
++        py::gil_scoped_acquire gil; \
++        using int_t = std::underlying_type_t<decltype(args[0].second)>; \
++        auto pairs = std::vector<std::pair<std::string, int_t>>{}; \
++        for (auto& [k, v]: args) { \
++          pairs.emplace_back(k, int_t(v)); \
++        } \
++        p11x::enums[py_name] = pybind11::cast(std::pair{py_base_cls, pairs}); \
++        return 0; \
++      } (std::vector{std::pair __VA_ARGS__}); \
++  }
++
+ #endif /* MPL_ENUMS_H */
+diff --git a/src/_qhull_wrapper.cpp b/src/_qhull_wrapper.cpp
+index da623a8..cb12aa0 100644
+--- a/src/_qhull_wrapper.cpp
++++ b/src/_qhull_wrapper.cpp
+@@ -5,6 +5,7 @@
+  * triangulation, construct an instance of the matplotlib.tri.Triangulation
+  * class without specifying a triangles array.
+  */
++#include <np_embed.h>
+ #include <pybind11/pybind11.h>
+ #include <pybind11/numpy.h>
+ 
+@@ -121,7 +122,7 @@ public:
+                          "Qhull could not free all allocated memory", 1);
+         }
+ 
+-        if (this->error_file != stderr) {
++        if (this->error_file != (FILE*)stderr) {
+             fclose(error_file);
+         }
+     }
+@@ -179,7 +180,7 @@ delaunay_impl(py::ssize_t npoints, const double* x, const double* y,
+     }
+     else {
+         /* qhull errors written to stderr. */
+-        error_file = stderr;
++        error_file = (FILE*)stderr;
+     }
+ 
+     /* Perform Delaunay triangulation. */
+diff --git a/src/_tkagg.cpp b/src/_tkagg.cpp
+index 874f6af..bfeda56 100644
+--- a/src/_tkagg.cpp
++++ b/src/_tkagg.cpp
+@@ -247,103 +247,24 @@ mpl_tk_enable_dpi_awareness(py::object UNUSED_ON_NON_WINDOWS(frame_handle_obj),
+ 
+ // Functions to fill global Tcl/Tk function pointers by dynamic loading.
+ 
+-template <class T>
+-bool load_tcl_tk(T lib)
+-{
+-    // Try to fill Tcl/Tk global vars with function pointers.  Return whether
+-    // all of them have been filled.
+-    if (auto ptr = dlsym(lib, "Tcl_SetVar")) {
+-        TCL_SETVAR = (Tcl_SetVar_t)ptr;
+-    }
+-    if (auto ptr = dlsym(lib, "Tcl_SetVar2")) {
+-        TCL_SETVAR2 = (Tcl_SetVar2_t)ptr;
+-    }
+-    if (auto ptr = dlsym(lib, "Tk_FindPhoto")) {
+-        TK_FIND_PHOTO = (Tk_FindPhoto_t)ptr;
+-    }
+-    if (auto ptr = dlsym(lib, "Tk_PhotoPutBlock")) {
+-        TK_PHOTO_PUT_BLOCK = (Tk_PhotoPutBlock_t)ptr;
+-    }
+-    return (TCL_SETVAR || TCL_SETVAR2) && TK_FIND_PHOTO && TK_PHOTO_PUT_BLOCK;
+-}
+-
+-#ifdef WIN32_DLL
+-
+-/* On Windows, we can't load the tkinter module to get the Tcl/Tk symbols,
+- * because Windows does not load symbols into the library name-space of
+- * importing modules. So, knowing that tkinter has already been imported by
+- * Python, we scan all modules in the running process for the Tcl/Tk function
+- * names.
+- */
+-
+-static void
+-load_tkinter_funcs()
+-{
+-    HANDLE process = GetCurrentProcess();  // Pseudo-handle, doesn't need closing.
+-    DWORD size;
+-    if (!EnumProcessModules(process, NULL, 0, &size)) {
+-        PyErr_SetFromWindowsErr(0);
+-        throw py::error_already_set();
+-    }
+-    auto count = size / sizeof(HMODULE);
+-    auto modules = std::vector<HMODULE>(count);
+-    if (!EnumProcessModules(process, modules.data(), size, &size)) {
+-        PyErr_SetFromWindowsErr(0);
+-        throw py::error_already_set();
+-    }
+-    for (auto mod: modules) {
+-        if (load_tcl_tk(mod)) {
+-            return;
+-        }
+-    }
+-}
++extern "C" const char *	Tcl_SetVar2(Tcl_Interp *interp, const char *part1,
++				const char *part2, const char *newValue,
++				int flags);
++extern "C" Tk_PhotoHandle	Tk_FindPhoto(Tcl_Interp *interp,
++				const char *imageName);
++extern "C" int		Tk_PhotoPutBlock(Tcl_Interp *interp,
++				Tk_PhotoHandle handle,
++				Tk_PhotoImageBlock *blockPtr, int x, int y,
++				int width, int height, int compRule);
+ 
+-#else  // not Windows
+-
+-/*
+- * On Unix, we can get the Tk symbols from the tkinter module, because tkinter
+- * uses these symbols, and the symbols are therefore visible in the tkinter
+- * dynamic library (module).
+- */
+ 
+ static void
+ load_tkinter_funcs()
+ {
+-    // Load tkinter global funcs from tkinter compiled module.
+-
+-    // Try loading from the main program namespace first.
+-    auto main_program = dlopen(NULL, RTLD_LAZY);
+-    auto success = load_tcl_tk(main_program);
+-    // We don't need to keep a reference open as the main program always exists.
+-    if (dlclose(main_program)) {
+-        throw std::runtime_error(dlerror());
+-    }
+-    if (success) {
+-        return;
+-    }
+-
+-    py::object module;
+-    // Handle PyPy first, as that import will correctly fail on CPython.
+-    try {
+-        module = py::module_::import("_tkinter.tklib_cffi");  // PyPy
+-    } catch (py::error_already_set &e) {
+-        module = py::module_::import("_tkinter");  // CPython
+-    }
+-    auto py_path = module.attr("__file__");
+-    auto py_path_b = py::reinterpret_steal<py::bytes>(
+-        PyUnicode_EncodeFSDefault(py_path.ptr()));
+-    std::string path = py_path_b;
+-    auto tkinter_lib = dlopen(path.c_str(), RTLD_LAZY);
+-    if (!tkinter_lib) {
+-        throw std::runtime_error(dlerror());
+-    }
+-    load_tcl_tk(tkinter_lib);
+-    // We don't need to keep a reference open as tkinter has been imported.
+-    if (dlclose(tkinter_lib)) {
+-        throw std::runtime_error(dlerror());
+-    }
++    TCL_SETVAR2 = Tcl_SetVar2;
++    TK_FIND_PHOTO = Tk_FindPhoto;
++    TK_PHOTO_PUT_BLOCK = Tk_PhotoPutBlock;
+ }
+-#endif // end not Windows
+ 
+ PYBIND11_MODULE(_tkagg, m, py::mod_gil_not_used())
+ {
+diff --git a/src/ft2font_wrapper.cpp b/src/ft2font_wrapper.cpp
+index 9b54721..5f44fe8 100644
+--- a/src/ft2font_wrapper.cpp
++++ b/src/ft2font_wrapper.cpp
+@@ -1650,6 +1650,77 @@ ft2font__getattr__(std::string name) {
+ 
+ PYBIND11_MODULE(ft2font, m, py::mod_gil_not_used())
+ {
++    P11X_INIT_ENUM(
++        "Kerning", "Enum",
++        {"DEFAULT", FT_KERNING_DEFAULT},
++        {"UNFITTED", FT_KERNING_UNFITTED},
++        {"UNSCALED", FT_KERNING_UNSCALED},
++    );
++    P11X_INIT_ENUM(
++        "FaceFlags", "Flag",
++        {"SCALABLE", FaceFlags::SCALABLE},
++        {"FIXED_SIZES", FaceFlags::FIXED_SIZES},
++        {"FIXED_WIDTH", FaceFlags::FIXED_WIDTH},
++        {"SFNT", FaceFlags::SFNT},
++        {"HORIZONTAL", FaceFlags::HORIZONTAL},
++        {"VERTICAL", FaceFlags::VERTICAL},
++        {"KERNING", FaceFlags::KERNING},
++        {"FAST_GLYPHS", FaceFlags::FAST_GLYPHS},
++        {"MULTIPLE_MASTERS", FaceFlags::MULTIPLE_MASTERS},
++        {"GLYPH_NAMES", FaceFlags::GLYPH_NAMES},
++        {"EXTERNAL_STREAM", FaceFlags::EXTERNAL_STREAM},
++        {"HINTER", FaceFlags::HINTER},
++        {"CID_KEYED", FaceFlags::CID_KEYED},
++        {"TRICKY", FaceFlags::TRICKY},
++        {"COLOR", FaceFlags::COLOR},
++        // backcompat: ft 2.9.0.
++        // {"VARIATION", FaceFlags::VARIATION},
++        // backcompat: ft 2.12.0.
++        // {"SVG", FaceFlags::SVG},
++        // backcompat: ft 2.12.0.
++        // {"SBIX", FaceFlags::SBIX},
++        // backcompat: ft 2.12.0.
++        // {"SBIX_OVERLAY", FaceFlags::SBIX_OVERLAY},
++    );
++    P11X_INIT_ENUM(
++        "LoadFlags", "Flag",
++        {"DEFAULT", LoadFlags::DEFAULT},
++        {"NO_SCALE", LoadFlags::NO_SCALE},
++        {"NO_HINTING", LoadFlags::NO_HINTING},
++        {"RENDER", LoadFlags::RENDER},
++        {"NO_BITMAP", LoadFlags::NO_BITMAP},
++        {"VERTICAL_LAYOUT", LoadFlags::VERTICAL_LAYOUT},
++        {"FORCE_AUTOHINT", LoadFlags::FORCE_AUTOHINT},
++        {"CROP_BITMAP", LoadFlags::CROP_BITMAP},
++        {"PEDANTIC", LoadFlags::PEDANTIC},
++        {"IGNORE_GLOBAL_ADVANCE_WIDTH", LoadFlags::IGNORE_GLOBAL_ADVANCE_WIDTH},
++        {"NO_RECURSE", LoadFlags::NO_RECURSE},
++        {"IGNORE_TRANSFORM", LoadFlags::IGNORE_TRANSFORM},
++        {"MONOCHROME", LoadFlags::MONOCHROME},
++        {"LINEAR_DESIGN", LoadFlags::LINEAR_DESIGN},
++        {"NO_AUTOHINT", LoadFlags::NO_AUTOHINT},
++        {"COLOR", LoadFlags::COLOR},
++        // backcompat: ft 2.6.1.
++        {"COMPUTE_METRICS", LoadFlags::COMPUTE_METRICS},
++        // backcompat: ft 2.7.1.
++        // {"BITMAP_METRICS_ONLY", LoadFlags::BITMAP_METRICS_ONLY},
++        // backcompat: ft 2.13.1.
++        // {"NO_SVG", LoadFlags::NO_SVG},
++        // These must be unique, but the others can be OR'd together; I don't know if
++        // there's any way to really enforce that.
++        {"TARGET_NORMAL", LoadFlags::TARGET_NORMAL},
++        {"TARGET_LIGHT", LoadFlags::TARGET_LIGHT},
++        {"TARGET_MONO", LoadFlags::TARGET_MONO},
++        {"TARGET_LCD", LoadFlags::TARGET_LCD},
++        {"TARGET_LCD_V", LoadFlags::TARGET_LCD_V},
++    );
++    P11X_INIT_ENUM(
++        "StyleFlags", "Flag",
++        {"NORMAL", StyleFlags::NORMAL},
++        {"ITALIC", StyleFlags::ITALIC},
++        {"BOLD", StyleFlags::BOLD},
++    );
++
+     if (FT_Init_FreeType(&_ft2Library)) {  // initialize library
+         throw std::runtime_error("Could not initialize the freetype2 library");
+     }
+diff --git a/src/meson.build b/src/meson.build
+index a7018f0..4aa04ed 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -17,11 +17,11 @@ dl = dependency('dl', required: false)
+ 
+ # With Meson >= 1.2.0, use cpp_winlibs instead of manually searching.
+ if ['cygwin', 'windows'].contains(host_machine.system())
+-  comctl32 = cc.find_library('comctl32')
+-  ole32 = cc.find_library('ole32')
+-  psapi = cc.find_library('psapi')
+-  shell32 = cc.find_library('shell32')
+-  user32 = cc.find_library('user32')
++  comctl32 = []
++  ole32 = []
++  psapi = []
++  shell32 = []
++  user32 = []
+ else
+   comctl32 = []
+   ole32 = []
+diff --git a/subprojects/packagefiles/qhull-8.0.2/meson.build b/subprojects/packagefiles/qhull-8.0.2/meson.build
+index 7a27b47..304b454 100644
+--- a/subprojects/packagefiles/qhull-8.0.2/meson.build
++++ b/subprojects/packagefiles/qhull-8.0.2/meson.build
+@@ -6,6 +6,9 @@ project('qhull', 'c',
+   ],
+   meson_version: '>=1.1.0')
+ 
++py_mod = import('python')
++py3 = py_mod.find_installation(pure: false)
++
+ qhull_inc = include_directories('src')
+ qhull_lib = static_library('qhull_r',
+   'src/libqhull_r/geom2_r.c',
+@@ -26,6 +29,8 @@ qhull_lib = static_library('qhull_r',
+   'src/libqhull_r/userprintf_r.c',
+   'src/libqhull_r/user_r.c',
+   gnu_symbol_visibility: 'inlineshidden',
++  install: true,
++  install_dir: py3.get_install_dir() / 'matplotlib'
+ )
+ 
+ qhull_dep = declare_dependency(

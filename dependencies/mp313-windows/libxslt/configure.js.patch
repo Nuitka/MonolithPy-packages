@@ -1,0 +1,11 @@
+--- configure.js	2021-07-18 15:43:54.333601300 -0400
++++ configure.new.js	2021-07-18 16:38:16.523862500 -0400
+@@ -238,6 +238,8 @@
+ 			of.WriteLine(s.replace(/\@WITH_MEM_DEBUG\@/, withMemDebug? "1" : "0"));
+ 		} else if (s.search(/\@WITH_DEBUGGER\@/) != -1) {
+ 			of.WriteLine(s.replace(/\@WITH_DEBUGGER\@/, withDebugger? "1" : "0"));
++		} else if (s.search(/\@WITH_PROFILER\@/) != -1) {
++			of.WriteLine(s.replace(/\@WITH_PROFILER\@/, "1"));
+ 		} else if (s.search(/\@WITH_MODULES\@/) != -1) {
+ 			of.WriteLine(s.replace(/\@WITH_MODULES\@/, withModules? "1" : "0"));
+ 		} else if (s.search(/\@LIBXSLT_DEFAULT_PLUGINS_PATH\@/) != -1) {

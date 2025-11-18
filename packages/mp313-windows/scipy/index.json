@@ -1,0 +1,28 @@
+{
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": ["cmake", "ninja", "flang", "clang", "mingw", "git"],
+      "dependencies": ["openblas"],
+      "files": [
+        "1.16.3/build.py",
+        "1.16.3/scipy-static-patch.patch"
+      ],
+      "build_requires": [
+        "setuptools",
+        "meson-python>=0.15.0,<0.21.0",
+        "pyproject-metadata",
+        "Cython>=3.0.8,<3.2.0",
+        "pybind11>=2.13.2,<3.1.0",
+        "pythran>=0.14.0,<0.19.0",
+        "build"
+      ],
+      "dist_requirements": [
+        "numpy>=2.0.0"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

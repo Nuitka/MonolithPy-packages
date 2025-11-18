@@ -1,0 +1,359 @@
+diff --git a/meson.build b/meson.build
+index d816cca..2878318 100644
+--- a/meson.build
++++ b/meson.build
+@@ -13,6 +13,8 @@ project(
+     'c_std=c11',
+     'cpp_std=c++17',
+     'pkgconfig.relocatable=true',
++    'prefer_static=True',
++    'b_vscrt=mt',
+   ],
+ )
+ 
+diff --git a/numpy/_core/meson.build b/numpy/_core/meson.build
+index 6b6fbd3..1b97b16 100644
+--- a/numpy/_core/meson.build
++++ b/numpy/_core/meson.build
+@@ -740,29 +740,6 @@ _umath_tests_mtargets = mod_features.multi_targets(
+   dependencies: [py_dep, np_core_dep]
+ )
+
+-test_modules_src = [
+-  ['_umath_tests', [
+-      src_file.process('src/umath/_umath_tests.c.src'),
+-      'src/common/npy_cpu_features.c',
+-    ],
+-    _umath_tests_mtargets.static_lib('_umath_tests_mtargets')
+-  ],
+-  ['_rational_tests', 'src/umath/_rational_tests.c', []],
+-  ['_struct_ufunc_tests', 'src/umath/_struct_ufunc_tests.c', []],
+-  ['_operand_flag_tests', 'src/umath/_operand_flag_tests.c', []],
+-]
+-foreach gen: test_modules_src
+-  py.extension_module(gen[0],
+-    gen[1],
+-    c_args: c_args_common,
+-    include_directories: ['src/multiarray', 'src/npymath'],
+-    dependencies: np_core_dep,
+-    install: true,
+-    subdir: 'numpy/_core',
+-    link_with: gen[2],
+-    install_tag: 'tests'
+-  )
+-endforeach
+
+ # Build multiarray dispatch-able sources
+ # --------------------------------------
+diff --git a/numpy/_core/src/common/numpyos.c b/numpy/_core/src/common/numpyos.c
+index a5ca280..e33e5d1 100644
+--- a/numpy/_core/src/common/numpyos.c
++++ b/numpy/_core/src/common/numpyos.c
+@@ -814,14 +814,7 @@ NumPyOS_strtoull(const char *str, char **endptr, int base)
+  * earlier than 14.0 (_MSC_VER == 1900).
+  */
+
+-static void __cdecl _silent_invalid_parameter_handler(
+-    wchar_t const* expression,
+-    wchar_t const* function,
+-    wchar_t const* file,
+-    unsigned int line,
+-    uintptr_t pReserved) { }
+-
+-_invalid_parameter_handler _Py_silent_invalid_parameter_handler = _silent_invalid_parameter_handler;
++
+
+ #endif
+ 
+diff --git a/numpy/_core/src/common/utils.hpp b/numpy/_core/src/common/utils.hpp
+index 22bb9af..d0a3cf4 100644
+--- a/numpy/_core/src/common/utils.hpp
++++ b/numpy/_core/src/common/utils.hpp
+@@ -2,6 +2,7 @@
+ #define NUMPY_CORE_SRC_COMMON_UTILS_HPP
+ 
+ #include "npdef.hpp"
++#undef BitScanReverse
+ 
+ #if NP_HAS_CPP20
+     #include <bit>
+diff --git a/numpy/distutils/command/build_ext.py b/numpy/distutils/command/build_ext.py
+index 5c62d90..4e243f9 100644
+--- a/numpy/distutils/command/build_ext.py
++++ b/numpy/distutils/command/build_ext.py
+@@ -617,15 +617,36 @@ def build_extension(self, ext):
+                     fcompiler, library_dirs,
+                     unlinkable_fobjects)
+ 
+-        linker(objects, ext_filename,
+-               libraries=libraries,
+-               library_dirs=library_dirs,
+-               runtime_library_dirs=ext.runtime_library_dirs,
+-               extra_postargs=extra_args,
+-               export_symbols=self.get_export_symbols(ext),
+-               debug=self.debug,
+-               build_temp=self.build_temp,
+-               target_lang=ext.language)
++        ext_filename = ext_filename.replace(".so", "")
++
++        self.compiler.create_static_lib(
++            objects, ext_filename,
++            output_dir=os.path.abspath("."),
++            debug=self.debug,
++            target_lang=ext.language)
++
++        result_path = \
++            self.compiler.library_filename(ext_filename,
++                                           output_dir=os.path.abspath("."))
++
++        with open(result_path + '.link.json', 'w') as f:
++            json.dump({
++                'libraries': self.get_libraries(ext),
++                'library_dirs': ext.library_dirs + ['lib'],
++                'runtime_library_dirs': ext.runtime_library_dirs,
++                'extra_postargs': extra_args}, f)
++
++        for lib in self.get_libraries(ext):
++            for dir in ext.library_dirs:
++                lib_install_dir = os.path.join(os.path.dirname(ext_path), dir)
++                print(os.path.join(ext_path, dir, lib + '.lib'))
++                if os.path.isfile(os.path.join(dir, lib + '.lib')):
++                    if not os.path.isabs(dir):
++                        if not os.path.exists(lib_install_dir):
++                            os.makedirs(lib_install_dir)
++                        shutil.copyfile(os.path.join(dir, lib + '.lib'),
++                                        os.path.join(lib_install_dir, lib + '.lib'))
++                    break
+ 
+     def _add_dummy_mingwex_sym(self, c_sources):
+         build_src = self.get_finalized_command("build_src").build_src
+diff --git a/numpy/f2py/src/fortranobject.h b/numpy/f2py/src/fortranobject.h
+index 4aed2f6..53d4012 100644
+--- a/numpy/f2py/src/fortranobject.h
++++ b/numpy/f2py/src/fortranobject.h
+@@ -12,7 +12,9 @@ extern "C" {
+ #ifdef FORTRANOBJECT_C
+ #define NO_IMPORT_ARRAY
+ #endif
++#ifndef PY_ARRAY_UNIQUE_SYMBOL
+ #define PY_ARRAY_UNIQUE_SYMBOL _npy_f2py_ARRAY_API
++#endif
+ #include "numpy/arrayobject.h"
+ #include "numpy/npy_3kcompat.h"
+
+diff --git a/numpy/linalg/meson.build b/numpy/linalg/meson.build
+index e2f8136..bcdb975 100644
+--- a/numpy/linalg/meson.build
++++ b/numpy/linalg/meson.build
+@@ -3,18 +3,7 @@
+ python_xerbla_sources = ['lapack_lite/python_xerbla.c']
+
+ lapack_lite_sources = []
+-if not have_lapack
+-  lapack_lite_sources = [
+-    'lapack_lite/f2c.c',
+-    'lapack_lite/f2c_c_lapack.c',
+-    'lapack_lite/f2c_d_lapack.c',
+-    'lapack_lite/f2c_s_lapack.c',
+-    'lapack_lite/f2c_z_lapack.c',
+-    'lapack_lite/f2c_blas.c',
+-    'lapack_lite/f2c_config.c',
+-    'lapack_lite/f2c_lapack.c',
+-  ]
+-endif
++
+
+ py.extension_module('lapack_lite',
+   [
+diff --git a/vendored-meson/meson/mesonbuild/backend/ninjabackend.py b/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
+index 9c69328..03a01dd 100644
+--- a/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
++++ b/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
+@@ -13,6 +13,7 @@
+ import itertools
+ import json
+ import os
++import sys
+ import pickle
+ import re
+ import subprocess
+@@ -1072,6 +1073,25 @@ def generate_target(self, target):
+         elem = self.generate_link(target, outname, final_obj_list, linker, pch_objects, stdlib_args=stdlib_args)
+         self.generate_dependency_scan_target(target, compiled_sources, source2object, generated_source_files, fortran_order_deps)
+         self.add_build(elem)
++
++        if isinstance(target, build.StaticLibrary):
++            if elem.outfilenames:  # elem is the NinjaBuildElement from self.generate_link()
++                linked_library_path = elem.outfilenames[0]  # Path to the .so/.pyd file
++
++                # 4. Create a new NinjaBuildElement for your custom command.
++                post_link_elem = NinjaBuildElement(
++                    all_outputs=self.all_outputs,  # Use the existing set of all outputs
++                    outfilenames=[linked_library_path + ".stamp"],
++                    rulename='rename_pyinit_symbols',
++                    infilenames=[linked_library_path]  # Depends on the successfully linked library
++                )
++
++                # Add any specific variables your NinjaRule might expect (e.g., if your rule uses $TARGET_NAME)
++                # post_link_elem.add_item('TARGET_NAME', target.name)
++
++                # 5. Add this new element to the build.
++                self.add_build(post_link_elem)
++
+         #In AIX, we archive shared libraries. If the instance is a shared library, we add a command to archive the shared library
+         #object and create the build element.
+         if isinstance(target, build.SharedLibrary) and self.environment.machines[target.for_machine].is_aix():
+@@ -1342,6 +1362,11 @@ def generate_rules(self):
+         self.add_rule_comment(NinjaComment('Rules for linking.'))
+         self.generate_static_link_rules()
+         self.generate_dynamic_link_rules()
++        self.add_rule(NinjaRule('rename_pyinit_symbols',
++                                [sys.executable, "-m", "__np__.tools.rename_init", '$in', '$out'],  # Command
++                                [],  # rspable args (empty for this example)
++                                'Running PyInit rename script on $in',
++                                extra='restat = 1'))
+         self.add_rule_comment(NinjaComment('Other rules'))
+         # Ninja errors out if you have deps = gcc but no depfile, so we must
+         # have two rules for custom commands.
+@@ -3710,6 +3735,8 @@ def generate_ending(self) -> None:
+                         linker, stdlib_args = self.determine_linker_and_stdlib_args(t)
+                         t.get_outputs()[0] = linker.get_archive_name(t.get_outputs()[0])
+                 targetlist.append(os.path.join(self.get_target_dir(t), t.get_outputs()[0]))
++                if isinstance(t, build.StaticLibrary):
++                    targetlist.append(os.path.join(self.get_target_dir(t), t.get_outputs()[0]) + ".stamp")
+
+             elem = NinjaBuildElement(self.all_outputs, targ, 'phony', targetlist)
+             self.add_build(elem)
+diff --git a/vendored-meson/meson/mesonbuild/build.py b/vendored-meson/meson/mesonbuild/build.py
+index 02d2bb9..5cf0c98 100644
+--- a/vendored-meson/meson/mesonbuild/build.py
++++ b/vendored-meson/meson/mesonbuild/build.py
+@@ -1448,12 +1448,11 @@ def get_internal_static_libraries(self) -> OrderedSet[BuildTargetTypes]:
+     def get_internal_static_libraries_recurse(self, result: OrderedSet[BuildTargetTypes]) -> None:
+         for t in self.link_targets:
+             if t.is_internal() and t not in result:
+-                self.check_can_extract_objects(t, origin, promoted=True)
+                 result.add(t)
+-                t.get_internal_static_libraries_recurse(result, origin)
++                t.get_internal_static_libraries_recurse(result)
+         for t in self.link_whole_targets:
+             if t.is_internal():
+-                t.get_internal_static_libraries_recurse(result, origin)
++                t.get_internal_static_libraries_recurse(result)
+
+     def check_can_extract_objects(self, t: T.Union[Target, CustomTargetIndex], origin: StaticLibrary, promoted: bool = False) -> None:
+         if isinstance(t, (CustomTarget, CustomTargetIndex)) or t.uses_rust():
+@@ -2146,7 +2145,10 @@ def post_init(self) -> None:
+                 elif self.rust_crate_type == 'staticlib':
+                     self.suffix = 'a'
+             else:
+-                self.suffix = 'a'
++                if self.environment.machines[self.for_machine].is_windows():
++                    self.suffix = 'lib'
++                else:
++                    self.suffix = 'a'
+         self.filename = self.prefix + self.name + '.' + self.suffix
+         self.outputs[0] = self.filename
+
+@@ -2202,6 +2204,8 @@ def __init__(
+             environment: environment.Environment,
+             compilers: T.Dict[str, 'Compiler'],
+             kwargs):
++        raise NotImplementedError("SharedLibrary builds not allowed on Nuitka-Python!")
++
+         self.soversion: T.Optional[str] = None
+         self.ltversion: T.Optional[str] = None
+         # Max length 2, first element is compatibility_version, second is current_version
+diff --git a/vendored-meson/meson/mesonbuild/cmake/toolchain.py b/vendored-meson/meson/mesonbuild/cmake/toolchain.py
+index 89d5d84..6f6c1be 100644
+--- a/vendored-meson/meson/mesonbuild/cmake/toolchain.py
++++ b/vendored-meson/meson/mesonbuild/cmake/toolchain.py
+@@ -174,6 +174,8 @@ def make_abs(exe: str) -> str:
+
+         # Set the compiler variables
+         for lang, comp_obj in self.compilers.items():
++            if lang == 'cython':
++                continue
+             prefix = 'CMAKE_{}_'.format(language_map.get(lang, lang.upper()))
+
+             exe_list = comp_obj.get_exelist()
+@@ -208,7 +210,7 @@ def update_cmake_compiler_state(self) -> None:
+         # Generate the CMakeLists.txt
+         mlog.debug('CMake Toolchain: Calling CMake once to generate the compiler state')
+         languages = list(self.compilers.keys())
+-        lang_ids = [language_map.get(x, x.upper()) for x in languages]
++        lang_ids = [language_map.get(x, x.upper()) for x in languages if x != 'cython']
+         cmake_content = dedent(f'''
+             cmake_minimum_required(VERSION 3.7)
+             project(CompInfo {' '.join(lang_ids)})
+diff --git a/vendored-meson/meson/mesonbuild/dependencies/python.py b/vendored-meson/meson/mesonbuild/dependencies/python.py
+index 46d12f3..5e377cd 100644
+--- a/vendored-meson/meson/mesonbuild/dependencies/python.py
++++ b/vendored-meson/meson/mesonbuild/dependencies/python.py
+@@ -222,7 +222,7 @@ def get_windows_link_args(self, limited_api: bool) -> T.Optional[T.List[str]]:
+             verdot = self.variables.get('py_version_short')
+             imp_lower = self.variables.get('implementation_lower', 'python')
+             if self.static:
+-                libpath = Path('libs') / f'libpython{vernum}.a'
++                libpath = Path('libs') / f'python{vernum}.lib'
+             else:
+                 if limited_api:
+                     vernum = vernum[0]
+diff --git a/vendored-meson/meson/mesonbuild/interpreter/interpreter.py b/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
+index 0711bbf..d93cff5 100644
+--- a/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
++++ b/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
+@@ -1850,6 +1850,9 @@ def func_executable(self, node: mparser.BaseNode,
+     def func_static_lib(self, node: mparser.BaseNode,
+                         args: T.Tuple[str, SourcesVarargsType],
+                         kwargs: kwtypes.StaticLibrary) -> build.StaticLibrary:
++        import sys
++        kwargs['install'] = True
++        kwargs["install_dir"] = kwargs.get("install_dir", self._holderify(self.modules['python'].installations[sys.executable])._get_install_dir_impl(False, self.active_projectname.lower()))
+         return self.build_target(node, args, kwargs, build.StaticLibrary)
+
+     @permittedKwargs(build.known_shlib_kwargs)
+diff --git a/vendored-meson/meson/mesonbuild/modules/python.py b/vendored-meson/meson/mesonbuild/modules/python.py
+index 30fc50b..7d2189b 100644
+--- a/vendored-meson/meson/mesonbuild/modules/python.py
++++ b/vendored-meson/meson/mesonbuild/modules/python.py
+@@ -10,7 +10,7 @@
+ from .. import mesonlib
+ from .. import mlog
+ from ..options import UserFeatureOption
+-from ..build import known_shmod_kwargs, CustomTarget, CustomTargetIndex, BuildTarget, GeneratedList, StructuredSources, ExtractedObjects, SharedModule
++from ..build import known_shmod_kwargs, CustomTarget, CustomTargetIndex, BuildTarget, GeneratedList, StructuredSources, ExtractedObjects, SharedModule, StaticLibrary
+ from ..dependencies import NotFoundDependency
+ from ..dependencies.detect import get_dep_identifier, find_external_dependency
+ from ..dependencies.python import BasicPythonExternalProgram, python_factory, _PythonDependencyBase
+@@ -229,7 +229,7 @@ def extension_module_method(self, args: T.Tuple[str, T.List[BuildTargetSource]],
+                 (self.is_pypy or mesonlib.version_compare(self.version, '>=3.9')):
+             kwargs['gnu_symbol_visibility'] = 'inlineshidden'
+
+-        return self.interpreter.build_target(self.current_node, args, kwargs, SharedModule)
++        return self.interpreter.build_target(self.current_node, args, kwargs, StaticLibrary)
+
+     def _convert_api_version_to_py_version_hex(self, api_version: str, detected_version: str) -> str:
+         python_api_version_format = re.compile(r'[0-9]\.[0-9]{1,2}')
+diff --git a/vendored-meson/meson/mesonbuild/modules/python3.py b/vendored-meson/meson/mesonbuild/modules/python3.py
+index 45ad850..11ebcf0 100644
+--- a/vendored-meson/meson/mesonbuild/modules/python3.py
++++ b/vendored-meson/meson/mesonbuild/modules/python3.py
+@@ -10,7 +10,7 @@
+ from . import ExtensionModule, ModuleInfo, ModuleState
+ from ..build import (
+     BuildTarget, CustomTarget, CustomTargetIndex, ExtractedObjects,
+-    GeneratedList, SharedModule, StructuredSources, known_shmod_kwargs
++    GeneratedList, SharedModule, StaticLibrary, StructuredSources, known_shmod_kwargs
+ )
+ from ..interpreter.type_checking import SHARED_MOD_KWS
+ from ..interpreterbase import typed_kwargs, typed_pos_args, noPosargs, noKwargs, permittedKwargs
+@@ -52,7 +52,7 @@ def extension_module(self, state: ModuleState, args: T.Tuple[str, T.List[BuildTa
+             suffix = []
+         kwargs['name_prefix'] = ''
+         kwargs['name_suffix'] = suffix
+-        return self.interpreter.build_target(state.current_node, args, kwargs, SharedModule)
++        return self.interpreter.build_target(state.current_node, args, kwargs, StaticLibrary)
+ 
+     @noPosargs
+     @noKwargs

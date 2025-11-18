@@ -1,0 +1,13 @@
+{
+  "version": "5.0",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "dependencies": [ ],
+  "files": [
+    "build.py",
+    "glpk.patch"
+  ],
+  "build_script": "build.py"
+}

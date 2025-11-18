@@ -1,0 +1,20 @@
+diff --git a/numpy/_core/include/numpy/__ufunc_api.h b/numpy/_core/include/numpy/__ufunc_api.h
+index df7ded1..3d2d51f 100644
+--- a/numpy/_core/include/numpy/__ufunc_api.h
++++ b/numpy/_core/include/numpy/__ufunc_api.h
+@@ -99,15 +99,7 @@ NPY_NO_EXPORT  int PyUFunc_GiveFloatingpointErrors \
+     #define NPY_API_SYMBOL_ATTRIBUTE NPY_VISIBILITY_HIDDEN
+ #endif
+ 
+-#if defined(NO_IMPORT) || defined(NO_IMPORT_UFUNC)
+ extern NPY_API_SYMBOL_ATTRIBUTE void **PyUFunc_API;
+-#else
+-#if defined(PY_UFUNC_UNIQUE_SYMBOL)
+-NPY_API_SYMBOL_ATTRIBUTE void **PyUFunc_API;
+-#else
+-static void **PyUFunc_API=NULL;
+-#endif
+-#endif
+ 
+ #define PyUFunc_Type (*(PyTypeObject *)PyUFunc_API[0])
+ #define PyUFunc_FromFuncAndData \

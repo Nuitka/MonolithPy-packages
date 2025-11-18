@@ -4,7 +4,7 @@
       "metadata": {
         "Version": "1.15.*"
       },
-      "build_tools": ["cmake", "ninja", "clang", "gcc"],
+      "build_tools": ["cmake", "ninja", "flang", "clang", "mingw", "git"],
       "dependencies": ["openblas"],
       "files": [
         "1.15.0/build.py",
@@ -12,12 +12,36 @@
       ],
       "build_requires": [
         "setuptools",
-        "build", 
         "meson-python",
         "pyproject-metadata",
         "Cython<3.1.0,>=3.0.8",
         "pybind11<2.14.0,>=2.13.2",
-        "pythran<0.18.0,>=0.14.0"
+        "pythran<0.18.0,>=0.14.0",
+        "build"
+      ],
+      "dist_requirements": [
+        "numpy>=1.25.2"
+      ],
+      "build_script": "build.py"
+    },
+    {
+      "metadata": {
+        "Version": "1.16.[0-2]"
+      },
+      "build_tools": ["cmake", "ninja", "flang", "clang", "mingw", "git"],
+      "dependencies": ["openblas"],
+      "files": [
+        "1.16.0/build.py",
+        "1.16.0/scipy-static-patch.patch"
+      ],
+      "build_requires": [
+        "setuptools",
+        "meson-python",
+        "pyproject-metadata",
+        "Cython<3.1.0,>=3.0.8",
+        "pybind11<2.14.0,>=2.13.2",
+        "pythran<0.18.0,>=0.14.0",
+        "build"
       ],
       "dist_requirements": [
         "numpy>=1.25.2"
@@ -28,20 +52,20 @@
       "metadata": {
         "Version": "*"
       },
-      "build_tools": ["cmake", "ninja", "clang", "gcc"],
+      "build_tools": ["cmake", "ninja", "flang", "clang", "mingw", "git"],
       "dependencies": ["openblas"],
       "files": [
-        "1.16.0/build.py",
-        "1.16.0/scipy-static-patch.patch"
+        "1.16.3/build.py",
+        "1.16.3/scipy-static-patch.patch"
       ],
       "build_requires": [
         "setuptools",
-        "build",
         "meson-python",
         "pyproject-metadata",
         "Cython<3.1.0,>=3.0.8",
         "pybind11<2.14.0,>=2.13.2",
-        "pythran<0.18.0,>=0.14.0"
+        "pythran<0.18.0,>=0.14.0",
+        "build"
       ],
       "dist_requirements": [
         "numpy>=1.25.2"

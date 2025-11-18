@@ -1,0 +1,22 @@
+{
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": [
+        "patch"
+      ],
+      "dependencies": [],
+      "files": [
+        "build.py",
+        "pyproject_hooks-static-patch.patch"
+      ],
+      "build_requires": [
+        "setuptools",
+        "build"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

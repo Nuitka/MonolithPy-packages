@@ -1,0 +1,11 @@
+{
+  "version": "2.0.7",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "files": [
+    "build.py"
+  ],
+  "build_script": "build.py"
+}

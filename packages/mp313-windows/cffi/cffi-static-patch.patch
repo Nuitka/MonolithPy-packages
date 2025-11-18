@@ -1,0 +1,57 @@
+diff --git a/setup.py b/setup.py
+index 16f3cc8b..b06f5596 100644
+--- a/setup.py
++++ b/setup.py
+@@ -122,7 +122,7 @@ def use_homebrew_for_libffi():
+     pkgconfig = os.path.join(prefix, 'lib', 'pkgconfig')
+     os.environ['PKG_CONFIG_PATH'] = (
+         os.environ.get('PKG_CONFIG_PATH', '') + ':' + pkgconfig)
+-
++"""
+ if sys.platform == "win32" and uses_msvc():
+     if platform.machine() == "ARM64":
+         include_dirs.append(os.path.join("src/c/libffi_arm64/include"))
+@@ -155,6 +155,9 @@ if 'darwin' in sys.platform:
+ if 'freebsd' in sys.platform:
+     include_dirs.append('/usr/local/include')
+     library_dirs.append('/usr/local/lib')
++"""
++import __np__
++include_dirs.append(__np__.find_dep_include('libffi'))
+
+ forced_extra_objs = os.environ.get('CFFI_FORCE_STATIC', [])
+ if forced_extra_objs:
+diff --git a/src/c/misc_win32.h b/src/c/misc_win32.h
+index f332940c..7904a03a 100644
+--- a/src/c/misc_win32.h
++++ b/src/c/misc_win32.h
+@@ -8,29 +8,7 @@
+
+ static DWORD cffi_tls_index = TLS_OUT_OF_INDEXES;
+
+-BOOL WINAPI DllMain(HINSTANCE hinstDLL,
+-                    DWORD     reason_for_call,
+-                    LPVOID    reserved)
+-{
+-    LPVOID p;
+-
+-    switch (reason_for_call) {
+
+-    case DLL_THREAD_DETACH:
+-        if (cffi_tls_index != TLS_OUT_OF_INDEXES) {
+-            p = TlsGetValue(cffi_tls_index);
+-            if (p != NULL) {
+-                TlsSetValue(cffi_tls_index, NULL);
+-                cffi_thread_shutdown(p);
+-            }
+-        }
+-        break;
+-
+-    default:
+-        break;
+-    }
+-    return TRUE;
+-}
+
+ static void init_cffi_tls(void)
+ {
