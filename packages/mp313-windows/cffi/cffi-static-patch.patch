@@ -16,8 +16,8 @@ index 16f3cc8b..b06f5596 100644
      include_dirs.append('/usr/local/include')
      library_dirs.append('/usr/local/lib')
 +"""
-+import __np__
-+include_dirs.append(__np__.find_dep_include('libffi'))
++import __mp__
++include_dirs.append(__mp__.find_dep_include('libffi'))
 
  forced_extra_objs = os.environ.get('CFFI_FORCE_STATIC', [])
  if forced_extra_objs:

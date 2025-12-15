@@ -1,4 +1,4 @@
-import __np__
+import __mp__
 from typing import *
 from pip._internal.req.req_install import InstallRequirement
 
@@ -18,21 +18,21 @@ def run(req: InstallRequirement,
         pycompile: bool
         ):
 
-    __np__.setup_compiler_env()
+    __mp__.setup_compiler_env()
 
     os.chdir(source_dir)
 
     os.environ["LXML_STATIC_INCLUDE_DIRS"] = os.pathsep.join([
-        __np__.find_dep_include("iconv"),
-        __np__.find_dep_include("libxml2"),
-        __np__.find_dep_include("libxslt")
+        __mp__.find_dep_include("iconv"),
+        __mp__.find_dep_include("libxml2"),
+        __mp__.find_dep_include("libxslt")
     ])
 
     os.environ["LXML_STATIC_LIBRARY_DIRS"] = os.pathsep.join([
-        __np__.find_dep_libs("iconv"),
-        __np__.find_dep_libs("libxml2"),
-        __np__.find_dep_libs("libxslt"),
-        __np__.find_dep_libs("zlib")
+        __mp__.find_dep_libs("iconv"),
+        __mp__.find_dep_libs("libxml2"),
+        __mp__.find_dep_libs("libxslt"),
+        __mp__.find_dep_libs("zlib")
     ])
 
-    __np__.run_with_output("python.exe", os.path.join(source_dir, "setup.py"), "--static", "install")
+    __mp__.run_with_output("python.exe", os.path.join(source_dir, "setup.py"), "--static", "install")

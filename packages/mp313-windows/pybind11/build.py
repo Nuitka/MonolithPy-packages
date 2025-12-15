@@ -1,4 +1,4 @@
-import __np__
+import __mp__
 import glob
 import shutil
 import sys
@@ -7,17 +7,17 @@ import setuptools.build_meta
 
 
 def run(wheel_directory):
-    __np__.setup_compiler_env()
+    __mp__.setup_compiler_env()
 
     base_dir = os.getcwd()
     if not os.path.exists(os.path.join(base_dir, "include")) and os.path.exists(os.path.join(base_dir, "pybind11")):
         base_dir = os.path.join(base_dir, "pybind11")
 
-    __np__.run_build_tool_exe("patch", "patch.exe", "-t", "-p1", "-i",
+    __mp__.run_build_tool_exe("patch", "patch.exe", "-t", "-p1", "-i",
                               os.path.join(os.path.dirname(__file__), "pybind11-static-patch.patch"),
                               cwd=base_dir)
 
-    __np__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation")
+    __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation")
 
     wheel_location = glob.glob(os.path.join("dist", "pybind11-*.whl"))[0]
     wheel_name = os.path.basename(wheel_location)

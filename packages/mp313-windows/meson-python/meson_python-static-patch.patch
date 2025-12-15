@@ -26,7 +26,7 @@ index 4d785a3..a704530 100644
          # not use the stable ABI filename suffix and wheels should not
          # be tagged with the abi3 tag.
 -        if self._limited_api and '__pypy__' not in sys.builtin_module_names:
-+        if self._limited_api and '__pypy__' not in sys.builtin_module_names and sys.implementation.name != 'nuitkapython':
++        if self._limited_api and '__pypy__' not in sys.builtin_module_names and sys.implementation.name != 'monolithpy':
              # Verify stable ABI compatibility: examine files installed
              # in {platlib} that look like extension modules, and raise
              # an exception if any of them has a Python version

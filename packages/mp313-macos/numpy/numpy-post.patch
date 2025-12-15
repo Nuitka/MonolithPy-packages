@@ -1,0 +1,43 @@
+diff --git a/numpy/_core/include/numpy/__multiarray_api.h b/numpy/_core/include/numpy/__multiarray_api.h
+index 763dc85..a97fc3f 100644
+--- a/numpy/_core/include/numpy/__multiarray_api.h
++++ b/numpy/_core/include/numpy/__multiarray_api.h
+@@ -613,18 +613,8 @@ NPY_NO_EXPORT  PyArray_ArrFuncs * _PyDataType_GetArrFuncs \
+     #define NPY_API_SYMBOL_ATTRIBUTE NPY_VISIBILITY_HIDDEN
+ #endif
+ 
+-#if defined(NO_IMPORT) || defined(NO_IMPORT_ARRAY)
+ extern NPY_API_SYMBOL_ATTRIBUTE void **PyArray_API;
+ extern NPY_API_SYMBOL_ATTRIBUTE int PyArray_RUNTIME_VERSION;
+-#else
+-#if defined(PY_ARRAY_UNIQUE_SYMBOL)
+-NPY_API_SYMBOL_ATTRIBUTE void **PyArray_API;
+-NPY_API_SYMBOL_ATTRIBUTE int PyArray_RUNTIME_VERSION;
+-#else
+-static void **PyArray_API = NULL;
+-static int PyArray_RUNTIME_VERSION = 0;
+-#endif
+-#endif
+ 
+ #define PyArray_GetNDArrayCVersion \
+         (*(unsigned int (*)(void)) \
+diff --git a/numpy/_core/include/numpy/__ufunc_api.h b/numpy/_core/include/numpy/__ufunc_api.h
+index b05dce3..8ff1961 100644
+--- a/numpy/_core/include/numpy/__ufunc_api.h
++++ b/numpy/_core/include/numpy/__ufunc_api.h
+@@ -99,15 +99,7 @@ NPY_NO_EXPORT  int PyUFunc_GiveFloatingpointErrors \
+     #define NPY_API_SYMBOL_ATTRIBUTE NPY_VISIBILITY_HIDDEN
+ #endif
+ 
+-#if defined(NO_IMPORT) || defined(NO_IMPORT_UFUNC)
+ extern NPY_API_SYMBOL_ATTRIBUTE void **PyUFunc_API;
+-#else
+-#if defined(PY_UFUNC_UNIQUE_SYMBOL)
+-NPY_API_SYMBOL_ATTRIBUTE void **PyUFunc_API;
+-#else
+-static void **PyUFunc_API=NULL;
+-#endif
+-#endif
+ 
+ #define PyUFunc_Type (*(PyTypeObject *)PyUFunc_API[0])
+ #define PyUFunc_FromFuncAndData \

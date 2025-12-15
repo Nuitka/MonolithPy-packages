@@ -97,7 +97,7 @@ index da623a8..cb12aa0 100644
   * triangulation, construct an instance of the matplotlib.tri.Triangulation
   * class without specifying a triangles array.
   */
-+#include <np_embed.h>
++#include <mp_embed.h>
  #include <pybind11/pybind11.h>
  #include <pybind11/numpy.h>
  

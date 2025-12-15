@@ -1,0 +1,23 @@
+{
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": [],
+      "dependencies": [],
+      "files": [
+        "build.py",
+        "jedi-static-patch.patch"
+      ],
+      "build_requires": [
+        "setuptools",
+        "build"
+      ],
+      "dist_requires": [
+        "parso>=0.8.4,<0.9.0"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

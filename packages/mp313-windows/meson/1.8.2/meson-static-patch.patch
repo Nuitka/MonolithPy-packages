@@ -41,7 +41,7 @@ index cd7b761..172a5ce 100644
          self.generate_static_link_rules()
          self.generate_dynamic_link_rules()
 +        self.add_rule(NinjaRule('rename_pyinit_symbols',
-+                                [sys.executable, "-m", "__np__.tools.rename_init", '$in', '$out'],  # Command
++                                [sys.executable, "-m", "__mp__.tools.rename_init", '$in', '$out'],  # Command
 +                                [],  # rspable args (empty for this example)
 +                                'Running PyInit rename script on $in',
 +                                extra='restat = 1'))

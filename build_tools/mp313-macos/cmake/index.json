@@ -1,0 +1,8 @@
+{
+  "version": "3.31.4",
+  "build_tools": [],
+  "files": [
+    "build.py"
+  ],
+  "build_script": "build.py"
+}

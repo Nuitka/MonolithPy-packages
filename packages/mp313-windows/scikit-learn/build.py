@@ -1,4 +1,4 @@
-import __np__
+import __mp__
 import glob
 import shutil
 import sys
@@ -10,13 +10,13 @@ from wheel.wheelfile import WheelFile
 
 
 def run(wheel_directory):
-    __np__.setup_compiler_env()
+    __mp__.setup_compiler_env()
 
     env = os.environ.copy()
-    env["CFLAGS"] = "/DBYPASS_NP_EMBED"
-    env["CXXFLAGS"] = "/DBYPASS_NP_EMBED"
+    env["CFLAGS"] = "/DBYPASS_MP_EMBED"
+    env["CXXFLAGS"] = "/DBYPASS_MP_EMBED"
     with TemporaryDirectory() as temp_dir:
-        __np__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-Ccompile-args=-j3", "-Cbuild-dir=" + temp_dir, env=env)
+        __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-Ccompile-args=-j3", "-Cbuild-dir=" + temp_dir, env=env)
 
     wheel_location = glob.glob(os.path.join("dist", "scikit_learn-*.whl"))[0]
 
@@ -26,7 +26,7 @@ def run(wheel_directory):
             for filename in wf.namelist():
                 wheel_files.append(filename)
                 wf.extract(filename, tmpdir)
-        __np__.analyze_and_rename_library_symbols(tmpdir,
+        __mp__.analyze_and_rename_library_symbols(tmpdir,
                                                   "scikit_learn",
                                                   symbol_mapping={
                                                       "set_seed": {"use_definition_from": "libliblinear-skl.lib"}

@@ -26,7 +26,7 @@ index 6db5b5b..cb7ec5e 100644
              # PyPy does not use a special extension module filename
              # suffix for modules targeting the stable API.
 -            if '__pypy__' not in sys.builtin_module_names:
-+            if '__pypy__' not in sys.builtin_module_names and sys.implementation.name != 'nuitkapython':
++            if '__pypy__' not in sys.builtin_module_names and sys.implementation.name != 'monolithpy':
                  # Verify stable ABI compatibility: examine files installed
                  # in {platlib} that look like extension modules, and raise
                  # an exception if any of them has a Python version

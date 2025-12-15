@@ -1,0 +1,23 @@
+{
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": [],
+      "dependencies": [
+        "jpeg"
+      ],
+      "files": [
+        "build.py"
+      ],
+      "build_requires": [
+        "setuptools",
+        "setuptools_scm",
+        "build",
+        "pybind11"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

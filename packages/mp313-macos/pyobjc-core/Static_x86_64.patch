@@ -1,0 +1,54 @@
+diff --git a/Modules/objc/libffi_extra.m b/Modules/objc/libffi_extra.m
+index 5e0ed3e..3e23536 100644
+--- a/Modules/objc/libffi_extra.m
++++ b/Modules/objc/libffi_extra.m
+@@ -72,29 +72,11 @@
+ {
+     ffi_closure* cl;
+ 
+-#ifdef HAVE_CLOSURE_POOL
+ 
+-#if PyObjC_BUILD_RELEASE >= 1015
+-    if (@available(macOS 10.15, *)) { // LCOV_BR_EXCL_LINE
+-        cl        = ffi_find_closure_for_code_np(codeloc);
+-        *cif      = cl->cif;
+-        *userdata = cl->user_data;
+-        ffi_closure_free(cl);
+-    } else
+-#endif
+     {
+         cl        = (ffi_closure*)codeloc;
+         *cif      = cl->cif;
+         *userdata = cl->user_data;
+         PyObjC_ffi_closure_free(cl);
+     }
+-#else
+-#pragma clang diagnostic push
+-#pragma clang diagnostic ignored "-Wunguarded-availability-new"
+-    cl        = ffi_find_closure_for_code_np(codeloc);
+-    *cif      = cl->cif;
+-    *userdata = cl->user_data;
+-    ffi_closure_free(cl);
+-#pragma clang diagnostic pop
+-#endif
+ }
+diff --git a/setup.py b/setup.py
+index 7b640e1..7251281 100644
+--- a/setup.py
++++ b/setup.py
+@@ -775,15 +775,6 @@ setup(
+             extra_compile_args=EXT_CFLAGS,
+             extra_link_args=OBJC_LDFLAGS,
+         ),
+-    ]
+-    + [
+-        Extension(
+-            "PyObjCTest." + os.path.splitext(os.path.basename(test_source))[0],
+-            [test_source],
+-            extra_compile_args=EXT_CFLAGS,
+-            extra_link_args=OBJC_LDFLAGS,
+-        )
+-        for test_source in glob.glob(os.path.join("Modules", "objc", "test", "*.[mc]"))
+     ],
+     cmdclass={
+         "build_ext": oc_build_ext,

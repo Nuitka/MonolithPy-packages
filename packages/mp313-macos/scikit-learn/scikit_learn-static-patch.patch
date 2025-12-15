@@ -1,0 +1,37 @@
+diff --git a/sklearn/svm/src/liblinear/linear.cpp b/sklearn/svm/src/liblinear/linear.cpp
+index 63648ad..17bd9ba 100644
+--- a/sklearn/svm/src/liblinear/linear.cpp
++++ b/sklearn/svm/src/liblinear/linear.cpp
+@@ -43,6 +43,13 @@
+ #include <random>
+ #include "../newrand/newrand.h"
+ 
++extern "C" {
++std::mt19937 mt_rand(std::mt19937::default_seed);
++void set_seed(unsigned custom_seed) {
++    mt_rand.seed(custom_seed);
++}
++}
++
+ typedef signed char schar;
+ template <class T> static inline void swap(T& x, T& y) { T t=x; x=y; y=t; }
+ #ifndef min
+diff --git a/sklearn/svm/src/newrand/newrand.h b/sklearn/svm/src/newrand/newrand.h
+index e01bea9..0a35100 100644
+--- a/sklearn/svm/src/newrand/newrand.h
++++ b/sklearn/svm/src/newrand/newrand.h
+@@ -18,12 +18,10 @@ extern "C" {
+ // used in LibSVM / LibLinear, to ensure the same behaviour on windows-linux,
+ // with increased speed
+ // - (1) Init a `mt_rand` object
+-std::mt19937 mt_rand(std::mt19937::default_seed);
++extern std::mt19937 mt_rand;
+ 
+ // - (2) public `set_seed()` function that should be used instead of `srand()` to set a new seed.
+-void set_seed(unsigned custom_seed) {
+-    mt_rand.seed(custom_seed);
+-}
++void set_seed(unsigned custom_seed);
+ 
+ // - (3) New internal `bounded_rand_int` function, used instead of rand() everywhere.
+ inline uint32_t bounded_rand_int(uint32_t range) {

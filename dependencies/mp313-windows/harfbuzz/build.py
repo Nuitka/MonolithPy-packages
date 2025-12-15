@@ -1,4 +1,4 @@
-import __np__
+import __mp__
 from typing import *
 
 import os
@@ -11,14 +11,14 @@ def run(temp_dir: str):
     # We will build freetype first here and then base off that, but we will also have a separate freetype package.
     ft_dir = os.path.join(temp_dir, 'ft')
 
-    __np__.download_extract("http://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.gz", ft_dir)
+    __mp__.download_extract("http://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.gz", ft_dir)
 
-    __np__.setup_compiler_env()
+    __mp__.setup_compiler_env()
 
     ft_src_dir = glob.glob(os.path.join(ft_dir, "freetype*"))[0]
 
-    __np__.auto_patch_build(ft_src_dir)
-    __np__.patch_all_source(ft_src_dir)
+    __mp__.auto_patch_build(ft_src_dir)
+    __mp__.patch_all_source(ft_src_dir)
 
     ft_build_dir = os.path.join(ft_dir, "build")
     os.mkdir(ft_build_dir)
@@ -27,25 +27,25 @@ def run(temp_dir: str):
     ft_install_dir = os.path.join(ft_dir, "install")
     os.mkdir(ft_install_dir)
 
-    os.environ["PATH"] = os.path.dirname(__np__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + os.environ[
+    os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + os.environ[
         "PATH"]
-    __np__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
+    __mp__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
                               "-DCMAKE_BUILD_TYPE=Release",
                               "-DCMAKE_INSTALL_PREFIX=" + ft_install_dir,
-                              "-DZLIB_ROOT=" + __np__.find_dep_root("zlib"),
+                              "-DZLIB_ROOT=" + __mp__.find_dep_root("zlib"),
                               "-DWITH_HarfBuzz=OFF", "-DWITH_BZip2=OFF",
                               "-DWITH_PNG=OFF", ft_src_dir)
-    __np__.run_build_tool_exe("ninja", "ninja.exe")
+    __mp__.run_build_tool_exe("ninja", "ninja.exe")
 
-    __np__.run_build_tool_exe("ninja", "ninja.exe", "install")
+    __mp__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
-    __np__.download_extract("https://github.com/harfbuzz/harfbuzz/archive/refs/tags/10.2.0.zip", temp_dir)
+    __mp__.download_extract("https://github.com/harfbuzz/harfbuzz/archive/refs/tags/10.2.0.zip", temp_dir)
 
     src_dir = glob.glob(os.path.join(temp_dir, "harfbuzz*"))[0]
     os.chdir(src_dir)
 
-    __np__.auto_patch_build(src_dir)
-    __np__.patch_all_source(src_dir)
+    __mp__.auto_patch_build(src_dir)
+    __mp__.patch_all_source(src_dir)
 
     build_dir = os.path.join(temp_dir, "build")
     os.mkdir(build_dir)
@@ -54,7 +54,7 @@ def run(temp_dir: str):
     install_dir = os.path.join(temp_dir, "install")
     os.mkdir(install_dir)
 
-    __np__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
+    __mp__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
                               "-DCMAKE_BUILD_TYPE=Release",
                               "-DCMAKE_INSTALL_PREFIX=" + install_dir,
                               "-DCMAKE_PREFIX_PATH=" + ft_install_dir,
@@ -64,9 +64,9 @@ def run(temp_dir: str):
                               f"-DFREETYPE_INCLUDE_DIR_freetype2={ft_install_dir}/include/freetype2",
                               f"-DFREETYPE_INCLUDE_DIR_ft2build={ft_install_dir}/include/freetype2",
                               src_dir)
-    __np__.run_build_tool_exe("ninja", "ninja.exe")
+    __mp__.run_build_tool_exe("ninja", "ninja.exe")
 
-    __np__.run_build_tool_exe("ninja", "ninja.exe", "install")
+    __mp__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
-    __np__.install_dep_libs("harfbuzz", os.path.join(install_dir, "lib", "*.lib"))
-    __np__.install_dep_include("harfbuzz", os.path.join(install_dir, "include", "harfbuzz", "*.h"))
+    __mp__.install_dep_libs("harfbuzz", os.path.join(install_dir, "lib", "*.lib"))
+    __mp__.install_dep_include("harfbuzz", os.path.join(install_dir, "include", "harfbuzz", "*.h"))

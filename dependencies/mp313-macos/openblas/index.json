@@ -1,0 +1,14 @@
+{
+  "version": "0.3.28",
+  "build_tools": [
+    "cmake",
+    "clang",
+    "gcc"
+  ],
+  "dependencies": [ ],
+  "files": [
+    "build.py",
+    "openblas-intel.patch"
+  ],
+  "build_script": "build.py"
+}

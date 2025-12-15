@@ -1,0 +1,11 @@
+{
+  "version": "1.1.35",
+  "dependencies": [
+    "iconv",
+    "libxml2"
+  ],
+  "files": [
+    "build.py"
+  ],
+  "build_script": "build.py"
+}

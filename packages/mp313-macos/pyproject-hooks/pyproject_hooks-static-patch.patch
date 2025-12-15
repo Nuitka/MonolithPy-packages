@@ -1,0 +1,15 @@
+diff --git a/src/pip/_vendor/pyproject_hooks/_in_process/_in_process.py b/src/pip/_vendor/pyproject_hooks/_in_process/_in_process.py
+index d689bab..205672d 100644
+--- a/src/pip/_vendor/pyproject_hooks/_in_process/_in_process.py
++++ b/src/pip/_vendor/pyproject_hooks/_in_process/_in_process.py
+@@ -63,8 +63,8 @@ def _build_backend():
+ 
+     if backend_path:
+         # Ensure in-tree backend directories have the highest priority when importing.
+-        extra_pathitems = backend_path.split(os.pathsep)
+-        sys.meta_path.insert(0, _BackendPathFinder(extra_pathitems, mod_path))
++        for path in reversed(backend_path.split(os.pathsep)):
++            sys.path.insert(0, path)
+ 
+     try:
+         obj = import_module(mod_path)

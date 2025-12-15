@@ -1,0 +1,25 @@
+diff --git a/setup.py b/setup.py
+index 008d575..b4cf622 100644
+--- a/setup.py
++++ b/setup.py
+@@ -144,13 +144,16 @@ if sys.platform == "win32" and uses_msvc():
+         sources.extend(os.path.join(COMPILE_LIBFFI, filename)
+                     for filename in _filenames)
+ else:
+-    use_pkg_config()
++    #use_pkg_config()
++    import __mp__
++    include_dirs.append(__mp__.find_dep_include('base'))
++    library_dirs.append(__mp__.find_dep_libs('base'))
+     ask_supports_thread()
+     ask_supports_sync_synchronize()
+ 
+-if 'darwin' in sys.platform:
+-    # priority is given to `pkg_config`, but always fall back on SDK's libffi.
+-    extra_compile_args += ['-iwithsysroot/usr/include/ffi']
++#if 'darwin' in sys.platform:
++#    # priority is given to `pkg_config`, but always fall back on SDK's libffi.
++#    extra_compile_args += ['-iwithsysroot/usr/include/ffi']
+ 
+ if 'freebsd' in sys.platform:
+     include_dirs.append('/usr/local/include')

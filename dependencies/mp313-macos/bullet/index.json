@@ -1,0 +1,12 @@
+{
+  "version": "2.83.7",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "files": [
+    "7638b7c5a659dceb4e580ae87d4d60b00847ef94.diff",
+    "build.py"
+  ],
+  "build_script": "build.py"
+}

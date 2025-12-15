@@ -1,0 +1,25 @@
+{
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": [],
+      "dependencies": [],
+      "files": [
+        "build.py"
+      ],
+      "build_requires": [
+        "setuptools",
+        "build",
+        "meson >= 1.2.0",
+        "meson-python >= 0.13.1",
+        "pybind11 >= 2.13.2, != 2.13.3"
+      ],
+      "dist_requires": [
+        "numpy>=1.25"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "version": "9d",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "files": [
+    "build.py",
+    "libjpeg.cmake",
+    "libjpeg-jconfig.h.cmake"
+  ],
+  "build_script": "build.py"
+}
