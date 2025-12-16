@@ -13,7 +13,8 @@
         "pybind11-static-patch.patch"
       ],
       "build_requires": [
-        "scikit-build-core>=0.11.2"
+        "scikit-build-core>=0.11.2",
+        "build"
       ],
       "dist_requires": [ ],
       "build_script": "build.py"
