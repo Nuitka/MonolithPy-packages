@@ -2,42 +2,6 @@
   "scripts": [
     {
       "metadata": {
-        "Version": "2.2.*"
-      },
-      "build_tools": ["ninja", "patch", "clang"],
-      "dependencies": ["openblas"],
-      "files": [
-        "2.3.2/build.py",
-        "2.3.2/numpy-static-patch.patch",
-        "2.3.2/numpy-post.patch"
-      ],
-      "build_requires": [
-        "meson-python>=0.15.0",
-        "Cython>=3.0.6",
-        "build"
-      ],
-      "build_script": "build.py"
-    },
-    {
-      "metadata": {
-        "Version": "2.3.[0-2]"
-      },
-      "build_tools": ["ninja", "patch", "clang"],
-      "dependencies": ["openblas"],
-      "files": [
-        "2.3.2/build.py",
-        "2.3.2/numpy-static-patch.patch",
-        "2.3.2/numpy-post.patch"
-      ],
-      "build_requires": [
-        "meson-python>=0.15.0",
-        "Cython>=3.0.6",
-        "build"
-      ],
-      "build_script": "build.py"
-    },
-    {
-      "metadata": {
         "Version": "*"
       },
       "build_tools": ["ninja", "patch", "clang"],

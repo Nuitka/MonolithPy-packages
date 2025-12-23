@@ -55,7 +55,12 @@ def run(wheel_directory):
         __mp__.analyze_and_rename_library_symbols(tmpdir,
                                                   "scipy",
                                                   symbol_mapping={
-                                                      "d1mach_": {"use_definition_from": "libmach_lib.lib"}})
+                                                      "d1mach_": {
+                                                          "use_definition_from": "libmach_lib.lib"
+                                                      }},
+                                                  write_debug=True
+                                                  )
+
         with WheelFile(wheel_location, 'w') as wf:
             for filename in wheel_files:
                 wf.write(os.path.join(tmpdir, filename), filename)

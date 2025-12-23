@@ -11,6 +11,358 @@ index 0d43635..f365f7c 100644
    ],
  )
  
+diff --git a/numpy/_core/code_generators/generate_numpy_api.py b/numpy/_core/code_generators/generate_numpy_api.py
+index 23d6788..350f25c 100644
+--- a/numpy/_core/code_generators/generate_numpy_api.py
++++ b/numpy/_core/code_generators/generate_numpy_api.py
+@@ -8,7 +8,12 @@
+
+ # use annotated api when running under cpychecker
+ h_template = r"""
+-#if defined(_MULTIARRAYMODULE) || defined(WITH_CPYCHECKER_STEALS_REFERENCE_TO_ARG_ATTRIBUTE)
++static inline int _import_array(void) { return 0; }
++#define import_array() {}
++static inline int PyArray_ImportNumPyAPI(void) { return 0; }
++#define PyArray_RUNTIME_VERSION NPY_API_VERSION
++#define NO_IMPORT_ARRAY
++#if 1
+
+ typedef struct {
+         PyObject_HEAD
+@@ -20,6 +25,8 @@
+
+ %s
+
++#include "numpy/_public_dtype_api_table.h"
++
+ #else
+
+ #if defined(PY_ARRAY_UNIQUE_SYMBOL)
+@@ -163,35 +170,7 @@
+ #define _RETURN_VALUE 0
+ #endif
+
+-#define import_array() { \
+-  if (_import_array() < 0) { \
+-    PyErr_Print(); \
+-    PyErr_SetString( \
+-        PyExc_ImportError, \
+-        "numpy._core.multiarray failed to import" \
+-    ); \
+-    return _RETURN_VALUE; \
+-  } \
+-}
+-
+-#define import_array1(ret) { \
+-  if (_import_array() < 0) { \
+-    PyErr_Print(); \
+-    PyErr_SetString( \
+-        PyExc_ImportError, \
+-        "numpy._core.multiarray failed to import" \
+-    ); \
+-    return ret; \
+-  } \
+-}
+
+-#define import_array2(msg, ret) { \
+-  if (_import_array() < 0) { \
+-    PyErr_Print(); \
+-    PyErr_SetString(PyExc_ImportError, msg); \
+-    return ret; \
+-  } \
+-}
+
+ #endif
+
+diff --git a/numpy/_core/code_generators/generate_ufunc_api.py b/numpy/_core/code_generators/generate_ufunc_api.py
+index 265fe84..62820fc 100644
+--- a/numpy/_core/code_generators/generate_ufunc_api.py
++++ b/numpy/_core/code_generators/generate_ufunc_api.py
+@@ -6,7 +6,13 @@
+ from genapi import FunctionApi, TypeApi
+
+ h_template = r"""
+-#ifdef _UMATHMODULE
++static inline int import_umath(void) { return 0; }
++static inline int import_ufunc(void) { return 0; }
++#define _import_umath import_umath
++#define _import_ufunc import_ufunc
++static inline int PyUFunc_ImportUFuncAPI(void) { return 0; }
++#define NO_IMPORT_UFUNC
++#if 1
+
+ extern NPY_NO_EXPORT PyTypeObject PyUFunc_Type;
+
+diff --git a/numpy/_core/include/numpy/_public_dtype_api_table.h b/numpy/_core/include/numpy/_public_dtype_api_table.h
+index 51f3905..a9f1cc2 100644
+--- a/numpy/_core/include/numpy/_public_dtype_api_table.h
++++ b/numpy/_core/include/numpy/_public_dtype_api_table.h
+@@ -1,86 +1,179 @@
+-/*
+- * Public exposure of the DType Classes.  These are tricky to expose
+- * via the Python API, so they are exposed through this header for now.
+- *
+- * These definitions are only relevant for the public API and we reserve
+- * the slots 320-360 in the API table generation for this (currently).
+- *
+- * TODO: This file should be consolidated with the API table generation
+- *       (although not sure the current generation is worth preserving).
+- */
+-#ifndef NUMPY_CORE_INCLUDE_NUMPY__PUBLIC_DTYPE_API_TABLE_H_
+-#define NUMPY_CORE_INCLUDE_NUMPY__PUBLIC_DTYPE_API_TABLE_H_
++#ifndef NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_a
++#define NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_a
+
+-#if !(defined(NPY_INTERNAL_BUILD) && NPY_INTERNAL_BUILD)
++#include "numpy/arrayobject.h"
+
+-/* All of these require NumPy 2.0 support */
+-#if NPY_FEATURE_VERSION >= NPY_2_0_API_VERSION
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include "numpy/dtype_api.h"
++
++
++
++
++NPY_NO_EXPORT PyArray_Descr *
++dtypemeta_discover_as_default(
++        PyArray_DTypeMeta *cls, PyObject* obj);
++
++NPY_NO_EXPORT int
++dtypemeta_initialize_struct_from_spec(PyArray_DTypeMeta *DType, PyArrayDTypeMeta_Spec *spec, int priv);
++
++NPY_NO_EXPORT int
++python_builtins_are_known_scalar_types(
++        PyArray_DTypeMeta *cls, PyTypeObject *pytype);
++
++NPY_NO_EXPORT int
++dtypemeta_wrap_legacy_descriptor(
++    _PyArray_LegacyDescr *descr, PyArray_ArrFuncs *arr_funcs,
++    PyTypeObject *dtype_super_class, const char *name, const char *alias);
++
++NPY_NO_EXPORT void
++initialize_legacy_dtypemeta_aliases(_PyArray_LegacyDescr **_builtin_descrs);
+
+-/*
+- * The type of the DType metaclass
+- */
+-#define PyArrayDTypeMeta_Type (*(PyTypeObject *)(PyArray_API + 320)[0])
+ /*
+  * NumPy's builtin DTypes:
+  */
+-#define PyArray_BoolDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[1])
++
++// note: the built-in legacy DTypes do not have static DTypeMeta
++//       implementations we can refer to at compile time. Instead, we
++//       null-initialize these pointers at compile time and then during
++//       initialization fill them in with the correct types after the
++//       dtypemeta instances for each type are dynamically created at startup.
++
++extern PyArray_DTypeMeta *_Bool_dtype;
++extern PyArray_DTypeMeta *_Byte_dtype;
++extern PyArray_DTypeMeta *_UByte_dtype;
++extern PyArray_DTypeMeta *_Short_dtype;
++extern PyArray_DTypeMeta *_UShort_dtype;
++extern PyArray_DTypeMeta *_Int_dtype;
++extern PyArray_DTypeMeta *_UInt_dtype;
++extern PyArray_DTypeMeta *_Long_dtype;
++extern PyArray_DTypeMeta *_ULong_dtype;
++extern PyArray_DTypeMeta *_LongLong_dtype;
++extern PyArray_DTypeMeta *_ULongLong_dtype;
++extern PyArray_DTypeMeta *_Int8_dtype;
++extern PyArray_DTypeMeta *_UInt8_dtype;
++extern PyArray_DTypeMeta *_Int16_dtype;
++extern PyArray_DTypeMeta *_UInt16_dtype;
++extern PyArray_DTypeMeta *_Int32_dtype;
++extern PyArray_DTypeMeta *_UInt32_dtype;
++extern PyArray_DTypeMeta *_Int64_dtype;
++extern PyArray_DTypeMeta *_UInt64_dtype;
++extern PyArray_DTypeMeta *_Intp_dtype;
++extern PyArray_DTypeMeta *_UIntp_dtype;
++extern PyArray_DTypeMeta *_DefaultInt_dtype;
++extern PyArray_DTypeMeta *_Half_dtype;
++extern PyArray_DTypeMeta *_Float_dtype;
++extern PyArray_DTypeMeta *_Double_dtype;
++extern PyArray_DTypeMeta *_LongDouble_dtype;
++extern PyArray_DTypeMeta *_CFloat_dtype;
++extern PyArray_DTypeMeta *_CDouble_dtype;
++extern PyArray_DTypeMeta *_CLongDouble_dtype;
++extern PyArray_DTypeMeta *_Bytes_dtype;
++extern PyArray_DTypeMeta *_Unicode_dtype;
++extern PyArray_DTypeMeta *_Datetime_dtype;
++extern PyArray_DTypeMeta *_Timedelta_dtype;
++extern PyArray_DTypeMeta *_Object_dtype;
++extern PyArray_DTypeMeta *_Void_dtype;
++
++#define PyArray_BoolDType (*(_Bool_dtype))
+ /* Integers */
+-#define PyArray_ByteDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[2])
+-#define PyArray_UByteDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[3])
+-#define PyArray_ShortDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[4])
+-#define PyArray_UShortDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[5])
+-#define PyArray_IntDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[6])
+-#define PyArray_UIntDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[7])
+-#define PyArray_LongDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[8])
+-#define PyArray_ULongDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[9])
+-#define PyArray_LongLongDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[10])
+-#define PyArray_ULongLongDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[11])
++#define PyArray_ByteDType (*(_Byte_dtype))
++#define PyArray_UByteDType (*(_UByte_dtype))
++#define PyArray_ShortDType (*(_Short_dtype))
++#define PyArray_UShortDType (*(_UShort_dtype))
++#define PyArray_IntDType (*(_Int_dtype))
++#define PyArray_UIntDType (*(_UInt_dtype))
++#define PyArray_LongDType (*(_Long_dtype))
++#define PyArray_ULongDType (*(_ULong_dtype))
++#define PyArray_LongLongDType (*(_LongLong_dtype))
++#define PyArray_ULongLongDType (*(_ULongLong_dtype))
+ /* Integer aliases */
+-#define PyArray_Int8DType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[12])
+-#define PyArray_UInt8DType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[13])
+-#define PyArray_Int16DType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[14])
+-#define PyArray_UInt16DType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[15])
+-#define PyArray_Int32DType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[16])
+-#define PyArray_UInt32DType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[17])
+-#define PyArray_Int64DType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[18])
+-#define PyArray_UInt64DType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[19])
+-#define PyArray_IntpDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[20])
+-#define PyArray_UIntpDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[21])
++#define PyArray_Int8DType (*(_Int8_dtype))
++#define PyArray_UInt8DType (*(_UInt8_dtype))
++#define PyArray_Int16DType (*(_Int16_dtype))
++#define PyArray_UInt16DType (*(_UInt16_dtype))
++#define PyArray_Int32DType (*(_Int32_dtype))
++#define PyArray_UInt32DType (*(_UInt32_dtype))
++#define PyArray_Int64DType (*(_Int64_dtype))
++#define PyArray_UInt64DType (*(_UInt64_dtype))
++#define PyArray_IntpDType (*(_Intp_dtype))
++#define PyArray_UIntpDType (*(_UIntp_dtype))
++#define PyArray_DefaultIntDType (*(_DefaultInt_dtype))
+ /* Floats */
+-#define PyArray_HalfDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[22])
+-#define PyArray_FloatDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[23])
+-#define PyArray_DoubleDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[24])
+-#define PyArray_LongDoubleDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[25])
++#define PyArray_HalfDType (*(_Half_dtype))
++#define PyArray_FloatDType (*(_Float_dtype))
++#define PyArray_DoubleDType (*(_Double_dtype))
++#define PyArray_LongDoubleDType (*(_LongDouble_dtype))
+ /* Complex */
+-#define PyArray_CFloatDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[26])
+-#define PyArray_CDoubleDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[27])
+-#define PyArray_CLongDoubleDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[28])
++#define PyArray_CFloatDType (*(_CFloat_dtype))
++#define PyArray_CDoubleDType (*(_CDouble_dtype))
++#define PyArray_CLongDoubleDType (*(_CLongDouble_dtype))
+ /* String/Bytes */
+-#define PyArray_BytesDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[29])
+-#define PyArray_UnicodeDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[30])
++#define PyArray_BytesDType (*(_Bytes_dtype))
++#define PyArray_UnicodeDType (*(_Unicode_dtype))
++// StringDType is not a legacy DType and has a static dtypemeta implementation
++// we can refer to, so no need for the indirection we use for the built-in
++// dtypes.
++extern PyArray_DTypeMeta PyArray_StringDType;
+ /* Datetime/Timedelta */
+-#define PyArray_DatetimeDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[31])
+-#define PyArray_TimedeltaDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[32])
++#define PyArray_DatetimeDType (*(_Datetime_dtype))
++#define PyArray_TimedeltaDType (*(_Timedelta_dtype))
+ /* Object/Void */
+-#define PyArray_ObjectDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[33])
+-#define PyArray_VoidDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[34])
+-/* Python types (used as markers for scalars) */
+-#define PyArray_PyLongDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[35])
+-#define PyArray_PyFloatDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[36])
+-#define PyArray_PyComplexDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[37])
+-/* Default integer type */
+-#define PyArray_DefaultIntDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[38])
+-/* New non-legacy DTypes follow in the order they were added */
+-#define PyArray_StringDType (*(PyArray_DTypeMeta *)(PyArray_API + 320)[39])
+-
+-/* NOTE: offset 40 is free */
+-
+-/* Need to start with a larger offset again for the abstract classes: */
+-#define PyArray_IntAbstractDType (*(PyArray_DTypeMeta *)PyArray_API[366])
+-#define PyArray_FloatAbstractDType (*(PyArray_DTypeMeta *)PyArray_API[367])
+-#define PyArray_ComplexAbstractDType (*(PyArray_DTypeMeta *)PyArray_API[368])
+-
+-#endif /* NPY_FEATURE_VERSION >= NPY_2_0_API_VERSION */
+-
+-#endif  /* NPY_INTERNAL_BUILD */
+-#endif  /* NUMPY_CORE_INCLUDE_NUMPY__PUBLIC_DTYPE_API_TABLE_H_ */
++#define PyArray_ObjectDType (*(_Object_dtype))
++#define PyArray_VoidDType (*(_Void_dtype))
++
++#ifdef __cplusplus
++}
++#endif
++
++
++
++#endif  /* NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_ */
++#ifndef NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_a
++#define NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_a
++
++#include "numpy/ndarraytypes.h"
++#include "arrayobject.h"
++
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/*
++ * These are mainly needed for value based promotion in ufuncs.  It
++ * may be necessary to make them (partially) public, to allow user-defined
++ * dtypes to perform value based casting.
++ */
++NPY_NO_EXPORT extern PyArray_DTypeMeta PyArray_IntAbstractDType;
++NPY_NO_EXPORT extern PyArray_DTypeMeta PyArray_FloatAbstractDType;
++NPY_NO_EXPORT extern PyArray_DTypeMeta PyArray_ComplexAbstractDType;
++NPY_NO_EXPORT extern PyArray_DTypeMeta PyArray_PyLongDType;
++NPY_NO_EXPORT extern PyArray_DTypeMeta PyArray_PyFloatDType;
++NPY_NO_EXPORT extern PyArray_DTypeMeta PyArray_PyComplexDType;
++
++NPY_NO_EXPORT int
++initialize_and_map_pytypes_to_dtypes(void);
++
++
++
++
++
++NPY_NO_EXPORT int
++npy_update_operand_for_scalar(
++    PyArrayObject **operand, PyObject *scalar, PyArray_Descr *descr,
++    NPY_CASTING casting);
++
++
++NPY_NO_EXPORT PyArray_Descr *
++npy_find_descr_for_scalar(
++    PyObject *scalar, PyArray_Descr *original_descr,
++    PyArray_DTypeMeta *in_DT, PyArray_DTypeMeta *op_DT);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif  /* NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_ */
+diff --git a/numpy/_core/include/numpy/arrayscalars.h b/numpy/_core/include/numpy/arrayscalars.h
+index ff04806..9b2b887 100644
+--- a/numpy/_core/include/numpy/arrayscalars.h
++++ b/numpy/_core/include/numpy/arrayscalars.h
+@@ -1,7 +1,7 @@
+ #ifndef NUMPY_CORE_INCLUDE_NUMPY_ARRAYSCALARS_H_
+ #define NUMPY_CORE_INCLUDE_NUMPY_ARRAYSCALARS_H_
+
+-#ifndef _MULTIARRAYMODULE
++#if 0==1
+ typedef struct {
+         PyObject_HEAD
+         npy_bool obval;
 diff --git a/numpy/_core/src/common/numpyos.c b/numpy/_core/src/common/numpyos.c
 index a5ca280..e33e5d1 100644
 --- a/numpy/_core/src/common/numpyos.c
@@ -18,7 +370,7 @@ index a5ca280..e33e5d1 100644
 @@ -814,14 +814,7 @@ NumPyOS_strtoull(const char *str, char **endptr, int base)
   * earlier than 14.0 (_MSC_VER == 1900).
   */
- 
+
 -static void __cdecl _silent_invalid_parameter_handler(
 -    wchar_t const* expression,
 -    wchar_t const* function,
@@ -28,29 +380,55 @@ index a5ca280..e33e5d1 100644
 -
 -_invalid_parameter_handler _Py_silent_invalid_parameter_handler = _silent_invalid_parameter_handler;
 +
- 
+
  #endif
- 
+
 diff --git a/numpy/_core/src/common/utils.hpp b/numpy/_core/src/common/utils.hpp
 index 22bb9af..d0a3cf4 100644
 --- a/numpy/_core/src/common/utils.hpp
 +++ b/numpy/_core/src/common/utils.hpp
 @@ -2,6 +2,7 @@
  #define NUMPY_CORE_SRC_COMMON_UTILS_HPP
- 
+
  #include "npdef.hpp"
 +#undef BitScanReverse
- 
+
  #if NP_HAS_CPP20
      #include <bit>
+diff --git a/numpy/_core/tests/test_array_interface.py b/numpy/_core/tests/test_array_interface.py
+index afb19f4..cb0abd0 100644
+--- a/numpy/_core/tests/test_array_interface.py
++++ b/numpy/_core/tests/test_array_interface.py
+@@ -117,7 +117,7 @@ def get_module(tmp_path):
+         """)
+         ]
+
+-    more_init = "import_array();"
++    more_init = ""
+
+     try:
+         import array_interface_testing
+diff --git a/numpy/_core/tests/test_mem_policy.py b/numpy/_core/tests/test_mem_policy.py
+index b9f971e..bb95e03 100644
+--- a/numpy/_core/tests/test_mem_policy.py
++++ b/numpy/_core/tests/test_mem_policy.py
+@@ -214,7 +214,7 @@ def get_module(tmp_path):
+             free(obj);
+         };
+         '''
+-    more_init = "import_array();"
++    more_init = ""
+     try:
+         import mem_policy
+         return mem_policy
 diff --git a/numpy/distutils/command/build_ext.py b/numpy/distutils/command/build_ext.py
-index 42137e5..b312160 100644
+index 42137e5..344c019 100644
 --- a/numpy/distutils/command/build_ext.py
 +++ b/numpy/distutils/command/build_ext.py
-@@ -617,15 +617,36 @@ def build_extension(self, ext):
+@@ -617,15 +617,37 @@ def build_extension(self, ext):
                      fcompiler, library_dirs,
                      unlinkable_fobjects)
- 
+
 -        linker(objects, ext_filename,
 -               libraries=libraries,
 -               library_dirs=library_dirs,
@@ -72,6 +450,7 @@ index 42137e5..b312160 100644
 +            self.compiler.library_filename(ext_filename,
 +                                           output_dir=os.path.abspath("."))
 +
++        import json
 +        with open(result_path + '.link.json', 'w') as f:
 +            json.dump({
 +                'libraries': self.get_libraries(ext),
@@ -90,30 +469,44 @@ index 42137e5..b312160 100644
 +                        shutil.copyfile(os.path.join(dir, lib + '.lib'),
 +                                        os.path.join(lib_install_dir, lib + '.lib'))
 +                    break
- 
+
      def _add_dummy_mingwex_sym(self, c_sources):
          build_src = self.get_finalized_command("build_src").build_src
+diff --git a/numpy/f2py/rules.py b/numpy/f2py/rules.py
+index 667ef28..6322281 100644
+--- a/numpy/f2py/rules.py
++++ b/numpy/f2py/rules.py
+@@ -255,7 +255,7 @@
+     PyObject *m,*d, *s, *tmp;
+     m = #modulename#_module = PyModule_Create(&moduledef);
+     Py_SET_TYPE(&PyFortran_Type, &PyType_Type);
+-    import_array();
++
+     if (PyErr_Occurred())
+         {PyErr_SetString(PyExc_ImportError, \"can't initialize module #modulename# (failed to import numpy)\"); return m;}
+     d = PyModule_GetDict(m);
 diff --git a/numpy/f2py/src/fortranobject.h b/numpy/f2py/src/fortranobject.h
-index 4aed2f6..53d4012 100644
+index 4aed2f6..5337f16 100644
 --- a/numpy/f2py/src/fortranobject.h
 +++ b/numpy/f2py/src/fortranobject.h
-@@ -12,7 +12,9 @@ extern "C" {
- #ifdef FORTRANOBJECT_C
- #define NO_IMPORT_ARRAY
+@@ -9,10 +9,6 @@ extern "C" {
+ #ifndef NPY_NO_DEPRECATED_API
+ #define NPY_NO_DEPRECATED_API NPY_API_VERSION
  #endif
-+#ifndef PY_ARRAY_UNIQUE_SYMBOL
- #define PY_ARRAY_UNIQUE_SYMBOL _npy_f2py_ARRAY_API
-+#endif
+-#ifdef FORTRANOBJECT_C
+-#define NO_IMPORT_ARRAY
+-#endif
+-#define PY_ARRAY_UNIQUE_SYMBOL _npy_f2py_ARRAY_API
  #include "numpy/arrayobject.h"
  #include "numpy/npy_3kcompat.h"
- 
+
 diff --git a/numpy/linalg/meson.build b/numpy/linalg/meson.build
 index e2f8136..bcdb975 100644
 --- a/numpy/linalg/meson.build
 +++ b/numpy/linalg/meson.build
 @@ -3,18 +3,7 @@
  python_xerbla_sources = ['lapack_lite/python_xerbla.c']
- 
+
  lapack_lite_sources = []
 -if not have_lapack
 -  lapack_lite_sources = [
@@ -128,11 +521,24 @@ index e2f8136..bcdb975 100644
 -  ]
 -endif
 +
- 
+
  py.extension_module('lapack_lite',
    [
+diff --git a/numpy/random/meson.build b/numpy/random/meson.build
+index 1645027..45be721 100644
+--- a/numpy/random/meson.build
++++ b/numpy/random/meson.build
+@@ -73,7 +73,7 @@ random_pyx_sources = [
+   ['_generator', fs.copyfile('_generator.pyx'), [], [npyrandom_lib, npymath_lib]],
+   ['mtrand', [
+       fs.copyfile('mtrand.pyx'),
+-      'src/distributions/distributions.c',
++      #'src/distributions/distributions.c',
+       'src/legacy/legacy-distributions.c'
+     ],
+     ['-DNP_RANDOM_LEGACY=1'], [npymath_lib],
 diff --git a/vendored-meson/meson/mesonbuild/backend/ninjabackend.py b/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
-index b783417..9b16ef1 100644
+index b783417..7e505cb 100644
 --- a/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
 +++ b/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
 @@ -13,6 +13,7 @@
@@ -187,7 +593,7 @@ index b783417..9b16ef1 100644
                  targetlist.append(os.path.join(self.get_target_dir(t), t.get_outputs()[0]))
 +                if isinstance(t, build.StaticLibrary):
 +                    targetlist.append(os.path.join(self.get_target_dir(t), t.get_outputs()[0]) + ".stamp")
- 
+
              elem = NinjaBuildElement(self.all_outputs, targ, 'phony', targetlist)
              self.add_build(elem)
 diff --git a/vendored-meson/meson/mesonbuild/build.py b/vendored-meson/meson/mesonbuild/build.py
@@ -215,6 +621,28 @@ index 7cf85de..7db27a8 100644
          self.soversion: T.Optional[str] = None
          self.ltversion: T.Optional[str] = None
          # Max length 2, first element is compatibility_version, second is current_version
+diff --git a/vendored-meson/meson/mesonbuild/cmake/toolchain.py b/vendored-meson/meson/mesonbuild/cmake/toolchain.py
+index 11a00be..0d9689c 100644
+--- a/vendored-meson/meson/mesonbuild/cmake/toolchain.py
++++ b/vendored-meson/meson/mesonbuild/cmake/toolchain.py
+@@ -175,6 +175,8 @@ def make_abs(exe: str) -> str:
+
+         # Set the compiler variables
+         for lang, comp_obj in self.compilers.items():
++            if lang == 'cython':
++                continue
+             language = language_map.get(lang, None)
+
+             if not language:
+@@ -216,7 +218,7 @@ def update_cmake_compiler_state(self) -> None:
+         # Generate the CMakeLists.txt
+         mlog.debug('CMake Toolchain: Calling CMake once to generate the compiler state')
+         languages = list(self.compilers.keys())
+-        lang_ids = [language_map.get(x) for x in languages if x in language_map]
++        lang_ids = [language_map.get(x) for x in languages if x in language_map and x != 'cython']
+         cmake_content = dedent(f'''
+             cmake_minimum_required(VERSION 3.10)
+             project(CompInfo {' '.join(lang_ids)})
 diff --git a/vendored-meson/meson/mesonbuild/dependencies/python.py b/vendored-meson/meson/mesonbuild/dependencies/python.py
 index 7f9bd20..14b8636 100644
 --- a/vendored-meson/meson/mesonbuild/dependencies/python.py
@@ -229,16 +657,18 @@ index 7f9bd20..14b8636 100644
                  if limited_api:
                      vernum = vernum[0]
 diff --git a/vendored-meson/meson/mesonbuild/interpreter/interpreter.py b/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
-index 7da5436..bce520e 100644
+index 7da5436..2f067c3 100644
 --- a/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
 +++ b/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
-@@ -1855,6 +1855,9 @@ def func_executable(self, node: mparser.BaseNode,
+@@ -1855,6 +1855,11 @@ def func_executable(self, node: mparser.BaseNode,
      def func_static_lib(self, node: mparser.BaseNode,
                          args: T.Tuple[str, SourcesVarargsType],
                          kwargs: kwtypes.StaticLibrary) -> build.StaticLibrary:
 +        import sys
 +        kwargs['install'] = True
-+        kwargs["install_dir"] = kwargs.get("install_dir", self._holderify(self.modules['python'].installations[sys.executable])._get_install_dir_impl(False, self.active_projectname.lower()))
++        kwargs["install_dir"] = kwargs.get("install_dir", self._holderify(
++            self.modules['python'].installations[sys.executable])._get_install_dir_impl(False,
++                                                                                        self.build.project_name.lower()))
          return self.build_target(node, args, kwargs, build.StaticLibrary)
  
      @permittedKwargs(build.known_shlib_kwargs)

@@ -51,7 +51,6 @@ def run(wheel_directory):
                                                       "_d1mach_": {
                                                           "use_definition_from": "libmach_lib.a"
                                                       }},
-                                                  #protected_symbol_patterns=[".*f2py.*"],
                                                   write_debug=True
                                                   )
 

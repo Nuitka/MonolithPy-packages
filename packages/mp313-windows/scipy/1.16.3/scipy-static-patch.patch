@@ -65,40 +65,13 @@ index 66eea06..2645a6b 100644
        }
      }
 diff --git a/scipy/integrate/meson.build b/scipy/integrate/meson.build
-index 206d504..c960f5c 100644
+index 206d504..541c670 100644
 --- a/scipy/integrate/meson.build
 +++ b/scipy/integrate/meson.build
-@@ -82,7 +82,7 @@ py3.extension_module('_odepack',
- py3.extension_module('_vode',
-   f2py_gen.process('vode.pyf'),
-   link_with: [vode_lib],
--  c_args: [Wno_unused_variable],
-+  c_args: [Wno_unused_variable, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_vode'],
-   link_args: version_link_args,
-   dependencies: [lapack_dep, blas_dep, fortranobject_dep],
-   install: true,
-@@ -93,7 +93,7 @@ py3.extension_module('_vode',
- py3.extension_module('_lsoda',
-   f2py_gen.process('lsoda.pyf'),
-   link_with: [lsoda_lib, mach_lib],
--  c_args: [Wno_unused_variable],
-+  c_args: [Wno_unused_variable, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_vode'],
-   dependencies: [lapack_dep, fortranobject_dep],
-   link_args: version_link_args,
-   install: true,
-@@ -104,7 +104,7 @@ py3.extension_module('_lsoda',
- py3.extension_module('_dop',
-   f2py_gen.process('dop.pyf'),
-   link_with: [dop_lib],
--  c_args: [Wno_unused_variable],
-+  c_args: [Wno_unused_variable, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_dop'],
-   dependencies: [fortranobject_dep],
-   link_args: version_link_args,
-   install: true,
 @@ -120,18 +120,6 @@ py3.extension_module('_test_multivariate',
    install_tag: 'tests'
  )
- 
+
 -py3.extension_module('_test_odeint_banded',
 -  ['tests/banded5x5.f', f2py_gen.process('tests/test_odeint_banded.pyf')],
 -  link_with: [lsoda_lib, mach_lib],
@@ -114,19 +87,6 @@ index 206d504..c960f5c 100644
  subdir('_ivp')
  subdir('_rules')
  subdir('tests')
-diff --git a/scipy/interpolate/meson.build b/scipy/interpolate/meson.build
-index e0e2867..87689b7 100644
---- a/scipy/interpolate/meson.build
-+++ b/scipy/interpolate/meson.build
-@@ -154,7 +154,7 @@ py3.extension_module('_fitpack',
- # TODO: Add flags for 64 bit ints
- py3.extension_module('_dfitpack',
-   f2py_gen.process('src/dfitpack.pyf'),
--  c_args: [Wno_unused_variable],
-+  c_args: [Wno_unused_variable, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_dfitpack'],
-   link_args: version_link_args,
-   dependencies: [lapack_dep, fortranobject_dep],
-   link_with: [fitpack_lib],
 diff --git a/scipy/io/meson.build b/scipy/io/meson.build
 index 60f71c6..1eeae1f 100644
 --- a/scipy/io/meson.build
@@ -146,30 +106,9 @@ index 60f71c6..1eeae1f 100644
 -  subdir: 'scipy/io',
 -  install_tag: 'tests'
 -)
- 
+
  py3.install_sources([
      '__init__.py',
-diff --git a/scipy/linalg/meson.build b/scipy/linalg/meson.build
-index 77caa98..93d7a20 100644
---- a/scipy/linalg/meson.build
-+++ b/scipy/linalg/meson.build
-@@ -68,6 +68,7 @@ py3.extension_module('_fblas',
-   fblas_module,
-   link_args: version_link_args,
-   dependencies: [lapack_dep, blas_dep, fortranobject_dep],
-+  c_args: ['-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_fblas'],
-   install: true,
-   subdir: 'scipy/linalg'
- )
-@@ -94,7 +95,7 @@ flapack_module = custom_target('flapack_module',
- # in flapack_other.pyf.src
- py3.extension_module('_flapack',
-   flapack_module,
--  c_args: [Wno_empty_body],
-+  c_args: [Wno_empty_body, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_dfitpack'],
-   link_args: version_link_args,
-   dependencies: [lapack_dep, blas_dep, fortranobject_dep],
-   install: true,
 diff --git a/scipy/meson.build b/scipy/meson.build
 index 1bc50f5..754dc75 100644
 --- a/scipy/meson.build
@@ -187,20 +126,7 @@ index 1bc50f5..754dc75 100644
 +  dependencies: py3_dep,
    include_directories: [inc_np, inc_f2py],
  )
- 
-diff --git a/scipy/sparse/linalg/_propack/meson.build b/scipy/sparse/linalg/_propack/meson.build
-index d33cdc0..5c9f69c 100644
---- a/scipy/sparse/linalg/_propack/meson.build
-+++ b/scipy/sparse/linalg/_propack/meson.build
-@@ -102,7 +102,7 @@ foreach ele: elements
-   propacklib = py3.extension_module(ele[0],
-     f2py_gen.process(ele[2]),
-     link_with: propack_lib,
--    c_args: ['-U_OPENMP', _cpp_Wno_cpp],
-+    c_args: ['-U_OPENMP', _cpp_Wno_cpp, '-DPY_ARRAY_UNIQUE_SYMBOL=_npy_f2py_ARRAY_API_' + ele[0]],
-     fortran_args: _fflag_Wno_maybe_uninitialized,
-     dependencies: [lapack_dep, blas_dep, fortranobject_dep],
-     link_args: version_link_args,
+
 diff --git a/scipy/special/_ellip_harm_2.pyx b/scipy/special/_ellip_harm_2.pyx
 index 35ff34c..2e4e472 100644
 --- a/scipy/special/_ellip_harm_2.pyx
@@ -208,7 +134,7 @@ index 35ff34c..2e4e472 100644
 @@ -190,15 +190,7 @@ cimport numpy as np
  np.import_array()
  np.import_ufunc()
- 
+
 -cdef extern from "numpy/ufuncobject.h":
 -    int PyUFunc_getfperr() nogil
 -
@@ -219,29 +145,29 @@ index 35ff34c..2e4e472 100644
 -    """
 -    return PyUFunc_getfperr()
 +
- 
- 
+
+
  cdef void _set_action(
 diff --git a/scipy/special/_ufuncs_extra_code_common.pxi b/scipy/special/_ufuncs_extra_code_common.pxi
 index 8e1ff08..ce867bc 100644
 --- a/scipy/special/_ufuncs_extra_code_common.pxi
 +++ b/scipy/special/_ufuncs_extra_code_common.pxi
 @@ -9,15 +9,7 @@ from numpy cimport (
- 
+
  ctypedef double complex double_complex
- 
+
 -cdef extern from "numpy/ufuncobject.h":
 -    int PyUFunc_getfperr() nogil
- 
+
 -cdef public int wrap_PyUFunc_getfperr() noexcept nogil:
 -    """
 -    Call PyUFunc_getfperr in a context where PyUFunc_API array is initialized;
 -    this avoids messing with the UNIQUE_SYMBOL #defines
 -    """
 -    return PyUFunc_getfperr()
- 
+
  cimport libc
- 
+
 diff --git a/scipy/special/meson.build b/scipy/special/meson.build
 index eb840af..43ffbdd 100644
 --- a/scipy/special/meson.build
@@ -253,10 +179,10 @@ index eb840af..43ffbdd 100644
 -  'sf_error.cc',
    'wright.cc'
  ]
- 
+
 @@ -52,21 +51,21 @@ if meson.get_compiler('cpp').get_id() == 'gcc'
  endif
- 
+
  py3.extension_module('_special_ufuncs',
 -  ['_special_ufuncs.cpp', '_special_ufuncs_docs.cpp', 'sf_error.cc'],
 +  ['_special_ufuncs.cpp', '_special_ufuncs_docs.cpp'],
@@ -268,7 +194,7 @@ index eb840af..43ffbdd 100644
    install: true,
    subdir: 'scipy/special',
  )
- 
+
  py3.extension_module('_gufuncs',
 -  ['_gufuncs.cpp', '_gufuncs_docs.cpp', 'sf_error.cc'],
 +  ['_gufuncs.cpp', '_gufuncs_docs.cpp'],
@@ -282,7 +208,7 @@ index eb840af..43ffbdd 100644
  )
 @@ -171,7 +170,7 @@ py3.extension_module('_ufuncs_cxx',
  )
- 
+
  py3.extension_module('_ellip_harm_2',
 -  [uf_cython_gen.process('_ellip_harm_2.pyx'), 'sf_error.cc'],
 +  [uf_cython_gen.process('_ellip_harm_2.pyx')],
@@ -305,7 +231,7 @@ index eb840af..43ffbdd 100644
 @@ -206,22 +204,6 @@ py3.extension_module('_comb',
    subdir: 'scipy/special'
  )
- 
+
 -py3.extension_module('_test_internal',
 -  [cython_gen.process('_test_internal.pyx'), 'dd_real_wrappers.cpp'],
 -  include_directories: ['../_lib', '../_build_utils/src'],
@@ -325,21 +251,6 @@ index eb840af..43ffbdd 100644
  # Must use `custom_target`, because `py3.install_sources` does not work with
  # generated sources - see https://github.com/mesonbuild/meson/issues/7372
  npz_files = [
-diff --git a/scipy/stats/_rcont/meson.build b/scipy/stats/_rcont/meson.build
-index c57472f..3a015cc 100644
---- a/scipy/stats/_rcont/meson.build
-+++ b/scipy/stats/_rcont/meson.build
-@@ -8,8 +8,8 @@ py3.install_sources([
- py3.extension_module('rcont',
-   [
-     '_rcont.c',
--    '../libnpyrandom/logfactorial.c',
--    '../libnpyrandom/distributions.c',
-+    #'../libnpyrandom/logfactorial.c',
-+    #'../libnpyrandom/distributions.c',
-   ],
-   cython_gen.process('rcont.pyx'),
-   include_directories: ['../libnpyrandom'],
 diff --git a/scipy/stats/meson.build b/scipy/stats/meson.build
 index 282c250..0455349 100644
 --- a/scipy/stats/meson.build
