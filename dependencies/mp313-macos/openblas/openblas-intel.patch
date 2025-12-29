@@ -1,5 +1,5 @@
 diff --git a/getarch.c b/getarch.c
-index 826dd1ce0..24b0cb242 100644
+index 2f0bccf..da16a24 100644
 --- a/getarch.c
 +++ b/getarch.c
 @@ -157,7 +157,7 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -8,6 +8,6 @@ index 826dd1ce0..24b0cb242 100644
  /* #define FORCE_CK860FV        */
 -/* #define FORCE_GENERIC	*/
 +#define FORCE_GENERIC
+ /* #define FORCE_AMPERE1	*/
  
  #ifdef FORCE_P2
- #define FORCE
