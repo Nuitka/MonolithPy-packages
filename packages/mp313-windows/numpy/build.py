@@ -13,6 +13,15 @@ def run(wheel_directory):
 
     build_dir = os.getcwd()
 
+    with open(os.path.join("numpy", "_core", "src", "multiarray", "dtypemeta.h"), "r") as f:
+        api_table = f.read() + os.linesep
+
+    with open(os.path.join("numpy", "_core", "src", "multiarray", "abstractdtypes.h"), "r") as f:
+        api_table += f.read()
+
+    with open(os.path.join("numpy", "_core", "include", "numpy", "_public_dtype_api_table.h"), "w") as f:
+        f.write(api_table)
+
     __mp__.run_build_tool_exe("patch", "patch.exe", "-p1", "-i",
                               os.path.join(os.path.dirname(__file__), "numpy-static-patch.patch"))
 
@@ -39,10 +48,12 @@ def run(wheel_directory):
                 wheel_files.append(filename)
                 wf.extract(filename, tmpdir)
 
-        os.chdir(tmpdir)
-        __mp__.run_build_tool_exe("patch", "patch.exe", "-p1", "-i",
-                                  os.path.join(os.path.dirname(__file__), "numpy-post.patch"))
-        os.chdir(build_dir)
+        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "numpy/_core/_multiarray_tests.monolithpy-313-darwin.a"),
+                                      "np_multiarray_tests_")
+        __mp__.analyze_and_rename_library_symbols(tmpdir, "numpy",
+                                                  protected_symbol_patterns=["_?PyUFunc.+", "_?npy_.+", "_?PyArray.+",
+                                                                             "_?Py.+_Type"],
+                                                  exclude_libraries=["_multiarray_umath*"])
 
         with WheelFile(wheel_location, 'w') as wf:
             for filename in wheel_files:

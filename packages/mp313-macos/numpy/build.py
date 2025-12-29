@@ -9,10 +9,19 @@ from wheel.wheelfile import WheelFile
 
 
 def run(wheel_directory):
+    build_dir = os.getcwd()
+
+    with open(os.path.join("numpy", "_core", "src", "multiarray", "dtypemeta.h"), "r") as f:
+        api_table = f.read() + os.linesep
+
+    with open(os.path.join("numpy", "_core", "src", "multiarray", "abstractdtypes.h"), "r") as f:
+        api_table += f.read()
+
+    with open(os.path.join("numpy", "_core", "include", "numpy", "_public_dtype_api_table.h"), "w") as f:
+        f.write(api_table)
+
     __mp__.run_with_output("patch", "-p1", "-i",
                               os.path.join(os.path.dirname(__file__), "numpy-static-patch.patch"))
-
-    build_dir = os.getcwd()
 
     env = os.environ.copy()
     env["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
@@ -38,11 +47,6 @@ def run(wheel_directory):
             for filename in wf.namelist():
                 wheel_files.append(filename)
                 wf.extract(filename, tmpdir)
-
-        #os.chdir(tmpdir)
-        #__mp__.run_with_output("patch", "-p1", "-f", "-i",
-        #                       os.path.join(os.path.dirname(__file__), "numpy-post.patch"))
-        #os.chdir(build_dir)
 
         __mp__.rename_symbols_in_file(os.path.join(tmpdir, "numpy/_core/_multiarray_tests.monolithpy-313-darwin.a"),
                                       "np_multiarray_tests_")
