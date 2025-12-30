@@ -8,8 +8,7 @@
       "dependencies": ["openblas"],
       "files": [
         "build.py",
-        "numpy-static-patch.patch",
-        "numpy-post.patch"
+        "numpy-static-patch.patch"
       ],
       "build_requires": [
         "meson-python>=0.18.0",
