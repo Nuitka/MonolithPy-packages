@@ -29,10 +29,8 @@ def run(wheel_directory):
             for filename in wf.namelist():
                 wheel_files.append(filename)
                 wf.extract(filename, tmpdir)
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "sklearn/svm/_libsvm_sparse.nuitkapython-311-darwin.a"), "sklearn_svm__libsvm_sparse")
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "sklearn/svm/_libsvm.nuitkapython-311-darwin.a"), "sklearn_svm__libsvm")
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "sklearn/svm/_newrand.nuitkapython-311-darwin.a"), "sklearn_svm__newrand")
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "sklearn/svm/_liblinear.nuitkapython-311-darwin.a"), "sklearn_svm__liblinear")
+        __mp__.analyze_and_rename_library_symbols(tmpdir,
+                                                  "scikit_learn")
         with WheelFile(wheel_location, 'w') as wf:
             for filename in wheel_files:
                 wf.write(os.path.join(tmpdir, filename), filename)

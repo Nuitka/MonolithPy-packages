@@ -12,9 +12,10 @@ from wheel.wheelfile import WheelFile
 def run(wheel_directory):
     __mp__.setup_compiler_env()
 
+    __mp__.run_build_tool_exe("patch", "patch.exe", "-p1", "-ui",
+                              os.path.join(os.path.dirname(__file__), "scikit_learn-static-patch.patch"))
+
     env = os.environ.copy()
-    env["CFLAGS"] = "/DBYPASS_MP_EMBED"
-    env["CXXFLAGS"] = "/DBYPASS_MP_EMBED"
     with TemporaryDirectory() as temp_dir:
         __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-Ccompile-args=-j3", "-Cbuild-dir=" + temp_dir, env=env)
 
@@ -27,10 +28,7 @@ def run(wheel_directory):
                 wheel_files.append(filename)
                 wf.extract(filename, tmpdir)
         __mp__.analyze_and_rename_library_symbols(tmpdir,
-                                                  "scikit_learn",
-                                                  symbol_mapping={
-                                                      "set_seed": {"use_definition_from": "libliblinear-skl.lib"}
-                                                  })
+                                                  "scikit_learn")
         with WheelFile(wheel_location, 'w') as wf:
             for filename in wheel_files:
                 wf.write(os.path.join(tmpdir, filename), filename)
