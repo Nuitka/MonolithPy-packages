@@ -46,7 +46,7 @@ def run(wheel_directory):
                 wheel_files.append(filename)
                 wf.extract(filename, tmpdir)
 
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "numpy/_core/_multiarray_tests.monolithpy-313-darwin.a"),
+        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "numpy\\_core\\_multiarray_tests.mp313-win_amd64.lib"),
                                       "np_multiarray_tests_")
         __mp__.analyze_and_rename_library_symbols(tmpdir, "numpy",
                                                   protected_symbol_patterns=["_?PyUFunc.+", "_?npy_.+", "_?PyArray.+",
