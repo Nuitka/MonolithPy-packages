@@ -14,7 +14,7 @@ def run(wheel_directory):
     build_dir = os.getcwd()
 
     with open(os.path.join("numpy", "_core", "src", "multiarray", "dtypemeta.h"), "r") as f:
-        api_table = f.read() + os.linesep
+        api_table = f.read()
 
     with open(os.path.join("numpy", "_core", "src", "multiarray", "abstractdtypes.h"), "r") as f:
         api_table += f.read()
