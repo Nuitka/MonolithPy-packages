@@ -16,6 +16,7 @@
         "build",
         "meson >= 1.2.0",
         "meson-python >= 0.13.1",
+        "scikit-build-core>=0.11.2",
         "pybind11 >= 2.13.2, != 2.13.3"
       ],
       "dist_requires": [
