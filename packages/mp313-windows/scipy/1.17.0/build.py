@@ -57,6 +57,14 @@ def run(wheel_directory):
                                                   symbol_mapping={
                                                       "d1mach_": {
                                                           "use_definition_from": "libmach_lib.lib"
+                                                      },
+                                                      "_cdotc_": {
+                                                          "use_definition_from": "libarnaud.lib",
+                                                          "for_libraries": ["libdummy_g77_abi_wrappers.lib"]
+                                                      },
+                                                      "_zdotc_": {
+                                                          "use_definition_from": "libarnaud.a",
+                                                          "for_libraries": ["libdummy_g77_abi_wrappers.lib"]
                                                       }},
                                                   write_debug=True
                                                   )
