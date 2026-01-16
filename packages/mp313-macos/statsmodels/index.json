@@ -14,8 +14,8 @@
         "setuptools",
         "build",
         "meson-python",
-        "cython>=3.0.13,<4",
-        "setuptools_scm>=9.2.0,<10"
+        "cython>=3.0.10,<4",
+        "setuptools_scm[toml]>=8,<9"
       ],
       "dist_requires": [
         "numpy>=1.22.3,<3",
