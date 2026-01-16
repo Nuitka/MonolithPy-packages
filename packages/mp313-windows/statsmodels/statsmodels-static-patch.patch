@@ -1,5 +1,5 @@
 diff --git a/statsmodels/tools/docstring.py b/statsmodels/tools/docstring.py
-index 272aaa4..c43597c 100644
+index 272aaa4..9f4a4f9 100644
 --- a/statsmodels/tools/docstring.py
 +++ b/statsmodels/tools/docstring.py
 @@ -143,7 +143,6 @@ class NumpyDocString(Mapping):
@@ -68,7 +68,7 @@ index 272aaa4..c43597c 100644
 -                "{} were not found in the "
 -                "docstring".format(",".join(missing))
 -            )
-+            pass
++            parameters = [param for param in parameters if param not in missing]
          final = [ds_params[param] for param in parameters]
          ds = copy.deepcopy(self._ds)
          for key in ds:
