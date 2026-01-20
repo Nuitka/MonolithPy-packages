@@ -19,7 +19,7 @@
         "pythran<0.18.0,>=0.14.0",
         "build"
       ],
-      "dist_requirements": [
+      "dist_requires": [
         "numpy>=1.25.2"
       ],
       "build_script": "build.py"
@@ -43,7 +43,7 @@
         "pythran<0.18.0,>=0.14.0",
         "build"
       ],
-      "dist_requirements": [
+      "dist_requires": [
         "numpy>=1.25.2"
       ],
       "build_script": "build.py"
@@ -67,7 +67,7 @@
         "pythran<0.18.0,>=0.14.0",
         "build"
       ],
-      "dist_requirements": [
+      "dist_requires": [
         "numpy>=1.25.2"
       ],
       "build_script": "build.py"
