@@ -9,6 +9,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Unbuffered output for CI environments
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
 
 def get_monolithpy_executable(monolithpy_dir: Path) -> Path:
     """Get the MonolithPy executable path."""
@@ -44,11 +48,7 @@ def run_build(monolithpy: Path, package_name: str) -> bool:
     try:
         result = subprocess.run(
             [str(monolithpy), "-m", "pip", "install", "--verbose", package_name],
-            capture_output=True, text=True
         )
-        print(result.stdout)
-        if result.stderr:
-            print(result.stderr, file=sys.stderr)
         return result.returncode == 0
     except Exception as e:
         print(f"Build error: {e}", file=sys.stderr)
@@ -60,11 +60,7 @@ def run_test(monolithpy: Path, test_path: Path) -> bool:
     try:
         result = subprocess.run(
             [str(monolithpy), str(test_path)],
-            capture_output=True, text=True
         )
-        print(result.stdout)
-        if result.stderr:
-            print(result.stderr, file=sys.stderr)
         return result.returncode == 0
     except Exception as e:
         print(f"Test error: {e}", file=sys.stderr)
