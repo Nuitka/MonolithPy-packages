@@ -1,4 +1,5 @@
 {
+  "tests": ["test.py"],
   "scripts": [
     {
       "metadata": {

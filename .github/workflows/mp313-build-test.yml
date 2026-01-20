@@ -1,0 +1,60 @@
+name: mp313 Build and Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-test-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13
+          name: MonolithPy313_windows_x64
+          path: monolithpy
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        shell: pwsh
+        run: |
+          $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
+          echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
+
+      - name: Build and test packages
+        run: python .github/scripts/build_and_test.py
+
+  build-and-test-macos:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13
+          name: MonolithPy313_mac_arm64_No_LTO
+          path: monolithpy
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
+
+      - name: Make MonolithPy executable
+        run: |
+          chmod +x monolithpy/* 2>/dev/null || true
+          find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
+
+      - name: Build and test packages
+        run: python3 .github/scripts/build_and_test.py
+
