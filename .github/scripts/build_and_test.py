@@ -87,20 +87,27 @@ def main():
         print(f"::error::MonolithPy executable not found at {monolithpy}", file=sys.stderr)
         sys.exit(1)
     
-    work_dir = root_dir / "work"
-    
+    # Keep a pristine copy of MonolithPy
+    pristine_dir = root_dir / "monolithpy_pristine"
+    shutil.copytree(monolithpy_dir, pristine_dir, dirs_exist_ok=True)
+
+    work_monolithpy = root_dir / "monolithpy_work"
+
     for pkg_dir in sorted(packages_dir.iterdir()):
         if not pkg_dir.is_dir():
             continue
-        
+
         pkg_name = pkg_dir.name
         print(f"::group::Building {pkg_name}")
-        
-        # Make a fresh copy of MonolithPy
-        pkg_work_dir = work_dir / pkg_name
-        pkg_work_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(monolithpy_dir, pkg_work_dir / "monolithpy", dirs_exist_ok=True)
-        
+
+        # Create a fresh copy of MonolithPy for this package
+        if work_monolithpy.exists():
+            shutil.rmtree(work_monolithpy)
+        shutil.copytree(pristine_dir, work_monolithpy)
+
+        # Update monolithpy to point to working copy
+        monolithpy = get_monolithpy_executable(work_monolithpy)
+
         clear_pip_cache()
         
         build_script = pkg_dir / "build.py"
