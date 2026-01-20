@@ -14,6 +14,9 @@
       "build_requires": [
         "setuptools"
       ],
+      "dist_requirements": [
+        "pycparser"
+      ],
       "build_script": "build.py"
     }
   ]
