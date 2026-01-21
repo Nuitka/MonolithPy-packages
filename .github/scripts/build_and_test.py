@@ -34,10 +34,19 @@ def get_tests_from_index(index_path: Path) -> list[str]:
         return []
 
 
-def clear_pip_cache():
+def clear_pip_cache(monolithpy: Path):
     """Clear pip cache, ignoring errors."""
     try:
-        subprocess.run([sys.executable, "-m", "pip", "cache", "purge"],
+        subprocess.run([str(monolithpy), "-m", "pip", "cache", "purge"],
+                       capture_output=True, check=False)
+    except Exception:
+        pass
+
+
+def run_rebuild(monolithpy: Path):
+    """Clear pip cache, ignoring errors."""
+    try:
+        subprocess.run([str(monolithpy), "-m", "rebuildpython"],
                        capture_output=True, check=False)
     except Exception:
         pass
@@ -108,7 +117,9 @@ def main():
         # Update monolithpy to point to working copy
         monolithpy = get_monolithpy_executable(work_monolithpy)
 
-        clear_pip_cache()
+        run_rebuild(monolithpy)
+
+        clear_pip_cache(monolithpy)
         
         build_script = pkg_dir / "build.py"
         if not build_script.exists():
