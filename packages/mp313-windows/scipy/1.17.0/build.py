@@ -37,7 +37,7 @@ def run(wheel_directory):
     job_args = []
     if "MP_JOBS" in env:
         job_args += ["-Ccompile-args=-j" + env["MP_JOBS"]]
-    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-Ccompile-args=-j6",
+    __mp__.run(sys.executable, "-m", "build", "-w", "-Ccompile-args=-j6",
                            "-Csetup-args=-Dprefer_static=True", "-Csetup-args=-Db_vscrt=mt", *job_args, env=env)
 
     wheel_location = glob.glob(os.path.join("dist", "scipy-*.whl"))[0]

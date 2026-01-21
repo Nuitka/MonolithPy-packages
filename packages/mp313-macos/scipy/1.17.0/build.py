@@ -28,7 +28,7 @@ def run(wheel_directory):
     env["CFLAGS"] = "-DBYPASS_MP_EMBED"
     env["CXXFLAGS"] = "-DBYPASS_MP_EMBED"
     env["PKG_CONFIG"] = "/disabled"
-    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation",
+    __mp__.run(sys.executable, "-m", "build", "-w",
                             "-Csetup-args=-Dprefer_static=True", "-Csetup-args=-Dblas=openblas", 
                             "-Csetup-args=-Dlapack=openblas", "-Csetup-args=-Dbuildtype=debug",
                             "-Csetup-args=-Dfortran_link_args=-static-libgcc -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib",
