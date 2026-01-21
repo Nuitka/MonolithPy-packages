@@ -47,6 +47,9 @@ jobs:
           name: MonolithPy313_mac_arm64_No_LTO
           path: monolithpy
 
+      - name: Uninstall homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+
       - name: Set MONOLITHPY_PACKAGE_URL
         run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
 

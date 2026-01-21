@@ -43,6 +43,23 @@ def clear_pip_cache(monolithpy: Path):
         pass
 
 
+def rmtree_force(path: Path):
+    """Remove directory tree, handling Windows permission issues."""
+    def on_error(func, path, exc_info):
+        try:
+            # Handle read-only files on Windows
+            os.chmod(path, 0o777)
+            func(path)
+        except Exception:
+            # If we still can't delete, move the file out of the way
+            import uuid
+            trash_dir = Path.cwd() / ".trash"
+            trash_dir.mkdir(exist_ok=True)
+            shutil.move(path, trash_dir / f"{uuid.uuid4().hex}")
+
+    shutil.rmtree(path, onexc=on_error)
+
+
 def run_rebuild(monolithpy: Path):
     """Clear pip cache, ignoring errors."""
     try:
@@ -111,7 +128,7 @@ def main():
 
         # Create a fresh copy of MonolithPy for this package
         if work_monolithpy.exists():
-            shutil.rmtree(work_monolithpy)
+            rmtree_force(work_monolithpy)
         shutil.copytree(pristine_dir, work_monolithpy)
 
         # Update monolithpy to point to working copy
@@ -121,29 +138,26 @@ def main():
 
         clear_pip_cache(monolithpy)
         
-        build_script = pkg_dir / "build.py"
-        if not build_script.exists():
-            print(f"No build.py found for {pkg_name}, skipping")
-            print("::endgroup::")
-            continue
-        
         print(f"Building {pkg_name}...")
-        if run_build(monolithpy, pkg_name):
-            print(f"Build successful for {pkg_name}")
-            
-            # Check for and run tests
-            tests = get_tests_from_index(pkg_dir / "index.json")
-            for test_file in tests:
-                test_path = pkg_dir / test_file
-                if test_path.exists():
-                    print(f"Running test: {test_file}")
-                    if run_test(monolithpy, test_path):
-                        print(f"Test passed for {pkg_name}/{test_file}")
-                    else:
-                        print(f"::warning::Test failed for {pkg_name}/{test_file}")
-        else:
-            print(f"::warning::Build failed for {pkg_name}")
-        
+        if not run_build(monolithpy, pkg_name):
+            print(f"::error::Build failed for {pkg_name}")
+            print("::endgroup::")
+            sys.exit(1)
+
+        print(f"Build successful for {pkg_name}")
+
+        # Check for and run tests
+        tests = get_tests_from_index(pkg_dir / "index.json")
+        for test_file in tests:
+            test_path = pkg_dir / test_file
+            if test_path.exists():
+                print(f"Running test: {test_file}")
+                if not run_test(monolithpy, test_path):
+                    print(f"::error::Test failed for {pkg_name}/{test_file}")
+                    print("::endgroup::")
+                    sys.exit(1)
+                print(f"Test passed for {pkg_name}/{test_file}")
+
         print("::endgroup::")
 
 
