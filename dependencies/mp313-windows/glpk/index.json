@@ -2,7 +2,8 @@
   "version": "5.0",
   "build_tools": [
     "cmake",
-    "ninja"
+    "ninja",
+    "patch"
   ],
   "dependencies": [ ],
   "files": [
