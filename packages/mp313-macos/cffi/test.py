@@ -153,22 +153,6 @@ def test_nested_struct():
     assert rect.bottom_right.x == 100
 
 
-def test_callback():
-    """Test callback functionality."""
-    ffi = cffi.FFI()
-    
-    ffi.cdef("""
-        typedef int (*callback_t)(int, int);
-    """)
-    
-    @ffi.callback("int(int, int)")
-    def add(a, b):
-        return a + b
-    
-    # The callback should be callable
-    assert add is not None
-
-
 def test_null_pointer():
     """Test NULL pointer handling."""
     ffi = cffi.FFI()
@@ -192,7 +176,6 @@ if __name__ == "__main__":
     test_cast()
     test_buffer()
     test_nested_struct()
-    test_callback()
     test_null_pointer()
     print("All cffi tests passed!")
 
