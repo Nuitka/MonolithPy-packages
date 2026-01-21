@@ -380,6 +380,32 @@ index 46bc58c..3eb9d04 100644
  typedef struct {
          PyObject_HEAD
          npy_bool obval;
+diff --git a/numpy/_core/include/numpy/random/distributions.h b/numpy/_core/include/numpy/random/distributions.h
+index e7fa4bd..f114f91 100644
+--- a/numpy/_core/include/numpy/random/distributions.h
++++ b/numpy/_core/include/numpy/random/distributions.h
+@@ -28,7 +28,7 @@ extern "C" {
+ #define RAND_INT_MAX INT64_MAX
+ #endif
+ 
+-#ifdef _MSC_VER
++#ifdef _MSC_VER_disabled
+ #define DECLDIR __declspec(dllexport)
+ #else
+ #define DECLDIR extern
+diff --git a/numpy/_core/src/common/dlpack/dlpack.h b/numpy/_core/src/common/dlpack/dlpack.h
+index 4dc164f..d51a231 100644
+--- a/numpy/_core/src/common/dlpack/dlpack.h
++++ b/numpy/_core/src/common/dlpack/dlpack.h
+@@ -25,7 +25,7 @@
+ #define DLPACK_MINOR_VERSION 0
+ 
+ /*! \brief DLPACK_DLL prefix for windows */
+-#ifdef _WIN32
++#ifdef _WIN32_disabled
+ #ifdef DLPACK_EXPORTS
+ #define DLPACK_DLL __declspec(dllexport)
+ #else
 diff --git a/numpy/_core/src/common/numpyos.c b/numpy/_core/src/common/numpyos.c
 index a5ca280..e33e5d1 100644
 --- a/numpy/_core/src/common/numpyos.c
@@ -412,6 +438,50 @@ index 22bb9af..d0a3cf4 100644
  
  #if NP_HAS_CPP20
      #include <bit>
+diff --git a/numpy/_core/src/highway/hwy/highway_export.h b/numpy/_core/src/highway/hwy/highway_export.h
+index 30edc17..cc07797 100644
+--- a/numpy/_core/src/highway/hwy/highway_export.h
++++ b/numpy/_core/src/highway/hwy/highway_export.h
+@@ -18,7 +18,7 @@
+ #ifndef HWY_DLLEXPORT
+ #if defined(hwy_EXPORTS)
+ /* We are building this library */
+-#ifdef _WIN32
++#ifdef _WIN32_disabled
+ #define HWY_DLLEXPORT __declspec(dllexport)
+ #else
+ #define HWY_DLLEXPORT __attribute__((visibility("default")))
+@@ -36,7 +36,7 @@
+ #ifndef HWY_CONTRIB_DLLEXPORT
+ #if defined(hwy_contrib_EXPORTS)
+ /* We are building this library */
+-#ifdef _WIN32
++#ifdef _WIN32_disabled
+ #define HWY_CONTRIB_DLLEXPORT __declspec(dllexport)
+ #else
+ #define HWY_CONTRIB_DLLEXPORT __attribute__((visibility("default")))
+@@ -54,7 +54,7 @@
+ #ifndef HWY_TEST_DLLEXPORT
+ #if defined(hwy_test_EXPORTS)
+ /* We are building this library */
+-#ifdef _WIN32
++#ifdef _WIN32_disabled
+ #define HWY_TEST_DLLEXPORT __declspec(dllexport)
+ #else
+ #define HWY_TEST_DLLEXPORT __attribute__((visibility("default")))
+diff --git a/numpy/_core/src/multiarray/_multiarray_tests.c.src b/numpy/_core/src/multiarray/_multiarray_tests.c.src
+index b79908e..253c38d 100644
+--- a/numpy/_core/src/multiarray/_multiarray_tests.c.src
++++ b/numpy/_core/src/multiarray/_multiarray_tests.c.src
+@@ -16,7 +16,7 @@
+ #include "npy_hashtable.h"
+ #include "dtypemeta.h"
+ 
+-#if defined(MS_WIN32) || defined(__CYGWIN__)
++#if 0  //defined(MS_WIN32) || defined(__CYGWIN__)
+ #define EXPORT(x) __declspec(dllexport) x
+ #else
+ #define EXPORT(x) x
 diff --git a/numpy/_core/tests/test_array_interface.py b/numpy/_core/tests/test_array_interface.py
 index afb19f4..cb0abd0 100644
 --- a/numpy/_core/tests/test_array_interface.py
