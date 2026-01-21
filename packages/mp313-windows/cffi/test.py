@@ -122,8 +122,9 @@ def test_buffer():
     # Get buffer
     buf = ffi.buffer(arr)
     assert len(buf) == 10
-    assert buf[0] == 0
-    assert buf[9] == 9
+    # buffer returns bytes, so compare with bytes
+    assert buf[0:1] == b'\x00'
+    assert buf[9:10] == b'\x09'
 
 
 def test_nested_struct():
