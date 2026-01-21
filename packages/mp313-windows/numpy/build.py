@@ -34,7 +34,7 @@ def run(wheel_directory):
     env["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + env["PATH"]
     env["LIB"] = env["LIB"] + os.pathsep + __mp__.find_dep_libs("openblas")
     env["INCLUDE"] = env["INCLUDE"] + os.pathsep + __mp__.find_dep_include("openblas")
-    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation",
+    __mp__.run(sys.executable, "-m", "build", "-w",
                "-Csetup-args=-Dblas=openblas", "-Csetup-args=-Dlapack=openblas", *job_args, env=env)
 
     wheel_location = glob.glob(os.path.join("dist", "numpy-*.whl"))[0]

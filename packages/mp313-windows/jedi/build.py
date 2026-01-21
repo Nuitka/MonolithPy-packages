@@ -14,7 +14,7 @@ def run(wheel_directory):
     __mp__.run_build_tool_exe("patch", "patch.exe", "-t", "-p1", "-i",
                               os.path.join(os.path.dirname(__file__), "jedi-static-patch.patch"))
 
-    __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation")
+    __mp__.run_with_output(sys.executable, "-m", "build", "-w")
 
     wheel_location = glob.glob(os.path.join("dist", "jedi-*.whl"))[0]
 

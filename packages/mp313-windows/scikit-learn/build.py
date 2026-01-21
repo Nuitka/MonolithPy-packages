@@ -17,7 +17,7 @@ def run(wheel_directory):
 
     env = os.environ.copy()
     with TemporaryDirectory() as temp_dir:
-        __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-Ccompile-args=-j3", "-Cbuild-dir=" + temp_dir, env=env)
+        __mp__.run(sys.executable, "-m", "build", "-w", "-Ccompile-args=-j3", "-Cbuild-dir=" + temp_dir, env=env)
 
     wheel_location = glob.glob(os.path.join("dist", "scikit_learn-*.whl"))[0]
 
