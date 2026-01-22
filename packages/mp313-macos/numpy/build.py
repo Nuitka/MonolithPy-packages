@@ -36,8 +36,8 @@ def run(wheel_directory):
     env["PKG_CONFIG"] = "/disabled"
     for k, v in env.items():
         print(f"{k}={v}")
-    __mp__.run(sys.executable, "-m", "build", "-w",
-               "-Csetup-args=-Dblas=openblas", "-Csetup-args=-Dlapack=openblas", env=env)
+    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v",
+               "--config-settings=setup-args=-Dblas=openblas", "--config-settings=setup-args=-Dlapack=openblas", env=env)
 
     wheel_location = glob.glob(os.path.join("dist", "numpy-*.whl"))[0]
 

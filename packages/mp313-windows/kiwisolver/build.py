@@ -14,7 +14,7 @@ def run(wheel_directory):
     __mp__.run_build_tool_exe("patch", "patch.exe", "-t", "-p1", "-i",
                               os.path.join(os.path.dirname(__file__), "kiwisolver-static-patch.patch"))
 
-    __mp__.run_with_output(sys.executable, "-m", "build", "-w")
+    __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v")
 
     wheel_location = glob.glob(os.path.join("dist", "kiwisolver-*.whl"))[0]
 

@@ -16,7 +16,7 @@ def run(wheel_directory):
     env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"])
     env["PKG_CONFIG"] = "/disabled"
-    __mp__.run(sys.executable, "-m", "build", "-w", env=env)
+    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v", env=env)
 
     wheel_location = glob.glob(os.path.join("dist", "contourpy-*.whl"))[0]
 

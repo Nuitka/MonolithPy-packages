@@ -26,8 +26,8 @@ def run(wheel_directory):
     os.environ["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"])
 
-    __mp__.run_with_output(sys.executable, "-m", "build", "-w",
-                           "-Csetup-args=-Dsystem-freetype=True")
+    __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v",
+                           "--config-settings=setup-args=-Dsystem-freetype=True")
 
     wheel_location = glob.glob(os.path.join("dist", "matplotlib-*.whl"))[0]
 

@@ -18,8 +18,8 @@ def run(wheel_directory):
     env = os.environ.copy()
     job_args = []
     if "MP_JOBS" in env:
-        job_args += ["-Ccompile-args=-j" + env["MP_JOBS"]]
-    __mp__.run(sys.executable, "-m", "build", "-w", *job_args)
+        job_args += ["--config-settings=compile-args=-j" + env["MP_JOBS"]]
+    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v", *job_args)
 
     wheel_location = glob.glob(os.path.join("dist", "pandas-*.whl"))[0]
 

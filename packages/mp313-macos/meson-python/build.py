@@ -10,7 +10,7 @@ def run(wheel_directory):
     __mp__.run_with_output("patch", "-t", "-p1", "-i",
                               os.path.join(os.path.dirname(__file__), "meson_python-static-patch.patch"))
 
-    __mp__.run_with_output(sys.executable, "-m", "build", "-w")
+    __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v")
 
     wheel_location = glob.glob(os.path.join("dist", "meson_python-*.whl"))[0]
     wheel_name = os.path.basename(wheel_location)

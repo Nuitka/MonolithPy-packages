@@ -23,9 +23,9 @@ def run(wheel_directory):
 
     job_args = []
     if "MP_JOBS" in os.environ:
-        job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
-    __mp__.run_with_output(sys.executable, "-m", "build", "-w",
-                           "-Csetup-args=-Dsystem-freetype=True", *job_args)
+        job_args += ["--config-settings=compile-args=-j" + os.environ["MP_JOBS"]]
+    __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v",
+                           "--config-settings=setup-args=-Dsystem-freetype=True", *job_args)
 
     wheel_location = glob.glob(os.path.join("dist", "matplotlib-*.whl"))[0]
 

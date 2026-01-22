@@ -29,13 +29,13 @@ def run(wheel_directory):
     env = os.environ.copy()
     job_args = []
     if "MP_JOBS" in env:
-        job_args += ["-Ccompile-args=-j" + env["MP_JOBS"]]
+        job_args += ["--config-settings=compile-args=-j" + env["MP_JOBS"]]
     env["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
     env["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + env["PATH"]
     env["LIB"] = env["LIB"] + os.pathsep + __mp__.find_dep_libs("openblas")
     env["INCLUDE"] = env["INCLUDE"] + os.pathsep + __mp__.find_dep_include("openblas")
-    __mp__.run(sys.executable, "-m", "build", "-w",
-               "-Csetup-args=-Dblas=openblas", "-Csetup-args=-Dlapack=openblas", *job_args, env=env)
+    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v",
+               "--config-settings=setup-args=-Dblas=openblas", "--config-settings=setup-args=-Dlapack=openblas", *job_args, env=env)
 
     wheel_location = glob.glob(os.path.join("dist", "numpy-*.whl"))[0]
 
