@@ -625,7 +625,7 @@ index 1645027..45be721 100644
      ],
      ['-DNP_RANDOM_LEGACY=1'], [npymath_lib],
 diff --git a/vendored-meson/meson/mesonbuild/backend/ninjabackend.py b/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
-index b783417..7e505cb 100644
+index 12ac145..69e0a16 100644
 --- a/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
 +++ b/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
 @@ -13,6 +13,7 @@
@@ -636,9 +636,9 @@ index b783417..7e505cb 100644
  import pickle
  import re
  import subprocess
-@@ -1087,6 +1088,25 @@ def generate_target(self, target) -> None:
+@@ -1096,6 +1097,25 @@ def generate_target(self, target) -> None:
+ 
          elem = self.generate_link(target, outname, final_obj_list, linker, pch_objects, stdlib_args=stdlib_args)
-         self.generate_dependency_scan_target(target, compiled_sources, source2object, fortran_order_deps)
          self.add_build(elem)
 +
 +        if isinstance(target, build.StaticLibrary):
@@ -662,7 +662,7 @@ index b783417..7e505cb 100644
          #In AIX, we archive shared libraries. If the instance is a shared library, we add a command to archive the shared library
          #object and create the build element.
          if isinstance(target, build.SharedLibrary) and self.environment.machines[target.for_machine].is_aix():
-@@ -1375,6 +1395,11 @@ def generate_rules(self) -> None:
+@@ -1384,6 +1404,11 @@ def generate_rules(self) -> None:
          self.add_rule_comment(NinjaComment('Rules for linking.'))
          self.generate_static_link_rules()
          self.generate_dynamic_link_rules()
@@ -674,7 +674,7 @@ index b783417..7e505cb 100644
          self.add_rule_comment(NinjaComment('Other rules'))
          # Ninja errors out if you have deps = gcc but no depfile, so we must
          # have two rules for custom commands.
-@@ -3908,6 +3933,8 @@ def generate_ending(self) -> None:
+@@ -3964,6 +3989,8 @@ def generate_ending(self) -> None:
                          linker, stdlib_args = t.get_clink_dynamic_linker_and_stdlibs()
                          t.get_outputs()[0] = linker.get_archive_name(t.get_outputs()[0])
                  targetlist.append(os.path.join(self.get_target_dir(t), t.get_outputs()[0]))
@@ -684,10 +684,10 @@ index b783417..7e505cb 100644
              elem = NinjaBuildElement(self.all_outputs, targ, 'phony', targetlist)
              self.add_build(elem)
 diff --git a/vendored-meson/meson/mesonbuild/build.py b/vendored-meson/meson/mesonbuild/build.py
-index 7cf85de..7db27a8 100644
+index 1f91f37..7dd6ffb 100644
 --- a/vendored-meson/meson/mesonbuild/build.py
 +++ b/vendored-meson/meson/mesonbuild/build.py
-@@ -2199,7 +2199,10 @@ def post_init(self) -> None:
+@@ -2330,7 +2330,10 @@ def post_init(self) -> None:
                  elif self.rust_crate_type == 'staticlib':
                      self.suffix = 'a'
              else:
@@ -699,7 +699,7 @@ index 7cf85de..7db27a8 100644
                  if 'c' in self.compilers and self.compilers['c'].get_id() == 'tasking' and not self.prelink:
                      key = OptionKey('b_lto', self.subproject, self.for_machine)
                      try:
-@@ -2276,6 +2279,8 @@ def __init__(
+@@ -2407,6 +2410,8 @@ def __init__(
              environment: environment.Environment,
              compilers: T.Dict[str, 'Compiler'],
              kwargs):
@@ -744,10 +744,10 @@ index 7f9bd20..14b8636 100644
                  if limited_api:
                      vernum = vernum[0]
 diff --git a/vendored-meson/meson/mesonbuild/interpreter/interpreter.py b/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
-index 7da5436..2f067c3 100644
+index 09f8287..dad9153 100644
 --- a/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
 +++ b/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
-@@ -1855,6 +1855,11 @@ def func_executable(self, node: mparser.BaseNode,
+@@ -1869,6 +1869,11 @@ def func_executable(self, node: mparser.BaseNode,
      def func_static_lib(self, node: mparser.BaseNode,
                          args: T.Tuple[str, SourcesVarargsType],
                          kwargs: kwtypes.StaticLibrary) -> build.StaticLibrary:
@@ -760,7 +760,7 @@ index 7da5436..2f067c3 100644
  
      @permittedKwargs(build.known_shlib_kwargs)
 diff --git a/vendored-meson/meson/mesonbuild/modules/python.py b/vendored-meson/meson/mesonbuild/modules/python.py
-index e6a44e7..5ee716d 100644
+index df13163..1acf830 100644
 --- a/vendored-meson/meson/mesonbuild/modules/python.py
 +++ b/vendored-meson/meson/mesonbuild/modules/python.py
 @@ -10,7 +10,7 @@
@@ -772,7 +772,7 @@ index e6a44e7..5ee716d 100644
  from ..dependencies import NotFoundDependency
  from ..dependencies.detect import get_dep_identifier, find_external_dependency
  from ..dependencies.python import BasicPythonExternalProgram, python_factory, _PythonDependencyBase
-@@ -230,7 +230,7 @@ def extension_module_method(self, args: T.Tuple[str, T.List[BuildTargetSource]],
+@@ -218,7 +218,7 @@ def extension_module_method(self, args: T.Tuple[str, T.List[BuildTargetSource]],
                  (self.is_pypy or mesonlib.version_compare(self.version, '>=3.9')):
              kwargs['gnu_symbol_visibility'] = 'inlineshidden'
  
