@@ -23,7 +23,7 @@ def test_completions():
     """Test code completions."""
     source = "import os\nos.path.j"
     script = jedi.Script(source)
-    completions = script.complete(2, 10)
+    completions = script.complete(2, 9)  # column 9 = after 'j' in 'os.path.j'
     
     assert completions is not None
     assert len(completions) > 0
@@ -112,7 +112,7 @@ def test_completion_with_context():
     # String method completions
     source = '"hello".'
     script = jedi.Script(source)
-    completions = script.complete(1, 9)
+    completions = script.complete(1, 8)  # column 8 = after '.' in '"hello".'
     
     names = [c.name for c in completions]
     assert 'upper' in names
@@ -132,7 +132,7 @@ def test_import_completions():
     """Test import completions."""
     source = "import o"
     script = jedi.Script(source)
-    completions = script.complete(1, 9)
+    completions = script.complete(1, 8)  # column 8 = after 'o' in 'import o'
     
     names = [c.name for c in completions]
     assert 'os' in names

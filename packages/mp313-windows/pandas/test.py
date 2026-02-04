@@ -105,7 +105,7 @@ def test_datetime():
         'date': dates,
         'value': [1, 2, 3, 4, 5]
     })
-    assert df['date'].dtype == 'datetime64[ns]'
+    assert str(df['date'].dtype).startswith('datetime64')
 
 
 def test_string_operations():

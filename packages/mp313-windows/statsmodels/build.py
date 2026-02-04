@@ -16,7 +16,7 @@ def run(wheel_directory):
 
     __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v")
 
-    wheel_location = glob.glob(os.path.join("dist", "statsmodels-*.whl"))[0]
+    wheel_location = glob.glob("statsmodels-*.whl")[0]
 
     wheel_name = os.path.basename(wheel_location)
     shutil.copy(wheel_location, os.path.join(wheel_directory, wheel_name))

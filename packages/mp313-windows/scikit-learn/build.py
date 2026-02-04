@@ -15,12 +15,28 @@ def run(wheel_directory):
     __mp__.run_build_tool_exe("patch", "patch.exe", "-p1", "-ui",
                               os.path.join(os.path.dirname(__file__), "scikit_learn-static-patch.patch"))
 
+    with open("pyproject.toml", "r") as f:
+        pyproject = f.read()
+
+    # Loosen some requirement constraints to make things easier for us.
+    pyproject = pyproject.replace("numpy>=2,<2.4.0", "numpy>=2")
+    pyproject = pyproject.replace("scipy>=1.10.0,<1.17.0", "scipy>=1.10.0")
+
+    with open("pyproject.toml", "w") as f:
+        f.write(pyproject)
+
     env = os.environ.copy()
+    env["CC"] = "clang-cl.exe"
+    env["CC_LD"] = "lld-link.exe"
+    env["CXX"] = "clang-cl.exe"
+    env["CXX_LD"] = "lld-link.exe"
+    env["PATH"] = (
+                os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe")) + os.pathsep + os.environ["PATH"])
     with TemporaryDirectory() as temp_dir:
         __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v",
                    "--config-settings=compile-args=-j3", "--config-settings=build-dir=" + temp_dir, env=env)
 
-    wheel_location = glob.glob(os.path.join("dist", "scikit_learn-*.whl"))[0]
+    wheel_location = glob.glob("scikit_learn-*.whl")[0]
 
     wheel_files = []
     with TemporaryDirectory() as tmpdir:

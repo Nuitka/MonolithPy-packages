@@ -36,11 +36,11 @@ def run(wheel_directory):
     env["CXXFLAGS"] = "/DBYPASS_MP_EMBED"
     job_args = []
     if "MP_JOBS" in env:
-        job_args += ["-Ccompile-args=-j" + env["MP_JOBS"]]
-    __mp__.run(sys.executable, "-m", "build", "-w", "-Ccompile-args=-j6",
-                           "-Csetup-args=-Dprefer_static=True", "-Csetup-args=-Db_vscrt=mt", *job_args, env=env)
+        job_args += ["--config-settings=compile-args=-j" + env["MP_JOBS"]]
+    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v", "--config-settings=compile-args=-j6",
+                           "--config-settings=setup-args=-Dprefer_static=True", "--config-settings=setup-args=-Db_vscrt=mt", *job_args)
 
-    wheel_location = glob.glob(os.path.join("dist", "scipy-*.whl"))[0]
+    wheel_location = glob.glob("scipy-*.whl")[0]
 
     env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("7zip", "7z.exe")) + os.path.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("mingw", "objdump.exe")) + os.path.pathsep + env["PATH"])
@@ -57,6 +57,14 @@ def run(wheel_directory):
                                                   symbol_mapping={
                                                       "d1mach_": {
                                                           "use_definition_from": "libmach_lib.lib"
+                                                      },
+                                                      "_cdotc_": {
+                                                          "use_definition_from": "libarnaud.lib",
+                                                          "for_libraries": ["libdummy_g77_abi_wrappers.lib"]
+                                                      },
+                                                      "_zdotc_": {
+                                                          "use_definition_from": "libarnaud.a",
+                                                          "for_libraries": ["libdummy_g77_abi_wrappers.lib"]
                                                       }},
                                                   write_debug=True
                                                   )

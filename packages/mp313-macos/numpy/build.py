@@ -39,7 +39,7 @@ def run(wheel_directory):
     __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v",
                "--config-settings=setup-args=-Dblas=openblas", "--config-settings=setup-args=-Dlapack=openblas", env=env)
 
-    wheel_location = glob.glob(os.path.join("dist", "numpy-*.whl"))[0]
+    wheel_location = glob.glob("numpy-*.whl")[0]
 
     wheel_files = []
     with TemporaryDirectory() as tmpdir:

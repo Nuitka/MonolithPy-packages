@@ -29,7 +29,7 @@ def run(wheel_directory):
     __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v",
                            "--config-settings=setup-args=-Dsystem-freetype=True")
 
-    wheel_location = glob.glob(os.path.join("dist", "matplotlib-*.whl"))[0]
+    wheel_location = glob.glob("matplotlib-*.whl")[0]
 
     wheel_files = []
     with TemporaryDirectory() as tmpdir:

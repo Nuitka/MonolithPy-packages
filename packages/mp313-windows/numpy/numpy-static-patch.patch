@@ -94,7 +94,7 @@ index 265fe84..62820fc 100644
  extern NPY_NO_EXPORT PyTypeObject PyUFunc_Type;
  
 diff --git a/numpy/_core/include/numpy/_public_dtype_api_table.h b/numpy/_core/include/numpy/_public_dtype_api_table.h
-index 632a7bc..303e164 100644
+index 8a625e6..72efbf0 100644
 --- a/numpy/_core/include/numpy/_public_dtype_api_table.h
 +++ b/numpy/_core/include/numpy/_public_dtype_api_table.h
 @@ -1,160 +1,17 @@
@@ -260,7 +260,7 @@ index 632a7bc..303e164 100644
  NPY_NO_EXPORT PyArray_Descr *
  dtypemeta_discover_as_default(
          PyArray_DTypeMeta *cls, PyObject* obj);
-@@ -272,55 +129,14 @@ extern PyArray_DTypeMeta PyArray_StringDType;
+@@ -272,55 +129,15 @@ extern PyArray_DTypeMeta PyArray_StringDType;
  #endif
  
  
@@ -295,7 +295,7 @@ index 632a7bc..303e164 100644
 -                Py_XSETREF(descr, _new_);  \
 -        } while(0)
 -
--
+ 
 -// Get the pointer to the PyArray_DTypeMeta for the type associated with the typenum.
 -static inline PyArray_DTypeMeta *
 -typenum_to_dtypemeta(enum NPY_TYPES typenum) {
@@ -303,10 +303,11 @@ index 632a7bc..303e164 100644
 -    Py_DECREF(descr);
 -    return NPY_DTYPE(descr);
 -}
++#endif  /* NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_ */
+ 
+ 
+-#endif  /* NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_ */
 -
- 
- #endif  /* NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_ */
- 
 -#ifndef NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_
 -#define NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_
 +#ifndef NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_a
@@ -318,7 +319,7 @@ index 632a7bc..303e164 100644
  
  
  #ifdef __cplusplus
-@@ -343,48 +159,6 @@ NPY_NO_EXPORT int
+@@ -343,48 +160,6 @@ NPY_NO_EXPORT int
  initialize_and_map_pytypes_to_dtypes(void);
  
  

@@ -21,7 +21,7 @@ def run(wheel_directory):
         job_args += ["--config-settings=compile-args=-j" + env["MP_JOBS"]]
     __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v", *job_args)
 
-    wheel_location = glob.glob(os.path.join("dist", "pandas-*.whl"))[0]
+    wheel_location = glob.glob("pandas-*.whl")[0]
 
     wheel_files = []
     with TemporaryDirectory() as tmpdir:

@@ -18,7 +18,7 @@ def run(wheel_directory):
     env["PKG_CONFIG"] = "/disabled"
     __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v", env=env)
 
-    wheel_location = glob.glob(os.path.join("dist", "contourpy-*.whl"))[0]
+    wheel_location = glob.glob("contourpy-*.whl")[0]
 
     wheel_files = []
     with TemporaryDirectory() as tmpdir:

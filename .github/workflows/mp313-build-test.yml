@@ -30,6 +30,12 @@ jobs:
       - name: Build and test packages
         run: python .github/scripts/build_and_test.py
 
+      - name: Upload constraints
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints-windows
+          path: constraints/
+
   build-and-test-macos:
     runs-on: macos-14
 
@@ -61,3 +67,8 @@ jobs:
       - name: Build and test packages
         run: python3 .github/scripts/build_and_test.py
 
+      - name: Upload constraints
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints-macos
+          path: constraints/

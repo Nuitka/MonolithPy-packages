@@ -7,12 +7,12 @@ import mesonbuild
 import mesonbuild.mesonmain
 import mesonbuild.mparser
 import mesonbuild.interpreter
+import mesonbuild.coredata
 
 
 def test_version():
     """Test version is accessible."""
-    assert hasattr(mesonbuild, 'version')
-    version = mesonbuild.version
+    from mesonbuild.coredata import version
     assert version is not None
 
 

@@ -29,7 +29,7 @@ def run(wheel_directory):
                            "--config-settings=freetype=enable", "--config-settings=harfbuzz=enable",
                            "--config-settings=raqm=vendor", "--config-settings=fribidi=vendor", env=env)
 
-    wheel_location = glob.glob(os.path.join("dist", "pillow-*.whl"))[0]
+    wheel_location = glob.glob("pillow-*.whl")[0]
     wheel_name = os.path.basename(wheel_location)
     shutil.copy(wheel_location, os.path.join(wheel_directory, wheel_name))
     return os.path.join(wheel_directory, wheel_name)

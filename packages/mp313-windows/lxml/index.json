@@ -3,7 +3,7 @@
   "scripts": [
     {
       "metadata": {
-        "Version": "4.*"
+        "Version": "*"
       },
       "dependencies": [
         "libxml2",
