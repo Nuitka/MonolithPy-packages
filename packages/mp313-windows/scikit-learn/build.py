@@ -26,10 +26,10 @@ def run(wheel_directory):
         f.write(pyproject)
 
     env = os.environ.copy()
-    env["CC"] = "clang-cl.exe"
-    env["CC_LD"] = "lld-link.exe"
-    env["CXX"] = "clang-cl.exe"
-    env["CXX_LD"] = "lld-link.exe"
+    env["CC"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "clang-cl.exe"))
+    env["CC_LD"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe"))
+    env["CXX"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe"))
+    env["CXX_LD"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "clang-cl.exe"))
     env["PATH"] = (
                 os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe")) + os.pathsep + os.environ["PATH"])
     with TemporaryDirectory() as temp_dir:

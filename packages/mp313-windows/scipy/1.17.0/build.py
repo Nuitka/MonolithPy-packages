@@ -17,11 +17,11 @@ def run(wheel_directory):
 
     __mp__.filter_paths_containing("gfortran.exe")
     env = os.environ.copy()
-    env["FC"] = "flang-new.exe"
+    env["FC"] = os.path.dirname(__mp__.find_build_tool_exe("flang", "flang-new.exe"))
     env["FC_LD"] = "link.exe"
-    env["CC"] = "clang-cl.exe"
+    env["CC"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "clang-cl.exe"))
     env["CC_LD"] = "link.exe"
-    env["CXX"] = "clang-cl.exe"
+    env["CXX"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe"))
     env["CXX_LD"] = "link.exe"
     env["FFLAGS"] = "-fms-runtime-lib=static"
     env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep +
