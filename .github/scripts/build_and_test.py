@@ -223,8 +223,6 @@ def main():
     for pkg_dir in sorted(packages_dir.iterdir()):
         if not pkg_dir.is_dir():
             continue
-        if pkg_dir.name < "puccinialin":
-            continue
 
         pkg_name = pkg_dir.name
         print(f"::group::Building {pkg_name}")
