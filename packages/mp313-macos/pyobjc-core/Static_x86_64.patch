@@ -36,7 +36,16 @@ diff --git a/setup.py b/setup.py
 index 7b640e1..7251281 100644
 --- a/setup.py
 +++ b/setup.py
-@@ -775,15 +775,6 @@ setup(
+@@ -90,8 +90,6 @@ CFLAGS = [
+     "-Wshorten-64-to-32",
+     # "-fsanitize=address", "-fsanitize=undefined", "-fno-sanitize=vptr",
+     # "--analyze",
+-    "-Werror",
+-    "-Wno-cast-function-type-mismatch",
+     "-I/usr/include/ffi",
+     "-fvisibility=hidden",
+     # "-O0",
+@@ -791,15 +789,6 @@ setup(
              extra_compile_args=EXT_CFLAGS,
              extra_link_args=OBJC_LDFLAGS,
          ),
