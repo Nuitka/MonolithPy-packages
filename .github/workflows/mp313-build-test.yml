@@ -6,6 +6,10 @@ on:
 jobs:
   build-and-test-windows:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        split_index: [0, 1, 2, 3, 4]
 
     steps:
       - name: Checkout repository
@@ -28,16 +32,23 @@ jobs:
           echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
 
       - name: Build and test packages
+        env:
+          SPLIT_INDEX: ${{ matrix.split_index }}
+          SPLIT_TOTAL: 5
         run: python .github/scripts/build_and_test.py
 
       - name: Upload constraints
         uses: actions/upload-artifact@v4
         with:
-          name: constraints-windows
+          name: constraints-windows-${{ matrix.split_index }}
           path: constraints/
 
   build-and-test-macos:
     runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        split_index: [0, 1, 2, 3, 4]
 
     steps:
       - name: Checkout repository
@@ -65,10 +76,13 @@ jobs:
           find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
 
       - name: Build and test packages
+        env:
+          SPLIT_INDEX: ${{ matrix.split_index }}
+          SPLIT_TOTAL: 5
         run: python3 .github/scripts/build_and_test.py
 
       - name: Upload constraints
         uses: actions/upload-artifact@v4
         with:
-          name: constraints-macos
+          name: constraints-macos-${{ matrix.split_index }}
           path: constraints/

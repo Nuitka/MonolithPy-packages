@@ -220,11 +220,18 @@ def main():
 
     work_monolithpy = root_dir / "monolithpy_work"
 
-    for pkg_dir in sorted(packages_dir.iterdir()):
-        if not pkg_dir.is_dir():
-            continue
+    # Discover all package directories
+    all_packages = sorted(d.name for d in packages_dir.iterdir() if d.is_dir())
 
-        pkg_name = pkg_dir.name
+    # Support splitting across parallel jobs via SPLIT_INDEX / SPLIT_TOTAL
+    split_total = int(os.environ.get("SPLIT_TOTAL", "1"))
+    split_index = int(os.environ.get("SPLIT_INDEX", "0"))
+    if split_total > 1:
+        all_packages = [p for i, p in enumerate(all_packages) if i % split_total == split_index]
+        print(f"Split {split_index+1}/{split_total}: building {len(all_packages)} packages: {all_packages}")
+
+    for pkg_name in all_packages:
+        pkg_dir = packages_dir / pkg_name
         print(f"::group::Building {pkg_name}")
 
         # Create a fresh copy of MonolithPy for this package
