@@ -99,7 +99,7 @@ def test_image_draw():
     # Draw line
     draw.line([0, 0, 100, 100], fill='green', width=2)
     
-    assert img.getpixel((30, 30)) == (255, 0, 0)  # Red rectangle
+    assert img.getpixel((20, 30)) == (255, 0, 0)  # Red rectangle (not on diagonal line)
 
 
 def test_image_enhance():
