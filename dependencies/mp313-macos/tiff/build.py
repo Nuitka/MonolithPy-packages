@@ -19,7 +19,7 @@ def run(temp_dir: str):
     os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"]
     __mp__.run_build_tool_exe("cmake", "cmake", "-G", "Ninja",
                               "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=OFF",
-                              "-Djbig=OFF",
+                              "-Djbig=OFF", "-Dzstd=OFF",
                               "-DZLIB_ROOT=" + __mp__.find_dep_root("zlib"),
                               src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja")
