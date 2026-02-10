@@ -25,16 +25,15 @@ def run(wheel_directory):
     with open("pyproject.toml", "w") as f:
         f.write(pyproject)
 
-    env = os.environ.copy()
-    env["CC"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "clang-cl.exe"))
-    env["CC_LD"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe"))
-    env["CXX"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe"))
-    env["CXX_LD"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "clang-cl.exe"))
-    env["PATH"] = (
+    os.environ["CC"] = __mp__.find_build_tool_exe("clang", "clang-cl.exe")
+    os.environ["CC_LD"] = "lld-link"
+    os.environ["CXX"] = __mp__.find_build_tool_exe("clang", "clang-cl.exe")
+    os.environ["CXX_LD"] = "lld-link"
+    os.environ["PATH"] = (
                 os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe")) + os.pathsep + os.environ["PATH"])
     with TemporaryDirectory() as temp_dir:
         __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v",
-                   "--config-settings=compile-args=-j3", "--config-settings=build-dir=" + temp_dir, env=env)
+                   "--config-settings=compile-args=-j3", "--config-settings=build-dir=" + temp_dir)
 
     wheel_location = glob.glob("scikit_learn-*.whl")[0]
 

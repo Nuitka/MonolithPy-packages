@@ -16,35 +16,34 @@ def run(wheel_directory):
                               os.path.join(os.path.dirname(__file__), "scipy-static-patch.patch"))
 
     __mp__.filter_paths_containing("gfortran.exe")
-    env = os.environ.copy()
-    env["FC"] = os.path.dirname(__mp__.find_build_tool_exe("flang", "flang-new.exe"))
-    env["FC_LD"] = "link.exe"
-    env["CC"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "clang-cl.exe"))
-    env["CC_LD"] = "link.exe"
-    env["CXX"] = os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe"))
-    env["CXX_LD"] = "link.exe"
-    env["FFLAGS"] = "-fms-runtime-lib=static"
-    env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep +
+    os.environ["FC"] = __mp__.find_build_tool_exe("flang", "flang-new.exe")
+    os.environ["FC_LD"] = "lld-link"
+    os.environ["CC"] = __mp__.find_build_tool_exe("clang", "clang-cl.exe")
+    os.environ["CC_LD"] = "lld-link"
+    os.environ["CXX"] = __mp__.find_build_tool_exe("clang", "clang-cl.exe")
+    os.environ["CXX_LD"] = "lld-link"
+    os.environ["FFLAGS"] = "-fms-runtime-lib=static"
+    os.environ["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep +
                           os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake.exe")) + os.pathsep +
                           os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe")) + os.pathsep +
                           os.path.dirname(__mp__.find_build_tool_exe("flang", "flang-new.exe")) + os.pathsep + os.environ["PATH"])
-    env["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
-    env["LIB"] = os.environ["LIB"] + os.pathsep + __mp__.find_dep_libs("openblas")
-    env["INCLUDE"] = os.environ["INCLUDE"] + os.pathsep + __mp__.find_dep_include("openblas")
-    env["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("openblas")
-    env["CFLAGS"] = "/DBYPASS_MP_EMBED"
-    env["CXXFLAGS"] = "/DBYPASS_MP_EMBED"
+    os.environ["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
+    os.environ["LIB"] = os.environ["LIB"] + os.pathsep + __mp__.find_dep_libs("openblas")
+    os.environ["INCLUDE"] = os.environ["INCLUDE"] + os.pathsep + __mp__.find_dep_include("openblas")
+    os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("openblas")
+    os.environ["CFLAGS"] = "/DBYPASS_MP_EMBED"
+    os.environ["CXXFLAGS"] = "/DBYPASS_MP_EMBED"
+
     job_args = []
-    if "MP_JOBS" in env:
-        job_args += ["--config-settings=compile-args=-j" + env["MP_JOBS"]]
+    if "MP_JOBS" in os.environ:
+        job_args += ["--config-settings=compile-args=-j" + os.environ["MP_JOBS"]]
     __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v", "--config-settings=compile-args=-j6",
                            "--config-settings=setup-args=-Dprefer_static=True", "--config-settings=setup-args=-Db_vscrt=mt", *job_args)
 
     wheel_location = glob.glob("scipy-*.whl")[0]
 
-    env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("7zip", "7z.exe")) + os.path.pathsep +
-                   os.path.dirname(__mp__.find_build_tool_exe("mingw", "objdump.exe")) + os.path.pathsep + env["PATH"])
-    os.environ.update(env)
+    os.environ["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("7zip", "7z.exe")) + os.pathsep +
+                   os.path.dirname(__mp__.find_build_tool_exe("mingw", "objdump.exe")) + os.pathsep + os.environ["PATH"])
 
     wheel_files = []
     with TemporaryDirectory() as tmpdir:
