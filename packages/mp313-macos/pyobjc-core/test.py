@@ -64,8 +64,9 @@ def test_nsnumber():
     num_float = NSNumber.numberWithFloat_(3.14)
     assert abs(num_float.floatValue() - 3.14) < 0.001
 
+    # numberWithBool_ may return a bridged Python bool directly
     num_bool = NSNumber.numberWithBool_(True)
-    assert num_bool.boolValue() == True
+    assert bool(num_bool) == True
 
 
 def test_custom_class():

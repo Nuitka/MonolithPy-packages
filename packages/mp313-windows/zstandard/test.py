@@ -58,11 +58,11 @@ def test_streaming_compress():
     
     cctx = zstd.ZstdCompressor()
     
-    # Compress using stream writer
+    # Compress using stream writer (closefd=False keeps buffer open after exit)
     buffer = io.BytesIO()
-    with cctx.stream_writer(buffer) as writer:
+    with cctx.stream_writer(buffer, closefd=False) as writer:
         writer.write(data)
-    
+
     compressed = buffer.getvalue()
     assert len(compressed) < len(data)
 
