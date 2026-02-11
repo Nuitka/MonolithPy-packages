@@ -11,7 +11,7 @@ def run(temp_dir: str):
     # We will build freetype first here and then base off that, but we will also have a separate freetype package.
     ft_dir = os.path.join(temp_dir, 'ft')
 
-    __np__.download_extract("http://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.7.1.tar.gz", ft_dir)
+    __np__.download_extract("https://master.dl.sourceforge.net/project/freetype/freetype2/2.7.1/freetype-2.7.1.tar.gz", ft_dir)
 
     ft_src_dir = glob.glob(os.path.join(ft_dir, "freetype*"))[0]
 
