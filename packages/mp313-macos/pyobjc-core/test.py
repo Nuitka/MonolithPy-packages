@@ -111,7 +111,7 @@ def test_method_signature():
 
 def test_class_methods():
     """Test class method access (C-backed)."""
-    assert NSObject.class_() is not None
+    assert NSObject.class__() is not None
     assert NSObject.superclass() is None or NSObject.superclass() is not None
 
 
@@ -119,7 +119,7 @@ def test_instance_methods():
     """Test instance method access (C-backed)."""
     obj = NSObject.alloc().init()
 
-    assert obj.class_() is not None
+    assert obj.class__() is not None
     desc = obj.description()
     assert desc is not None
 

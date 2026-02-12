@@ -165,7 +165,8 @@ def test_chunked_compression():
     compressed = b''.join(chunks)
     
     dctx = zstd.ZstdDecompressor()
-    decompressed = dctx.decompress(compressed)
+    # chunker output doesn't embed content size, so provide max_output_size
+    decompressed = dctx.decompress(compressed, max_output_size=len(data))
     assert decompressed == data
 
 
