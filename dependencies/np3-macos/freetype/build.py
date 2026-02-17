@@ -8,7 +8,7 @@ import sysconfig
 
 
 def run(temp_dir: str):
-    __np__.download_extract("http://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.7.1.tar.gz", temp_dir)
+    __np__.download_extract("https://master.dl.sourceforge.net/project/freetype/freetype2/2.7.1/freetype-2.7.1.tar.gz", temp_dir)
 
     src_dir = glob.glob(os.path.join(temp_dir, "freetype*"))[0]
 
