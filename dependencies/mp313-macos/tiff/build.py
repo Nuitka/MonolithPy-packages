@@ -7,7 +7,7 @@ import glob
 
 
 def run(temp_dir: str):
-    __mp__.download_extract("http://download.osgeo.org/libtiff/tiff-4.3.0.zip", temp_dir)
+    __mp__.download_extract("http://download.osgeo.org/libtiff/tiff-4.7.1.zip", temp_dir)
 
     src_dir = glob.glob(os.path.join(temp_dir, "tiff*"))[0]
 
