@@ -4,20 +4,19 @@ from typing import *
 import os
 import shutil
 import glob
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("https://github.com/bulletphysics/bullet3/archive/2fb92bc40c16e4da5a9018479d4a8e1899702ab8.zip", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
     __mp__.setup_compiler_env()
 
-    src_dir = glob.glob(os.path.join(temp_dir, "bullet*"))[0]
-
-    build_dir = os.path.join(temp_dir, "build")
+    build_dir = os.path.join(src_dir, "build")
     os.mkdir(build_dir)
     os.chdir(build_dir)
 
-    install_dir = os.path.join(temp_dir, "install")
+    install_dir = os.path.join(src_dir, "install")
     os.mkdir(install_dir)
 
     os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + os.environ["PATH"]
@@ -30,5 +29,11 @@ def run(temp_dir: str):
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
     __mp__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
-    __mp__.install_dep_libs("bullet", os.path.join(install_dir, "lib", "*.lib"))
-    __mp__.install_dep_include("bullet", os.path.join(install_dir, "include", "bullet", "*"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_bullet", "2.83.7"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-bullet", "2.83.7")
+        __mp__.add_wheel_dep_libs(w, "bullet", os.path.join(install_dir, "lib", "*.lib"))
+        __mp__.add_wheel_dep_include(w, "bullet", os.path.join(install_dir, "include", "bullet", "*"),
+                                     base_dir=os.path.join(install_dir, "include", "bullet"))
+
+    return result_wheel

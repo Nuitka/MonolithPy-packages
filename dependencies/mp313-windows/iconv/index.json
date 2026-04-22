@@ -3,5 +3,11 @@
   "files": [
     "build.py"
   ],
+  "sources": [
+    {
+      "version": "1.16",
+      "link": "https://github.com/kiyolee/libiconv-win-build/archive/refs/tags/v1.18-p1.zip"
+    }
+  ],
   "build_script": "build.py"
 }

@@ -4,14 +4,13 @@ from typing import *
 import os
 import shutil
 import glob
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.28/OpenBLAS-0.3.28.zip", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
     __mp__.setup_compiler_env()
-
-    src_dir = glob.glob(os.path.join(temp_dir, "OpenBLAS*"))[0]
 
     __mp__.auto_patch_build_file(os.path.join(src_dir, "CMakeLists.txt"))
 
@@ -19,9 +18,9 @@ def run(temp_dir: str):
     __mp__.run_build_tool_exe("patch", "patch.exe", "-p1", "-ui",
                               os.path.join(os.path.dirname(__file__), "openblas-intel.patch"))
 
-    install_dir = os.path.join(temp_dir, "install")
+    install_dir = os.path.join(src_dir, "install")
     os.mkdir(install_dir)
-    build_dir = os.path.join(temp_dir, "build")
+    build_dir = os.path.join(src_dir, "build")
     os.mkdir(build_dir)
     os.chdir(build_dir)
 
@@ -35,7 +34,12 @@ def run(temp_dir: str):
                               "-DCMAKE_ASM_COMPILE_OPTIONS_MSVC_RUNTIME_LIBRARY_MultiThreaded=", src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
-    __mp__.install_dep_libs("openblas", os.path.join(install_dir, "lib", "*"),
-                            base_dir=os.path.join(install_dir, "lib"))
-    __mp__.install_dep_include("openblas", os.path.join(install_dir, "include", "*"),
-                               base_dir=os.path.join(install_dir, "include"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_openblas", "0.3.28"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-openblas", "0.3.28")
+        __mp__.add_wheel_dep_libs(w, "openblas", os.path.join(install_dir, "lib", "*"),
+                                  base_dir=os.path.join(install_dir, "lib"))
+        __mp__.add_wheel_dep_include(w, "openblas", os.path.join(install_dir, "include", "*"),
+                                     base_dir=os.path.join(install_dir, "include"))
+
+    return result_wheel

@@ -5,18 +5,17 @@ import os
 import shutil
 import glob
 import re
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("https://github.com/microsoft/mimalloc/archive/refs/tags/v2.0.7.zip", temp_dir)
-
-    src_dir = glob.glob(os.path.join(temp_dir, "mimalloc*"))[0]
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
     __mp__.setup_compiler_env()
 
     __mp__.auto_patch_build(src_dir)
 
-    build_dir = os.path.join(temp_dir, "build")
+    build_dir = os.path.join(src_dir, "build")
     os.mkdir(build_dir)
     os.chdir(build_dir)
 
@@ -32,5 +31,10 @@ def run(temp_dir: str):
                               src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
 
-    __mp__.install_dep_libs("mimalloc", os.path.join(build_dir, "*.lib"))
-    __mp__.install_dep_include("mimalloc", os.path.join(src_dir, "mimalloc.h"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_mimalloc", "2.0.7"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-mimalloc", "2.0.7")
+        __mp__.add_wheel_dep_libs(w, "mimalloc", os.path.join(build_dir, "*.lib"))
+        __mp__.add_wheel_dep_include(w, "mimalloc", os.path.join(src_dir, "mimalloc.h"))
+
+    return result_wheel

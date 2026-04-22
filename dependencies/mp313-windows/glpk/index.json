@@ -10,5 +10,11 @@
     "build.py",
     "glpk.patch"
   ],
+  "sources": [
+    {
+      "version":"5.0",
+      "link": "https://github.com/Mizux/GLPK/archive/refs/tags/5.0.zip"
+    }
+  ],
   "build_script": "build.py"
 }

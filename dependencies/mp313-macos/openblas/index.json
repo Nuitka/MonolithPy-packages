@@ -10,5 +10,6 @@
     "build.py",
     "openblas-intel.patch"
   ],
+  "sources": [{"version": "0.3.28", "link": "https://github.com/OpenMathLib/OpenBLAS/archive/68ff451eccea3e7d7d2afb2588b63552bde7ea89.tar.gz"}],
   "build_script": "build.py"
 }

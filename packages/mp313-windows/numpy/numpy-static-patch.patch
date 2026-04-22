@@ -94,10 +94,10 @@ index 265fe84..62820fc 100644
  extern NPY_NO_EXPORT PyTypeObject PyUFunc_Type;
  
 diff --git a/numpy/_core/include/numpy/_public_dtype_api_table.h b/numpy/_core/include/numpy/_public_dtype_api_table.h
-index 8a625e6..72efbf0 100644
+index 632a7bc..72efbf0 100644
 --- a/numpy/_core/include/numpy/_public_dtype_api_table.h
 +++ b/numpy/_core/include/numpy/_public_dtype_api_table.h
-@@ -1,160 +1,17 @@
+@@ -1,159 +1,16 @@
 -#ifndef NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_
 -#define NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_
 +#ifndef NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_a
@@ -215,7 +215,7 @@ index 8a625e6..72efbf0 100644
 -#define NPY_DT_is_parametric(dtype) (((dtype)->flags & NPY_DT_PARAMETRIC) != 0)
 -#define NPY_DT_is_numeric(dtype) (((dtype)->flags & NPY_DT_NUMERIC) != 0)
 -#define NPY_DT_is_user_defined(dtype) (((dtype)->type_num == -1))
- 
+-
 -/*
 - * Macros for convenient classmethod calls, since these require
 - * the DType both for the slot lookup and as first arguments.
@@ -256,10 +256,9 @@ index 8a625e6..72efbf0 100644
 -    Py_DECREF(descr);
 -    return dtype;
 -}
--
+ 
  NPY_NO_EXPORT PyArray_Descr *
  dtypemeta_discover_as_default(
-         PyArray_DTypeMeta *cls, PyObject* obj);
 @@ -272,55 +129,15 @@ extern PyArray_DTypeMeta PyArray_StringDType;
  #endif
  
@@ -295,7 +294,7 @@ index 8a625e6..72efbf0 100644
 -                Py_XSETREF(descr, _new_);  \
 -        } while(0)
 -
- 
+-
 -// Get the pointer to the PyArray_DTypeMeta for the type associated with the typenum.
 -static inline PyArray_DTypeMeta *
 -typenum_to_dtypemeta(enum NPY_TYPES typenum) {
@@ -303,13 +302,13 @@ index 8a625e6..72efbf0 100644
 -    Py_DECREF(descr);
 -    return NPY_DTYPE(descr);
 -}
-+#endif  /* NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_ */
- 
- 
--#endif  /* NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_ */
 -
+ 
+ #endif  /* NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_ */
+ 
 -#ifndef NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_
 -#define NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_
++
 +#ifndef NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_a
 +#define NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_a
  

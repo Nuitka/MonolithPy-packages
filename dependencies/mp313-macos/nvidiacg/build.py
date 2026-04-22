@@ -2,25 +2,24 @@ import __mp__
 from typing import *
 
 import os
-import sys
-import shutil
-import glob
-import sysconfig
+import tempfile
 import platform
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    if platform.processor() == "arm":
-        os.makedirs(os.path.join(__mp__.getDependencyInstallDir(), "nvidiacg"), exist_ok=True)
-        with open(os.path.join(__mp__.getDependencyInstallDir(), "nvidiacg", "no-op.txt"), 'w') as f:
-            f.write("Unavailable for arm.")
-        return  # cg is not supported for arm64. :(
+def run(wheel_directory):
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_nvidiacg", "3.1.0013-1"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-nvidiacg", "3.1.0013-1")
 
-    __mp__.download_extract("https://www.panda3d.org/download/panda3d-1.10.11/panda3d-1.10.11-tools-mac.tar.gz", temp_dir)
+        if platform.processor() != "arm":
+            temp_dir = tempfile.mkdtemp()
+            __mp__.download_extract("https://www.panda3d.org/download/panda3d-1.10.11/panda3d-1.10.11-tools-mac.tar.gz", temp_dir)
+            nvidiacg_dir = os.path.join(temp_dir, "panda3d-1.10.11/thirdparty/darwin-libs-a/nvidiacg")
+            __mp__.add_wheel_dep_libs(w, "nvidiacg", os.path.join(nvidiacg_dir, "lib", "*.dylib"))
+            __mp__.add_wheel_dep_include(w, "nvidiacg", os.path.join(nvidiacg_dir, "include", "*"),
+                                         base_dir=os.path.join(nvidiacg_dir, "include"))
+            # We must also install the proprietary DLLs. :(
+            __mp__.add_wheel_files(w, "dependency_libs/nvidiacg/bin", os.path.join(nvidiacg_dir, "lib", "*.dylib"))
 
-    __mp__.install_dep_libs("nvidiacg", os.path.join(temp_dir, "panda3d-1.10.11/thirdparty/darwin-libs-a/nvidiacg", "lib", "*.dylib"))
-    __mp__.install_files(os.path.dirname(os.path.realpath(sys.executable)), os.path.join(temp_dir, "panda3d-1.10.11/thirdparty/darwin-libs-a/nvidiacg", "lib", "*.dylib"))
-    __mp__.install_files(os.path.join(os.path.dirname(os.path.realpath(sys.executable)), "..", "lib"),
-                         os.path.join(temp_dir, "panda3d-1.10.11/thirdparty/darwin-libs-a/nvidiacg", "lib", "*.dylib"))
-    # We must also install the proprietary DLLs. :(
-    __mp__.install_dep_include("nvidiacg", os.path.join(temp_dir, "panda3d-1.10.11/thirdparty/darwin-libs-a/nvidiacg", "include", "*"))
+    return result_wheel

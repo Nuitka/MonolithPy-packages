@@ -1,27 +1,35 @@
 diff --git a/mesonpy/__init__.py b/mesonpy/__init__.py
-index 6db5b5b..cb7ec5e 100644
+index 6db5b5b..6d1ffd6 100644
 --- a/mesonpy/__init__.py
 +++ b/mesonpy/__init__.py
 @@ -76,7 +76,7 @@ _MESON_ARGS_KEYS = ['dist', 'setup', 'compile', 'install']
- 
+
  _SUFFIXES = importlib.machinery.all_suffixes()
  _EXTENSION_SUFFIX_REGEX = re.compile(r'^[^.]+\.(?:(?P<abi>[^.]+)\.)?(?:so|pyd|dll)$')
 -assert all(re.match(_EXTENSION_SUFFIX_REGEX, f'foo{x}') for x in importlib.machinery.EXTENSION_SUFFIXES)
 +#assert all(re.match(_EXTENSION_SUFFIX_REGEX, f'foo{x}') for x in importlib.machinery.EXTENSION_SUFFIXES)
- 
+
  # Map Meson installation path placeholders to wheel installation paths.
  # See https://docs.python.org/3/library/sysconfig.html#installation-paths
-@@ -346,7 +346,8 @@ class _WheelBuilder():
+@@ -90,6 +90,7 @@ _INSTALLATION_PATH_MAP = {
+     # custom location
+     '{libdir}': 'mesonpy-libs',
+     '{libdir_shared}': 'mesonpy-libs',
++    '{libdir_static}': 'mesonpy-libs',
+ }
+
+
+@@ -346,7 +347,8 @@ class _WheelBuilder():
              # distribute any file in {platlib}) thus use generic
              # implementation and ABI tags.
              return mesonpy._tags.Tag('py3', 'none', None)
 -        return mesonpy._tags.Tag(None, self._stable_abi, None)
 +        import packaging
 +        return list(packaging.tags.generic_tags())[0]
- 
+
      @property
      def name(self) -> str:
-@@ -409,7 +410,7 @@ class _WheelBuilder():
+@@ -409,7 +411,7 @@ class _WheelBuilder():
          if self._limited_api:
              # PyPy does not use a special extension module filename
              # suffix for modules targeting the stable API.
@@ -30,7 +38,7 @@ index 6db5b5b..cb7ec5e 100644
                  # Verify stable ABI compatibility: examine files installed
                  # in {platlib} that look like extension modules, and raise
                  # an exception if any of them has a Python version
-@@ -776,7 +777,8 @@ class Project():
+@@ -776,7 +778,8 @@ class Project():
              # default build options
              '-Dbuildtype=release',
              '-Db_ndebug=if-release',
@@ -40,3 +48,25 @@ index 6db5b5b..cb7ec5e 100644
              # user build options
              *self._meson_args['setup'],
              # pass native file last to have it override the python
+@@ -833,10 +836,10 @@ class Project():
+         sources: DefaultDict[str, Dict[str, Dict[str, str]]] = collections.defaultdict(dict)
+         for key, targets in install_plan.items():
+             for target, details in targets.items():
+-                if install_tags is not None and details['tag'] not in install_tags:
++                if not target.endswith('.lib') and not target.endswith('.a') and install_tags is not None and details['tag'] not in install_tags:
+                     continue
+                 subproject = details.get('subproject')
+-                if subproject is not None and (subproject in skip_subprojects or '*' in skip_subprojects):
++                if not target.endswith('.lib') and not target.endswith('.a') and subproject is not None and (subproject in skip_subprojects or '*' in skip_subprojects):
+                     continue
+                 sources[key][target] = details
+
+@@ -943,7 +946,7 @@ def _project(config_settings: Optional[Dict[Any, Any]] = None) -> Iterator[Proje
+
+     with contextlib.ExitStack() as ctx:
+         if build_dir is None:
+-            build_dir = ctx.enter_context(tempfile.TemporaryDirectory(prefix='.mesonpy-', dir=source_dir))
++            build_dir = ctx.enter_context(tempfile.TemporaryDirectory(prefix='.mesonpy-', dir=source_dir, ignore_cleanup_errors=True))
+         yield Project(source_dir, build_dir, meson_args, editable_verbose)
+
+

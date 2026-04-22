@@ -4,16 +4,13 @@ from typing import *
 import os
 import shutil
 import glob
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    # We have to use the git download instead of the official archive since it is missing
-    # the file "opus_buildtype.cmake" at time of writing. :(
-    __mp__.download_extract("https://github.com/xiph/opus/archive/refs/tags/v1.3.1.zip", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
     __mp__.setup_compiler_env()
-
-    src_dir = glob.glob(os.path.join(temp_dir, "opus*"))[0]
 
     __mp__.auto_patch_build(src_dir)
 
@@ -21,7 +18,7 @@ def run(temp_dir: str):
     with open(os.path.join(src_dir, "package_version"), 'w') as f:
         f.write('PACKAGE_VERSION="1.3.1"\n')
 
-    build_dir = os.path.join(temp_dir, "build")
+    build_dir = os.path.join(src_dir, "build")
     os.mkdir(build_dir)
     os.chdir(build_dir)
 
@@ -30,5 +27,10 @@ def run(temp_dir: str):
                               "-DCMAKE_BUILD_TYPE=Release", src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
 
-    __mp__.install_dep_libs("opus", os.path.join(build_dir, "opus.lib"))
-    __mp__.install_dep_include("opus", os.path.join(src_dir, "include", "*.h"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_opus", "1.3.1"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-opus", "1.3.1")
+        __mp__.add_wheel_dep_libs(w, "opus", os.path.join(build_dir, "opus.lib"))
+        __mp__.add_wheel_dep_include(w, "opus", os.path.join(src_dir, "include", "*.h"))
+
+    return result_wheel

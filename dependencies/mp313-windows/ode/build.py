@@ -4,23 +4,22 @@ from typing import *
 import os
 import shutil
 import glob
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("https://bitbucket.org/odedevs/ode/get/0.16.2.tar.gz", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
     __mp__.setup_compiler_env()
 
-    src_dir = glob.glob(os.path.join(temp_dir, "ode*"))[0]
-
     __mp__.auto_patch_build(src_dir)
 
-    build_dir = os.path.join(temp_dir, "build")
+    build_dir = os.path.join(src_dir, "build")
     os.mkdir(build_dir)
     os.chdir(build_dir)
 
     os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + os.environ["PATH"]
-    
+
     __mp__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
                               "-DCMAKE_BUILD_TYPE=Release",
                               "-DBUILD_SHARED_LIBS=OFF", "-DODE_WITH_DEMOS=OFF", "-DODE_WITH_TESTS=OFF",
@@ -28,6 +27,14 @@ def run(temp_dir: str):
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
 
     shutil.copy(os.path.join(build_dir, "ode_singles.lib"), os.path.join(build_dir, "ode_single.lib"))
-    __mp__.install_dep_libs("ode", os.path.join(build_dir, "*.lib"))
-    __mp__.install_dep_include("ode", os.path.join(src_dir, "include", "ode", "*.h"), base_dir=os.path.join(src_dir, "include"))
-    __mp__.install_dep_include("ode", os.path.join(build_dir, "include", "ode"))
+
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_ode", "0.16.2"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-ode", "0.16.2")
+        __mp__.add_wheel_dep_libs(w, "ode", os.path.join(build_dir, "*.lib"))
+        __mp__.add_wheel_dep_include(w, "ode", os.path.join(src_dir, "include", "ode", "*.h"),
+                                     base_dir=os.path.join(src_dir, "include"))
+        __mp__.add_wheel_dep_include(w, "ode", os.path.join(build_dir, "include", "ode"),
+                                     base_dir=os.path.join(build_dir, "include"))
+
+    return result_wheel

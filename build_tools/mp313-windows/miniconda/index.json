@@ -1,8 +1,14 @@
 {
-  "version": "24.11.1",
+  "version": "26.1.1",
   "build_tools": [ ],
   "files": [
     "build.py"
+  ],
+  "sources": [
+    {
+      "version": "26.1.1",
+      "link": "https://github.com/Nuitka/MonolithPy-packages/releases/download/dummy_miniconda_26.1.1/Miniconda3-py313_26.1.1-1-Windows-x86_64.zip"
+    }
   ],
   "build_script": "build.py"
 }

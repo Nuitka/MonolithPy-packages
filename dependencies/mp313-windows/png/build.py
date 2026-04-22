@@ -4,18 +4,17 @@ from typing import *
 import os
 import shutil
 import glob
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("http://prdownloads.sourceforge.net/libpng/lpng1637.zip?download", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
     __mp__.setup_compiler_env()
 
-    src_dir = glob.glob(os.path.join(temp_dir, "lpng*"))[0]
-
     __mp__.auto_patch_build(src_dir)
 
-    build_dir = os.path.join(temp_dir, "build")
+    build_dir = os.path.join(src_dir, "build")
     os.mkdir(build_dir)
     os.chdir(build_dir)
 
@@ -29,6 +28,13 @@ def run(temp_dir: str):
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
 
     shutil.copy(os.path.join(build_dir, "libpng16_static.lib"), os.path.join(build_dir, "libpng16.lib"))
-    __mp__.install_dep_libs("png", os.path.join(build_dir, "*.lib"))
-    __mp__.install_dep_include("png", os.path.join(src_dir, "*.h"), base_dir=os.path.join(src_dir, "include"))
-    __mp__.install_dep_include("png", os.path.join(build_dir, "*.h"))
+
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_png", "1.6.37"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-png", "1.6.37")
+        __mp__.add_wheel_dep_libs(w, "png", os.path.join(build_dir, "*.lib"))
+        __mp__.add_wheel_dep_include(w, "png", os.path.join(src_dir, "*.h"),
+                                     base_dir=os.path.join(src_dir, "include"))
+        __mp__.add_wheel_dep_include(w, "png", os.path.join(build_dir, "*.h"))
+
+    return result_wheel

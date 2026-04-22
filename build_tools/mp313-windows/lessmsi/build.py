@@ -2,10 +2,14 @@ import __mp__
 from typing import *
 
 import os
+import glob
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    extract_dir = os.path.join(temp_dir, "lessmsi")
-    os.mkdir(extract_dir)
-    __mp__.download_extract("https://github.com/activescott/lessmsi/releases/download/v2.2.0/lessmsi-v2.2.0.zip", extract_dir)
-    __mp__.install_build_tool("lessmsi", os.path.join(extract_dir, "*"))
+def run(wheel_directory):
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy-tool-lessmsi", "2.2.0"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-tool-lessmsi", "2.2.0")
+        __mp__.add_wheel_build_tool(w, "lessmsi", os.path.join(os.getcwd(), "*"))
+
+    return result_wheel

@@ -1,10 +1,20 @@
 {
-  "version": "2.9.12",
+  "version": "2.15.2",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
   "dependencies": [
     "iconv"
   ],
   "files": [
     "build.py"
+  ],
+  "sources": [
+    {
+      "version": "2.9.12",
+      "link": "https://github.com/GNOME/libxml2/archive/refs/tags/v2.15.2.zip"
+    }
   ],
   "build_script": "build.py"
 }

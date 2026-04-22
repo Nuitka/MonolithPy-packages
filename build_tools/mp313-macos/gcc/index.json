@@ -4,5 +4,11 @@
   "files": [
     "build.py"
   ],
+  "sources": [
+    {
+      "version": "14",
+      "link": "https://pip-mpy.ohrtech.net/dummy/empty/mpy_tool_gcc-14.zip"
+    }
+  ],
   "build_script": "build.py"
 }

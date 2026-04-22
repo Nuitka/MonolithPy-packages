@@ -4,8 +4,15 @@
     "cmake",
     "ninja"
   ],
+  "dependencies": [ ],
   "files": [
     "build.py"
+  ],
+  "sources": [
+    {
+      "version": "4.3.0",
+      "link": "http://download.osgeo.org/libtiff/tiff-4.3.0.zip"
+    }
   ],
   "build_script": "build.py"
 }

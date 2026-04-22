@@ -2,19 +2,16 @@ import __mp__
 from typing import *
 
 import os
-import shutil
-import glob
 import platform
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("https://github.com/OpenMathLib/OpenBLAS/archive/68ff451eccea3e7d7d2afb2588b63552bde7ea89.tar.gz", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
-    src_dir = glob.glob(os.path.join(temp_dir, "OpenBLAS*"))[0]
-
-    install_dir = os.path.join(temp_dir, "install")
+    install_dir = os.path.join(src_dir, "install")
     os.mkdir(install_dir)
-    build_dir = os.path.join(temp_dir, "build")
+    build_dir = os.path.join(src_dir, "build")
     os.mkdir(build_dir)
     os.chdir(build_dir)
 
@@ -22,7 +19,7 @@ def run(temp_dir: str):
 
     if platform.machine() == "x86_64":
         __mp__.run("patch", "-p1", "-i",
-                                os.path.join(os.path.dirname(__file__), "openblas-intel.patch"), cwd=src_dir)
+                   os.path.join(os.path.dirname(__file__), "openblas-intel.patch"), cwd=src_dir)
 
     env = os.environ.copy()
     env["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
@@ -38,7 +35,12 @@ def run(temp_dir: str):
                               "-DBUILD_TESTING=OFF", *platform_args, src_dir, env=env)
     __mp__.run_with_output("make", "-j4", "install", env=env)
 
-    __mp__.install_dep_libs("openblas", os.path.join(install_dir, "lib", "*"),
-                            base_dir=os.path.join(install_dir, "lib"))
-    __mp__.install_dep_include("openblas", os.path.join(install_dir, "include", "*"),
-                               base_dir=os.path.join(install_dir, "include"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_openblas", "0.3.28"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-openblas", "0.3.28")
+        __mp__.add_wheel_dep_libs(w, "openblas", os.path.join(install_dir, "lib", "*"),
+                                  base_dir=os.path.join(install_dir, "lib"))
+        __mp__.add_wheel_dep_include(w, "openblas", os.path.join(install_dir, "include", "*"),
+                                     base_dir=os.path.join(install_dir, "include"))
+
+    return result_wheel

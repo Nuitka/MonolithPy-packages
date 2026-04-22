@@ -1,35 +1,38 @@
 import __mp__
 import shutil
 import os
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("https://github.com/GNOME/libxslt/archive/refs/tags/v1.1.34.zip", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
-    os.chdir(os.path.join(temp_dir, "libxslt-1.1.34", "win32"))
+    os.chdir(os.path.join(src_dir, "win32"))
 
-    __mp__.run_build_tool_exe("patch", "patch.exe", "--binary", "configure.js", os.path.join(temp_dir, "configure.js.patch"))
-
-    __mp__.run_compiler_exe(
-        "cscript.exe", "configure.js",
-        "compiler=msvc",
-        "prefix=" + os.path.join(temp_dir, "install_tmp"),
-        "cruntime=/MT",
-        "include=" + __mp__.find_dep_include("iconv") + ";" + __mp__.find_dep_include("libxml2"),
-        "lib=" + __mp__.find_dep_libs("iconv") + ";" + __mp__.find_dep_libs("libxml2"))
+    install_dir = os.path.join(src_dir, "install_tmp")
 
     __mp__.setup_compiler_env()
+    __mp__.auto_patch_build(src_dir)
+    __mp__.patch_all_source(src_dir)
 
-    __mp__.nmake("/f", "Makefile.msvc", "LIBS=iconv.lib Ws2_32.lib")
-    __mp__.nmake("/f", "Makefile.msvc", "install")
+    os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + os.environ["PATH"]
+    __mp__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
+                              "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=OFF",
+                              "-DCMAKE_INSTALL_PREFIX=" + install_dir,
+                              "-DIconv_INCLUDE_DIR=" + __mp__.find_dep_include("iconv"),
+                              "-DIconv_LIBRARY=" + os.path.join(__mp__.find_dep_libs("iconv"), "iconv.lib"),
+                              "-DCMAKE_PREFIX_PATH=" + __mp__.find_dep_root("libxml2"),
+                              "-DLIBXSLT_WITH_PROGRAMS=OFF", "-DLIBXSLT_WITH_PYTHON=OFF",
+                              "-DLIBXSLT_WITH_TESTS=OFF",
+                              src_dir)
+    __mp__.run_build_tool_exe("ninja", "ninja.exe")
+    __mp__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
-    shutil.copy(os.path.join(temp_dir, "install_tmp", "lib", "libxslt_a.lib"), os.path.join(temp_dir, "libxslt.lib"))
-    shutil.copy(os.path.join(temp_dir, "install_tmp", "lib", "libxslt_a.lib"), os.path.join(temp_dir, "libxslt_a.lib"))
-    shutil.copy(os.path.join(temp_dir, "install_tmp", "lib", "libexslt_a.lib"), os.path.join(temp_dir, "libexslt.lib"))
-    shutil.copy(os.path.join(temp_dir, "install_tmp", "lib", "libexslt_a.lib"), os.path.join(temp_dir, "libexslt_a.lib"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_libxslt", "1.1.45"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-libxslt", "1.1.45")
+        __mp__.add_wheel_dep_libs(w, "libxslt", os.path.join(install_dir, "lib", "*.lib"))
+        __mp__.add_wheel_dep_libs(w, "libxslt", os.path.join(install_dir, "lib", "cmake"))
+        __mp__.add_wheel_dep_include(w, "libxslt", os.path.join(install_dir, "include", "*"))
 
-    __mp__.prepend_to_file(os.path.join(temp_dir, "install_tmp", "include", "libxslt", "xsltexports.h"), "#define LIBXSLT_STATIC\n")
-    __mp__.prepend_to_file(os.path.join(temp_dir, "install_tmp", "include", "libexslt", "exsltexports.h"), "#define LIBEXSLT_STATIC\n")
-
-    __mp__.install_dep_libs("libxslt", os.path.join(temp_dir, "*.lib"))
-    __mp__.install_dep_include("libxslt", os.path.join(temp_dir, "install_tmp", "include", "*"))
+    return result_wheel

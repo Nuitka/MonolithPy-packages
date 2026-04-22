@@ -28,6 +28,11 @@ def run(wheel_directory):
                           os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe")) + os.pathsep +
                           os.path.dirname(__mp__.find_build_tool_exe("flang", "flang-new.exe")) + os.pathsep + os.environ["PATH"])
     os.environ["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
+    pip_base_path = __mp__.get_pip_base_path()
+    if pip_base_path:
+        overlay_scripts = os.path.join(pip_base_path, "Scripts")
+        if os.path.isdir(overlay_scripts):
+            os.environ["PATH"] = overlay_scripts + os.pathsep + os.environ["PATH"]
     os.environ["LIB"] = os.environ["LIB"] + os.pathsep + __mp__.find_dep_libs("openblas")
     os.environ["INCLUDE"] = os.environ["INCLUDE"] + os.pathsep + __mp__.find_dep_include("openblas")
     os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("openblas")
@@ -36,9 +41,9 @@ def run(wheel_directory):
 
     job_args = []
     if "MP_JOBS" in os.environ:
-        job_args += ["--config-settings=compile-args=-j" + os.environ["MP_JOBS"]]
-    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v", "--config-settings=compile-args=-j6",
-                           "--config-settings=setup-args=-Dprefer_static=True", "--config-settings=setup-args=-Db_vscrt=mt", *job_args)
+        job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
+    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-Ccompile-args=-j6",
+               "-Csetup-args=-Dprefer_static=True", "-Csetup-args=-Db_vscrt=mt", *job_args)
 
     wheel_location = glob.glob("scipy-*.whl")[0]
 

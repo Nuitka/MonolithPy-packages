@@ -9,5 +9,6 @@
   "files": [
     "build.py"
   ],
+  "sources": [{"version": "1.3.5", "link": "https://github.com/xiph/ogg/releases/download/v1.3.5/libogg-1.3.5.zip"}],
   "build_script": "build.py"
 }

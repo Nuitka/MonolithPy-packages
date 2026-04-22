@@ -11,7 +11,7 @@ def run(wheel_directory):
 
     os.environ["LXML_STATIC_INCLUDE_DIRS"] = os.pathsep.join([
         __mp__.find_dep_include("iconv"),
-        __mp__.find_dep_include("libxml2"),
+        os.path.join(__mp__.find_dep_include("libxml2"), "libxml2"),
         __mp__.find_dep_include("libxslt")
     ])
 

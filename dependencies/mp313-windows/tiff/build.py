@@ -4,18 +4,17 @@ from typing import *
 import os
 import shutil
 import glob
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("http://download.osgeo.org/libtiff/tiff-4.3.0.zip", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
     __mp__.setup_compiler_env()
 
-    src_dir = glob.glob(os.path.join(temp_dir, "tiff*"))[0]
-
     __mp__.auto_patch_build(src_dir)
 
-    build_dir = os.path.join(temp_dir, "build")
+    build_dir = os.path.join(src_dir, "builddir")
     os.mkdir(build_dir)
     os.chdir(build_dir)
 
@@ -27,6 +26,11 @@ def run(temp_dir: str):
                               src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
 
-    __mp__.install_dep_libs("tiff", os.path.join(build_dir, "libtiff", "*.lib"))
-    __mp__.install_dep_include("tiff", os.path.join(src_dir, "libtiff", "*.h"))
-    __mp__.install_dep_include("tiff", os.path.join(build_dir, "libtiff", "*.h"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_tiff", "4.3.0"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-tiff", "4.3.0")
+        __mp__.add_wheel_dep_libs(w, "tiff", os.path.join(build_dir, "libtiff", "*.lib"))
+        __mp__.add_wheel_dep_include(w, "tiff", os.path.join(src_dir, "libtiff", "*.h"))
+        __mp__.add_wheel_dep_include(w, "tiff", os.path.join(build_dir, "libtiff", "*.h"))
+
+    return result_wheel

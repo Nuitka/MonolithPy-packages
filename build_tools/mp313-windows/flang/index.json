@@ -1,10 +1,16 @@
 {
-  "version": "19.1.6",
+  "version": "22.1.0",
   "build_tools": [
     "miniconda"
   ],
   "files": [
     "build.py"
+  ],
+  "sources": [
+    {
+      "version": "22.1.0",
+      "link": "https://pip-mpy.ohrtech.net/dummy/empty/mpy_tool_flang-22.1.0.zip"
+    }
   ],
   "build_script": "build.py"
 }

@@ -5,7 +5,9 @@
       "metadata": {
         "Version": "0.16.*"
       },
-      "build_tools": [],
+      "build_tools": [
+        "patch"
+      ],
       "dependencies": [],
       "files": [
         "0.16.0/build.py",

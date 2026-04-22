@@ -9,5 +9,6 @@
   "files": [
     "build.py"
   ],
+  "sources": [{"version": "1.6.37", "link": "http://prdownloads.sourceforge.net/libpng/libpng-1.6.37.tar.xz?download"}],
   "build_script": "build.py"
 }

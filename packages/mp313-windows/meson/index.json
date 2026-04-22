@@ -79,7 +79,7 @@
     },
     {
       "metadata": {
-        "Version": "1.*"
+        "Version": "1.10.*"
       },
       "build_tools": [
         "patch"
@@ -88,6 +88,25 @@
       "files": [
         "1.10.0/build.py",
         "1.10.0/meson-static-patch.patch"
+      ],
+      "build_requires": [
+        "ninja>=1.8.2",
+        "setuptools",
+        "build"
+      ],
+      "build_script": "build.py"
+    },
+    {
+      "metadata": {
+        "Version": "1.*"
+      },
+      "build_tools": [
+        "patch"
+      ],
+      "dependencies": [],
+      "files": [
+        "1.11.0/build.py",
+        "1.11.0/meson-static-patch.patch"
       ],
       "build_requires": [
         "ninja>=1.8.2",

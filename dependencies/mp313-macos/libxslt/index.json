@@ -1,11 +1,15 @@
 {
-  "version": "1.1.35",
+  "version": "1.1.45",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
   "dependencies": [
-    "iconv",
     "libxml2"
   ],
   "files": [
     "build.py"
   ],
+  "sources": [{"version": "1.1.45", "link": "https://github.com/GNOME/libxslt/archive/refs/tags/v1.1.45.zip"}],
   "build_script": "build.py"
 }

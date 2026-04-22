@@ -6,7 +6,8 @@
         "Version": "*"
       },
       "build_tools": [
-        "patch"
+        "patch",
+        "clang"
       ],
       "dependencies": [],
       "files": [

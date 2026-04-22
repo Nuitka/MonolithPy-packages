@@ -7,5 +7,6 @@
   "files": [
     "build.py"
   ],
+  "sources": [{"version": "0.16.2", "link": "https://bitbucket.org/odedevs/ode/get/0.16.2.tar.gz"}],
   "build_script": "build.py"
 }

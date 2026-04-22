@@ -9,7 +9,8 @@
         "patch",
         "cmake",
         "ninja",
-        "mingw"
+        "mingw",
+        "clang"
       ],
       "dependencies": [
         "freetype"

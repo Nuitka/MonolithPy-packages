@@ -4,8 +4,15 @@
     "cmake",
     "ninja"
   ],
+  "dependencies": [ ],
   "files": [
     "build.py"
+  ],
+  "sources": [
+    {
+      "version": "2.83.7",
+      "link": "https://github.com/bulletphysics/bullet3/archive/2fb92bc40c16e4da5a9018479d4a8e1899702ab8.zip"
+    }
   ],
   "build_script": "build.py"
 }

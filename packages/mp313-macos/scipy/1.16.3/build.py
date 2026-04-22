@@ -10,34 +10,38 @@ from wheel.wheelfile import WheelFile
 
 
 def run(wheel_directory):
-    __mp__.run_build_tool_exe("patch", "-p1", "-ui",
-                              os.path.join(os.path.dirname(__file__), "scipy-static-patch.patch"))
+    __mp__.run_with_output("patch", "-p1", "-ui",
+                           os.path.join(os.path.dirname(__file__), "scipy-static-patch.patch"))
 
-    
-
-    env = os.environ.copy()
-    env["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
-    env["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
-    env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    os.environ["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
+    os.environ["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"])
-    env["FC"] = __mp__.find_build_tool_exe("gcc", "gfortran-nuitka")
-    env["LIB"] = __mp__.find_dep_libs("openblas")
-    env["INCLUDE"] = __mp__.find_dep_include("openblas")
-    env["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("openblas")
-    env["FFLAGS"] = "-static-libgcc"
-    env["CFLAGS"] = "-DBYPASS_MP_EMBED"
-    env["CXXFLAGS"] = "-DBYPASS_MP_EMBED"
-    env["PKG_CONFIG"] = "/disabled"
-    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v",
-                            "--config-settings=setup-args=-Dprefer_static=True", "--config-settings=setup-args=-Dblas=openblas",
-                            "--config-settings=setup-args=-Dlapack=openblas", "--config-settings=setup-args=-Dbuildtype=debug",
-                            "--config-settings=setup-args=-Dfortran_link_args=-static-libgcc -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib",
-                            "--config-settings=build-dir=build",
-               env=env)
+    os.environ["FC"] = __mp__.find_build_tool_exe("gcc", "gfortran-nuitka")
+    os.environ["LIB"] = __mp__.find_dep_libs("openblas")
+    os.environ["INCLUDE"] = __mp__.find_dep_include("openblas")
+    os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("openblas")
+    os.environ["FFLAGS"] = "-static-libgcc"
+    os.environ["CFLAGS"] = "-DBYPASS_MP_EMBED"
+    os.environ["CXXFLAGS"] = "-DBYPASS_MP_EMBED"
+    os.environ["PKG_CONFIG"] = "/disabled"
+    pip_base_path = __mp__.get_pip_base_path()
+    if pip_base_path:
+        overlay_bin = os.path.join(pip_base_path, "bin")
+        if os.path.isdir(overlay_bin):
+            os.environ["PATH"] = overlay_bin + os.pathsep + os.environ["PATH"]
 
-    wheel_location = glob.glob("scipy-*.whl")[0]
+    job_args = []
+    if "MP_JOBS" in os.environ:
+        job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
+    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation",
+               "-Csetup-args=-Dprefer_static=True", "-Csetup-args=-Dblas=openblas",
+               "-Csetup-args=-Dlapack=openblas", "-Csetup-args=-Dbuildtype=debug",
+               "-Csetup-args=-Dfortran_link_args=-static-libgcc -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib",
+               "-Cbuild-dir=build",
+               *job_args)
 
-    os.environ.update(env)
+    wheel_location = glob.glob(os.path.join("dist", "scipy-*.whl"))[0]
 
     wheel_files = []
     with TemporaryDirectory() as tmpdir:

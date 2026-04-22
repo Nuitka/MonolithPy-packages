@@ -7,5 +7,6 @@
   "files": [
     "build.py"
   ],
+  "sources": [{"version": "1.21.1", "link": "https://github.com/kcat/openal-soft/archive/refs/tags/1.21.1.tar.gz"}],
   "build_script": "build.py"
 }

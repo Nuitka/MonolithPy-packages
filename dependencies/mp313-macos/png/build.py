@@ -2,17 +2,14 @@ import __mp__
 from typing import *
 
 import os
-import shutil
-import glob
 import sysconfig
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("http://prdownloads.sourceforge.net/libpng/libpng-1.6.37.tar.xz?download", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
-    src_dir = glob.glob(os.path.join(temp_dir, "libpng*"))[0]
-
-    prefix_dir = os.path.join(temp_dir, "prefix")
+    prefix_dir = os.path.join(src_dir, "prefix")
     os.mkdir(prefix_dir)
     os.chdir(src_dir)
 
@@ -24,5 +21,11 @@ def run(temp_dir: str):
     __mp__.run_with_output("make")
     __mp__.run_with_output("make", "install")
 
-    __mp__.install_dep_libs("png", os.path.join(prefix_dir, "lib", "*"))
-    __mp__.install_dep_include("png", os.path.join(prefix_dir, "include", "*.h"), base_dir=os.path.join(prefix_dir, "include"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_png", "1.6.37"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-png", "1.6.37")
+        __mp__.add_wheel_dep_libs(w, "png", os.path.join(prefix_dir, "lib", "*"))
+        __mp__.add_wheel_dep_include(w, "png", os.path.join(prefix_dir, "include", "*.h"),
+                                     base_dir=os.path.join(prefix_dir, "include"))
+
+    return result_wheel

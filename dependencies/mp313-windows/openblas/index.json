@@ -1,14 +1,23 @@
 {
   "version": "0.3.28",
   "build_tools": [
+    "patch",
     "cmake",
     "ninja",
     "flang"
   ],
-  "dependencies": [ ],
+  "dependencies": [
+    "flang-rt"
+  ],
   "files": [
     "build.py",
     "openblas-intel.patch"
+  ],
+  "sources": [
+    {
+      "version": "0.3.28",
+      "link": "https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.28/OpenBLAS-0.3.28.zip"
+    }
   ],
   "build_script": "build.py"
 }

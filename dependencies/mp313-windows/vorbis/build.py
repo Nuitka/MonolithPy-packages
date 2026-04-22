@@ -4,18 +4,17 @@ from typing import *
 import os
 import shutil
 import glob
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("https://github.com/xiph/vorbis/releases/download/v1.3.7/libvorbis-1.3.7.zip", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
     __mp__.setup_compiler_env()
 
-    src_dir = glob.glob(os.path.join(temp_dir, "libvorbis*"))[0]
-
     __mp__.auto_patch_build(src_dir)
 
-    build_dir = os.path.join(temp_dir, "build")
+    build_dir = os.path.join(src_dir, "build")
     os.mkdir(build_dir)
     os.chdir(build_dir)
 
@@ -28,5 +27,11 @@ def run(temp_dir: str):
                               src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
 
-    __mp__.install_dep_libs("vorbis", os.path.join(build_dir, "lib", "*.lib"))
-    __mp__.install_dep_include("vorbis", os.path.join(src_dir, "include", "vorbis"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_vorbis", "1.3.7"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-vorbis", "1.3.7")
+        __mp__.add_wheel_dep_libs(w, "vorbis", os.path.join(build_dir, "lib", "*.lib"))
+        __mp__.add_wheel_dep_include(w, "vorbis", os.path.join(src_dir, "include", "vorbis"),
+                                     base_dir=os.path.join(src_dir, "include"))
+
+    return result_wheel

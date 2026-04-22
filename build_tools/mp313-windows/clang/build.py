@@ -3,9 +3,13 @@ import glob
 from typing import *
 
 import os
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/clang+llvm-21.1.8-x86_64-pc-windows-msvc.tar.xz",
-                            temp_dir)
-    __mp__.install_build_tool("clang", os.path.join(temp_dir, "clang+llvm-21.1.8-x86_64-pc-windows-msvc", "*"))
+def run(wheel_directory):
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy-tool-clang", "21.1.8"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-tool-clang", "21.1.8")
+        __mp__.add_wheel_build_tool(w, "clang", os.path.join(os.getcwd(), "*"))
+
+    return result_wheel

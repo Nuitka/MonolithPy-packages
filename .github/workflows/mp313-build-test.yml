@@ -4,13 +4,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test-windows:
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        split_index: [0, 1, 2, 3, 4]
+  # ── Round 1 ──────────────────────────────────────────────────────────────
+  # Builds packages that are deps of 2+ others (e.g. numpy, scipy, meson-python).
+  # Produces pre-built wheels so Round 2 workers skip recompiling them.
 
+  pre-build-windows:
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,25 +30,28 @@ jobs:
           $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
           echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
 
-      - name: Build and test packages
+      - name: Build shared deps (Round 1)
         env:
-          SPLIT_INDEX: ${{ matrix.split_index }}
-          SPLIT_TOTAL: 5
+          PREBUILD_MODE: "true"
         run: python .github/scripts/build_and_test.py
 
-      - name: Upload constraints
+      - name: Upload Round 1 wheels
         uses: actions/upload-artifact@v4
         with:
-          name: constraints-windows-${{ matrix.split_index }}
+          name: round1-wheels-windows
+          path: built_wheels/
+          if-no-files-found: ignore
+
+      - name: Upload Round 1 constraints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints-windows-round1
           path: constraints/
+          if-no-files-found: ignore
 
-  build-and-test-macos:
+  pre-build-macos:
     runs-on: macos-14
-    strategy:
-      fail-fast: false
-      matrix:
-        split_index: [0, 1, 2, 3, 4]
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -75,14 +77,167 @@ jobs:
           chmod +x monolithpy/* 2>/dev/null || true
           find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
 
-      - name: Build and test packages
+      - name: Build shared deps (Round 1)
         env:
-          SPLIT_INDEX: ${{ matrix.split_index }}
-          SPLIT_TOTAL: 5
+          PREBUILD_MODE: "true"
         run: python3 .github/scripts/build_and_test.py
 
+      - name: Upload Round 1 wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: round1-wheels-macos
+          path: built_wheels/
+          if-no-files-found: ignore
+
+      - name: Upload Round 1 constraints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints-macos-round1
+          path: constraints/
+          if-no-files-found: ignore
+
+  # ── Round 2 ──────────────────────────────────────────────────────────────
+  # Builds all remaining packages in parallel splits.  Each worker downloads
+  # the Round 1 wheel directory and passes it to pip via --find-links so that
+  # shared deps are served from pre-built wheels without recompilation.
+
+  build-and-test-windows:
+    needs: [pre-build-windows]
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        split_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13
+          name: MonolithPy313_windows_x64
+          path: monolithpy
+
+      - name: Download Round 1 wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: round1-wheels-windows
+          path: round1-wheels/
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        shell: pwsh
+        run: |
+          $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
+          echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
+
+      - name: Build and test packages (Round 2)
+        env:
+          SPLIT_INDEX: ${{ matrix.split_index }}
+          SPLIT_TOTAL: 10
+          ROUND1_WHEELS_DIR: round1-wheels
+        run: python .github/scripts/build_and_test.py
+
+      - name: Upload wheels
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows-${{ matrix.split_index }}
+          path: built_wheels/
+          if-no-files-found: ignore
+
       - name: Upload constraints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints-windows-${{ matrix.split_index }}
+          path: constraints/
+          if-no-files-found: ignore
+
+  build-and-test-macos:
+    needs: [pre-build-macos]
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        split_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13
+          name: MonolithPy313_mac_arm64_No_LTO
+          path: monolithpy
+
+      - name: Download Round 1 wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: round1-wheels-macos
+          path: round1-wheels/
+
+      - name: Uninstall homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
+
+      - name: Make MonolithPy executable
+        run: |
+          chmod +x monolithpy/* 2>/dev/null || true
+          find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
+
+      - name: Build and test packages (Round 2)
+        env:
+          SPLIT_INDEX: ${{ matrix.split_index }}
+          SPLIT_TOTAL: 10
+          ROUND1_WHEELS_DIR: round1-wheels
+        run: python3 .github/scripts/build_and_test.py
+
+      - name: Upload wheels
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-${{ matrix.split_index }}
+          path: built_wheels/
+          if-no-files-found: ignore
+
+      - name: Upload constraints
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: constraints-macos-${{ matrix.split_index }}
           path: constraints/
+          if-no-files-found: ignore
+
+  # ── Merge ─────────────────────────────────────────────────────────────────
+
+  merge-constraints:
+    needs: [build-and-test-windows, build-and-test-macos]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download all constraint artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: constraints-*
+          path: all-constraints/
+          merge-multiple: true
+
+      - name: Upload merged constraints
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints
+          path: all-constraints/
+          if-no-files-found: ignore

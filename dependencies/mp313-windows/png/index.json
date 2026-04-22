@@ -10,5 +10,11 @@
   "files": [
     "build.py"
   ],
+  "sources": [
+    {
+      "version": "1.6.37",
+      "link": "http://prdownloads.sourceforge.net/libpng/lpng1637.zip?download"
+    }
+  ],
   "build_script": "build.py"
 }

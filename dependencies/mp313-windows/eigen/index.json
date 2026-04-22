@@ -3,5 +3,11 @@
   "files": [
     "build.py"
   ],
+  "sources": [
+    {
+      "version": "3.4.0",
+      "link": "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip"
+    }
+  ],
   "build_script": "build.py"
 }

@@ -4,5 +4,11 @@
   "files": [
     "build.py"
   ],
+  "sources": [
+    {
+      "version": "1.12.1",
+      "link": "https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-mac.zip"
+    }
+  ],
   "build_script": "build.py"
 }
