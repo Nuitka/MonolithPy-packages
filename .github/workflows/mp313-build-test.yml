@@ -20,7 +20,7 @@ jobs:
           repo: Nuitka/MonolithPy
           workflow: main.yml
           workflow_conclusion: success
-          branch: 3.13
+          branch: 3.13-wheels
           name: MonolithPy313_windows_x64
           path: monolithpy
 
@@ -62,7 +62,7 @@ jobs:
           repo: Nuitka/MonolithPy
           workflow: main.yml
           workflow_conclusion: success
-          branch: 3.13
+          branch: 3.13-wheels
           name: MonolithPy313_mac_arm64_No_LTO
           path: monolithpy
 
@@ -120,7 +120,7 @@ jobs:
           repo: Nuitka/MonolithPy
           workflow: main.yml
           workflow_conclusion: success
-          branch: 3.13
+          branch: 3.13-wheels
           name: MonolithPy313_windows_x64
           path: monolithpy
 
@@ -177,7 +177,7 @@ jobs:
           repo: Nuitka/MonolithPy
           workflow: main.yml
           workflow_conclusion: success
-          branch: 3.13
+          branch: 3.13-wheels
           name: MonolithPy313_mac_arm64_No_LTO
           path: monolithpy
 
