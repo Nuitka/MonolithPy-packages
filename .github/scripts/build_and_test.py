@@ -178,7 +178,8 @@ def build_dep_graph(catalog: dict[str, Path]) -> dict[str, set[str]]:
                 data = json.load(f)
         except (json.JSONDecodeError, OSError):
             continue
-        scripts = data.get("scripts", [{}])
+        # packages/ use scripts[0] format; dependencies/ and build_tools/ use top-level fields
+        scripts = data.get("scripts", [])
         script = scripts[0] if scripts else {}
 
         def add_edge(norm_target: str) -> None:
@@ -186,28 +187,38 @@ def build_dep_graph(catalog: dict[str, Path]) -> dict[str, set[str]]:
                 graph[pip_name].add(norm_map[norm_target])
 
         # Regular pip requirements (build_requires / dist_requires)
-        for req in script.get("build_requires", []) + script.get("dist_requires", []):
+        for req in (script.get("build_requires") or data.get("build_requires", [])) + \
+                   (script.get("dist_requires") or data.get("dist_requires", [])):
             bare = re.split(r'[>=<!;\[\s,]', req.strip())[0]
             add_edge(normalize_pkg_name(bare))
 
         # MonolithPy dependency packages  →  "mpy-dep-{name}"
-        for dep in script.get("dependencies", []):
+        for dep in (script.get("dependencies") or data.get("dependencies", [])):
             add_edge(normalize_pkg_name(f"mpy-dep-{dep}"))
 
         # MonolithPy build tool packages  →  "mpy-tool-{name}"
-        for tool in script.get("build_tools", []):
+        for tool in (script.get("build_tools") or data.get("build_tools", [])):
             add_edge(normalize_pkg_name(f"mpy-tool-{tool}"))
 
     return graph
 
 
 def find_prebuild_candidates(dep_graph: dict[str, set[str]], threshold: int = 2) -> list[str]:
-    """Return packages that appear as a dep of at least `threshold` other packages."""
+    """Return packages that appear as a dep of at least `threshold` others, plus all their transitive deps."""
     ref_count: dict[str, int] = {}
     for deps in dep_graph.values():
         for dep in deps:
             ref_count[dep] = ref_count.get(dep, 0) + 1
-    return [pkg for pkg, count in sorted(ref_count.items()) if count >= threshold]
+    candidates = {p for p, c in ref_count.items() if c >= threshold}
+    # Expand transitively so deps-of-deps (e.g. flang→miniconda) are also pre-built
+    queue = list(candidates)
+    while queue:
+        pkg = queue.pop()
+        for dep in dep_graph.get(pkg, set()):
+            if dep not in candidates:
+                candidates.add(dep)
+                queue.append(dep)
+    return sorted(candidates)
 
 
 def topo_sort(packages: list[str], dep_graph: dict[str, set[str]]) -> list[str]:
