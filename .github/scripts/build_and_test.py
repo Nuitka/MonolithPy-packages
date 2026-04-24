@@ -387,7 +387,7 @@ def main():
         monolithpy = get_monolithpy_executable(work_monolithpy)
         run_rebuild(monolithpy)
 
-        pip_cache_dir = pip_cache_base / pkg_name
+        pip_cache_dir = pip_cache_base
 
         # Round 1: --find-links points at built_wheels/ so each candidate can
         # reuse wheels produced by earlier packages in the same topo-ordered run
