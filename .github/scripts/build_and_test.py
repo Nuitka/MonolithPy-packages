@@ -45,6 +45,19 @@ def clear_pip_cache(monolithpy: Path):
         pass
 
 
+def purge_caches(pip_cache_dir: Path, work_dir: Path):
+    """Reclaim disk between prebuild tiers."""
+    import tempfile
+    if pip_cache_dir.exists():
+        rmtree_force(pip_cache_dir)
+    mpy_cache = Path(os.environ.get("MPY_WHEEL_CACHE_DIR",
+                     os.path.join(tempfile.gettempdir(), "mpy-wheel-cache")))
+    if mpy_cache.exists():
+        rmtree_force(mpy_cache)
+    if work_dir.exists():
+        rmtree_force(work_dir)
+
+
 def parse_version(version_str: str) -> tuple:
     """Parse version string into comparable tuple."""
     parts = re.split(r'[.\-]', version_str)
@@ -369,15 +382,20 @@ def main():
     round1_wheels_dir = Path(round1_wheels_dir_env) if round1_wheels_dir_env else None
 
     if prebuild_mode:
-        # Round 1: build packages that are deps of 2+ others, in topo order.
-        # The dep graph spans packages/, dependencies/, and build_tools/ so
-        # mpy-tool-clang, mpy-dep-openblas, numpy, scipy, etc. are all candidates.
         candidates = find_prebuild_candidates(dep_graph, threshold=2)
-        all_packages = topo_sort(candidates, dep_graph)
-        print(f"Round 1 (pre-build): {len(all_packages)} shared deps in order: {all_packages}")
+        all_prebuild = topo_sort(candidates, dep_graph)
+
+        heavy_set = {"numpy", "scipy"}
+        tier1 = [p for p in all_prebuild if p.startswith("mpy-tool-")]
+        tier1_set = set(tier1)
+        tier2 = [p for p in all_prebuild if p not in tier1_set and p not in heavy_set]
+        tier3 = [p for p in all_prebuild if p in heavy_set]
+        tiers = [(t, pkgs) for t, pkgs in [("tools", tier1), ("deps", tier2), ("heavy", tier3)] if pkgs]
+
+        print(f"Pre-build: {len(all_prebuild)} packages across {len(tiers)} tiers")
+        for tier_label, tier_packages in tiers:
+            print(f"  {tier_label}: {tier_packages}")
     else:
-        # Round 2: build only the top-level packages/; deps and tools come from
-        # the Round 1 --find-links dir or are built on-demand by pip.
         all_packages = sorted(d.name for d in _iter_subdirs(packages_dir))
         split_total = int(os.environ.get("SPLIT_TOTAL", "1"))
         split_index = int(os.environ.get("SPLIT_INDEX", "0"))
@@ -386,54 +404,60 @@ def main():
             print(f"Round 2, split {split_index+1}/{split_total}: {len(all_packages)} packages: {all_packages}")
         if round1_wheels_dir:
             print(f"Using Round 1 pre-built wheels from: {round1_wheels_dir}")
+        tiers = [("all", all_packages)]
 
-    for pkg_name in all_packages:
-        pkg_dir = catalog[pkg_name]
-        print(f"::group::Building {pkg_name}")
+    for tier_label, tier_packages in tiers:
+        if prebuild_mode:
+            print(f"::group::=== Tier: {tier_label} ({len(tier_packages)} packages) ===")
 
-        if work_monolithpy.exists():
-            rmtree_force(work_monolithpy)
-        shutil.copytree(pristine_dir, work_monolithpy)
+        for pkg_name in tier_packages:
+            pkg_dir = catalog[pkg_name]
+            print(f"::group::Building {pkg_name}")
 
-        monolithpy = get_monolithpy_executable(work_monolithpy)
-        run_rebuild(monolithpy)
+            if work_monolithpy.exists():
+                rmtree_force(work_monolithpy)
+            shutil.copytree(pristine_dir, work_monolithpy)
 
-        pip_cache_dir = pip_cache_base
+            monolithpy = get_monolithpy_executable(work_monolithpy)
+            run_rebuild(monolithpy)
 
-        # Round 1: --find-links points at built_wheels/ so each candidate can
-        # reuse wheels produced by earlier packages in the same topo-ordered run
-        # (e.g. scipy finds numpy and mpy-dep-openblas already there).
-        # Round 2: --find-links points at the downloaded Round 1 artifact dir.
-        find_links_dir = built_wheels_dir if prebuild_mode else round1_wheels_dir
+            pip_cache_dir = pip_cache_base
+            find_links_dir = built_wheels_dir if prebuild_mode else round1_wheels_dir
 
-        print(f"Building {pkg_name}...")
-        success, installed_packages = run_build(
-            monolithpy, pkg_name,
-            pip_cache_dir=pip_cache_dir,
-            find_links_dir=find_links_dir,
-        )
-        if not success:
-            print(f"::error::Build failed for {pkg_name}")
+            print(f"Building {pkg_name}...")
+            success, installed_packages = run_build(
+                monolithpy, pkg_name,
+                pip_cache_dir=pip_cache_dir,
+                find_links_dir=find_links_dir,
+            )
+            if not success:
+                print(f"::error::Build failed for {pkg_name}")
+                print("::endgroup::")
+                sys.exit(1)
+
+            print(f"Build successful for {pkg_name}")
+            collect_built_wheels(pip_cache_dir, built_wheels_dir)
+
+            write_constraint_file(pkg_name, installed_packages, constraints_dir, ensurepip_packages)
+
+            tests = get_tests_from_index(pkg_dir / "index.json")
+            for test_file in tests:
+                test_path = pkg_dir / test_file
+                if test_path.exists():
+                    print(f"Running test: {test_file}")
+                    if not run_test(monolithpy, test_path):
+                        print(f"::error::Test failed for {pkg_name}/{test_file}")
+                        print("::endgroup::")
+                        sys.exit(1)
+                    print(f"Test passed for {pkg_name}/{test_file}")
+
             print("::endgroup::")
-            sys.exit(1)
 
-        print(f"Build successful for {pkg_name}")
-        collect_built_wheels(pip_cache_dir, built_wheels_dir)
-
-        write_constraint_file(pkg_name, installed_packages, constraints_dir, ensurepip_packages)
-
-        tests = get_tests_from_index(pkg_dir / "index.json")
-        for test_file in tests:
-            test_path = pkg_dir / test_file
-            if test_path.exists():
-                print(f"Running test: {test_file}")
-                if not run_test(monolithpy, test_path):
-                    print(f"::error::Test failed for {pkg_name}/{test_file}")
-                    print("::endgroup::")
-                    sys.exit(1)
-                print(f"Test passed for {pkg_name}/{test_file}")
-
-        print("::endgroup::")
+        if prebuild_mode:
+            collect_built_wheels(pip_cache_base, built_wheels_dir)
+            print(f"Tier {tier_label} complete. Purging caches to reclaim disk...")
+            purge_caches(pip_cache_base, work_monolithpy)
+            print("::endgroup::")
 
 
 if __name__ == "__main__":
