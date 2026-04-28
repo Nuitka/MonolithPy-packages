@@ -22,7 +22,5 @@ def run(wheel_directory):
     with WheelFile(result_wheel, 'w') as w:
         __mp__.add_wheel_manifest(w, "mpy-tool-gcc", "14")
         __mp__.add_wheel_build_tool(w, "gcc", os.path.join(extract_dir, "*"))
-        w.writestr("mpy_tool_gcc-14.data/data/build_tools/gcc/link.json",
-                   '{"libraries": ["lib/libquadmath.a", "lib/libgcc.a", "lib/libgfortran.a"]}')
 
     return result_wheel

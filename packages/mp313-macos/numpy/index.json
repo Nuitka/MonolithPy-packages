@@ -6,7 +6,7 @@
         "Version": "*"
       },
       "build_tools": ["ninja", "gcc", "clang"],
-      "dependencies": ["openblas"],
+      "dependencies": ["openblas", "gcc-rt"],
       "files": [
         "build.py",
         "numpy-static-patch.patch"
