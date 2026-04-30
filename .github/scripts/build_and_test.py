@@ -414,6 +414,7 @@ def main():
             pkg_dir = catalog[pkg_name]
             print(f"::group::Building {pkg_name}")
 
+            # Fresh environment per package, but wheel caches persist.
             if work_monolithpy.exists():
                 rmtree_force(work_monolithpy)
             shutil.copytree(pristine_dir, work_monolithpy)
@@ -455,8 +456,7 @@ def main():
 
         if prebuild_mode:
             collect_built_wheels(pip_cache_base, built_wheels_dir)
-            print(f"Tier {tier_label} complete. Purging caches to reclaim disk...")
-            purge_caches(pip_cache_base, work_monolithpy)
+            print(f"Tier {tier_label} complete.")
             print("::endgroup::")
 
 
