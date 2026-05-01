@@ -8,7 +8,7 @@ jobs:
   # Builds packages that are deps of 2+ others (e.g. numpy, scipy, meson-python).
   # Produces pre-built wheels so Round 2 workers skip recompiling them.
 
-  pre-build-windows:
+  pre-build-windows-tools:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -30,10 +30,102 @@ jobs:
           $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
           echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
 
-      - name: Build shared deps (Round 1)
-        env:
-          PREBUILD_MODE: "true"
-        run: python .github/scripts/build_and_test.py
+      - name: Build tools
+        run: python .github/scripts/build_and_test.py --prebuild tools
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: r1-wheels-windows-tools
+          path: built_wheels/
+          if-no-files-found: ignore
+
+      - name: Upload constraints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints-windows-tools
+          path: constraints/
+          if-no-files-found: ignore
+
+  pre-build-windows-deps:
+    needs: [pre-build-windows-tools]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_windows_x64
+          path: monolithpy
+
+      - name: Download tool wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: r1-wheels-windows-tools
+          path: built_wheels/
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        shell: pwsh
+        run: |
+          $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
+          echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
+
+      - name: Build deps
+        run: python .github/scripts/build_and_test.py --prebuild deps
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: r1-wheels-windows-deps
+          path: built_wheels/
+          if-no-files-found: ignore
+
+      - name: Upload constraints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints-windows-deps
+          path: constraints/
+          if-no-files-found: ignore
+
+  pre-build-windows-heavy:
+    needs: [pre-build-windows-deps]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_windows_x64
+          path: monolithpy
+
+      - name: Download dep wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: r1-wheels-windows-deps
+          path: built_wheels/
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        shell: pwsh
+        run: |
+          $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
+          echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
+
+      - name: Build heavy packages
+        run: python .github/scripts/build_and_test.py --prebuild heavy
 
       - name: Upload Round 1 wheels
         uses: actions/upload-artifact@v4
@@ -50,7 +142,7 @@ jobs:
           path: constraints/
           if-no-files-found: ignore
 
-  pre-build-macos:
+  pre-build-macos-tools:
     runs-on: macos-14
     steps:
       - name: Checkout repository
@@ -77,10 +169,112 @@ jobs:
           chmod +x monolithpy/* 2>/dev/null || true
           find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
 
-      - name: Build shared deps (Round 1)
-        env:
-          PREBUILD_MODE: "true"
-        run: python3 .github/scripts/build_and_test.py
+      - name: Build tools
+        run: python3 .github/scripts/build_and_test.py --prebuild tools
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: r1-wheels-macos-tools
+          path: built_wheels/
+          if-no-files-found: ignore
+
+      - name: Upload constraints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints-macos-tools
+          path: constraints/
+          if-no-files-found: ignore
+
+  pre-build-macos-deps:
+    needs: [pre-build-macos-tools]
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_mac_arm64_No_LTO
+          path: monolithpy
+
+      - name: Download tool wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: r1-wheels-macos-tools
+          path: built_wheels/
+
+      - name: Uninstall homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
+
+      - name: Make MonolithPy executable
+        run: |
+          chmod +x monolithpy/* 2>/dev/null || true
+          find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
+
+      - name: Build deps
+        run: python3 .github/scripts/build_and_test.py --prebuild deps
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: r1-wheels-macos-deps
+          path: built_wheels/
+          if-no-files-found: ignore
+
+      - name: Upload constraints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: constraints-macos-deps
+          path: constraints/
+          if-no-files-found: ignore
+
+  pre-build-macos-heavy:
+    needs: [pre-build-macos-deps]
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_mac_arm64_No_LTO
+          path: monolithpy
+
+      - name: Download dep wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: r1-wheels-macos-deps
+          path: built_wheels/
+
+      - name: Uninstall homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
+
+      - name: Make MonolithPy executable
+        run: |
+          chmod +x monolithpy/* 2>/dev/null || true
+          find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
+
+      - name: Build heavy packages
+        run: python3 .github/scripts/build_and_test.py --prebuild heavy
 
       - name: Upload Round 1 wheels
         uses: actions/upload-artifact@v4
@@ -103,7 +297,7 @@ jobs:
   # shared deps are served from pre-built wheels without recompilation.
 
   build-and-test-windows:
-    needs: [pre-build-windows]
+    needs: [pre-build-windows-heavy]
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -137,11 +331,7 @@ jobs:
           echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
 
       - name: Build and test packages (Round 2)
-        env:
-          SPLIT_INDEX: ${{ matrix.split_index }}
-          SPLIT_TOTAL: 10
-          ROUND1_WHEELS_DIR: round1-wheels
-        run: python .github/scripts/build_and_test.py
+        run: python .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels
 
       - name: Upload wheels
         if: always()
@@ -160,7 +350,7 @@ jobs:
           if-no-files-found: ignore
 
   build-and-test-macos:
-    needs: [pre-build-macos]
+    needs: [pre-build-macos-heavy]
     runs-on: macos-14
     strategy:
       fail-fast: false
@@ -199,11 +389,7 @@ jobs:
           find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
 
       - name: Build and test packages (Round 2)
-        env:
-          SPLIT_INDEX: ${{ matrix.split_index }}
-          SPLIT_TOTAL: 10
-          ROUND1_WHEELS_DIR: round1-wheels
-        run: python3 .github/scripts/build_and_test.py
+        run: python3 .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels
 
       - name: Upload wheels
         if: always()

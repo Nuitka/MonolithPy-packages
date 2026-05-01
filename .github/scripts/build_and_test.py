@@ -338,6 +338,16 @@ def run_test(monolithpy: Path, test_path: Path) -> bool:
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--prebuild", metavar="TIER",
+                        help="Run a pre-build tier: tools, deps, heavy, or 'all' for every tier.")
+    parser.add_argument("--round2", nargs=2, metavar=("INDEX", "TOTAL"),
+                        help="Run round 2 with the given split INDEX out of TOTAL.")
+    parser.add_argument("--round1-wheels", metavar="DIR",
+                        help="Directory containing Round 1 pre-built wheels.")
+    args = parser.parse_args()
+
     root_dir = Path.cwd()
     monolithpy_dir = root_dir / "monolithpy"
 
@@ -377,11 +387,9 @@ def main():
     catalog = build_catalog(packages_dir, dependencies_dir, build_tools_dir)
     dep_graph = build_dep_graph(catalog)
 
-    prebuild_mode = os.environ.get("PREBUILD_MODE", "").lower() == "true"
-    round1_wheels_dir_env = os.environ.get("ROUND1_WHEELS_DIR", "")
-    round1_wheels_dir = Path(round1_wheels_dir_env) if round1_wheels_dir_env else None
+    round1_wheels_dir = Path(args.round1_wheels) if args.round1_wheels else None
 
-    if prebuild_mode:
+    if args.prebuild:
         candidates = find_prebuild_candidates(dep_graph, threshold=2)
         all_prebuild = topo_sort(candidates, dep_graph)
 
@@ -390,16 +398,24 @@ def main():
         tier1_set = set(tier1)
         tier2 = [p for p in all_prebuild if p not in tier1_set and p not in heavy_set]
         tier3 = [p for p in all_prebuild if p in heavy_set]
-        tiers = [(t, pkgs) for t, pkgs in [("tools", tier1), ("deps", tier2), ("heavy", tier3)] if pkgs]
+        all_tiers = [("tools", tier1), ("deps", tier2), ("heavy", tier3)]
+        all_tiers = [(t, pkgs) for t, pkgs in all_tiers if pkgs]
 
-        print(f"Pre-build: {len(all_prebuild)} packages across {len(tiers)} tiers")
+        if args.prebuild == "all":
+            tiers = all_tiers
+        else:
+            tiers = [(t, pkgs) for t, pkgs in all_tiers if t == args.prebuild]
+            if not tiers:
+                print(f"Unknown tier '{args.prebuild}'; available: {[t for t, _ in all_tiers]}")
+                sys.exit(1)
+
+        print(f"Pre-build: {sum(len(p) for _, p in tiers)} packages across {len(tiers)} tiers")
         for tier_label, tier_packages in tiers:
             print(f"  {tier_label}: {tier_packages}")
     else:
         all_packages = sorted(d.name for d in _iter_subdirs(packages_dir))
-        split_total = int(os.environ.get("SPLIT_TOTAL", "1"))
-        split_index = int(os.environ.get("SPLIT_INDEX", "0"))
-        if split_total > 1:
+        if args.round2:
+            split_index, split_total = int(args.round2[0]), int(args.round2[1])
             all_packages = [p for i, p in enumerate(all_packages) if i % split_total == split_index]
             print(f"Round 2, split {split_index+1}/{split_total}: {len(all_packages)} packages: {all_packages}")
         if round1_wheels_dir:
@@ -407,23 +423,23 @@ def main():
         tiers = [("all", all_packages)]
 
     for tier_label, tier_packages in tiers:
-        if prebuild_mode:
+        if args.prebuild:
             print(f"::group::=== Tier: {tier_label} ({len(tier_packages)} packages) ===")
+
+        # Reset once per tier, carry forward within so tools/deps accumulate.
+        if work_monolithpy.exists():
+            rmtree_force(work_monolithpy)
+        shutil.copytree(pristine_dir, work_monolithpy)
 
         for pkg_name in tier_packages:
             pkg_dir = catalog[pkg_name]
             print(f"::group::Building {pkg_name}")
 
-            # Fresh environment per package, but wheel caches persist.
-            if work_monolithpy.exists():
-                rmtree_force(work_monolithpy)
-            shutil.copytree(pristine_dir, work_monolithpy)
-
             monolithpy = get_monolithpy_executable(work_monolithpy)
             run_rebuild(monolithpy)
 
             pip_cache_dir = pip_cache_base
-            find_links_dir = built_wheels_dir if prebuild_mode else round1_wheels_dir
+            find_links_dir = built_wheels_dir if args.prebuild else round1_wheels_dir
 
             print(f"Building {pkg_name}...")
             success, installed_packages = run_build(
@@ -454,7 +470,7 @@ def main():
 
             print("::endgroup::")
 
-        if prebuild_mode:
+        if args.prebuild:
             collect_built_wheels(pip_cache_base, built_wheels_dir)
             print(f"Tier {tier_label} complete.")
             print("::endgroup::")
