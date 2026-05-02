@@ -12,7 +12,7 @@ def run(wheel_directory):
     __mp__.run_with_output("patch", "--binary", "-p1", "-i",
                               os.path.join(os.path.dirname(__file__), "glpk.patch"))
 
-    install_dir = os.path.join(src_dir, "install")
+    install_dir = os.path.join(src_dir, "glpk_install")
     os.mkdir(install_dir)
 
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
