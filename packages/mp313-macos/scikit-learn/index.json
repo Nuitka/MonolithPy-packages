@@ -5,7 +5,7 @@
       "metadata": {
         "Version": "*"
       },
-      "build_tools": [],
+      "build_tools": ["cmake", "ninja", "clang"],
       "dependencies": [],
       "files": [
         "build.py",
