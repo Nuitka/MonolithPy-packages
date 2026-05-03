@@ -278,6 +278,10 @@ def run_build(
         cmd += ["--find-links", str(find_links_dir)]
     cmd += [package_name]
 
+    env = os.environ.copy()
+    if find_links_dir is not None and find_links_dir.is_dir():
+        env["PIP_FIND_LINKS"] = str(find_links_dir)
+
     try:
         process = subprocess.Popen(
             cmd,
@@ -285,6 +289,7 @@ def run_build(
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,  # Line buffered
+            env=env,
         )
 
         for line in process.stdout:
