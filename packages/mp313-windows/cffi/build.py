@@ -34,12 +34,7 @@ def run(wheel_directory):
                 break
 
         win64_obj = "src/c/libffi_x86_x64/win64.obj"
-        print(f"DEBUG: cffi_lib={cffi_lib}, win64_obj exists={os.path.exists(win64_obj)}")
-        if cffi_lib:
-            print(f"DEBUG: cffi_lib file exists={os.path.exists(cffi_lib)}")
-
         if cffi_lib and os.path.exists(win64_obj):
-            print(f"DEBUG: Running lib.exe to pack {win64_obj} into {cffi_lib}")
             __mp__.run_with_output("lib.exe", "/OUT:" + cffi_lib, cffi_lib, win64_obj)
 
         __mp__.analyze_and_rename_library_symbols(tmpdir,
