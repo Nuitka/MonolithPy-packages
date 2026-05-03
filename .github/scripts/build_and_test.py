@@ -216,6 +216,101 @@ def build_dep_graph(catalog: dict[str, Path]) -> dict[str, set[str]]:
     return graph
 
 
+def get_build_files(pkg_dir: Path) -> list[Path]:
+    """Return sorted build files in pkg_dir, excluding test files."""
+    excluded = set()
+    index_path = pkg_dir / "index.json"
+    if index_path.exists():
+        try:
+            with open(index_path) as f:
+                excluded.update(json.load(f).get("tests", []))
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return sorted(
+        f for f in pkg_dir.rglob("*")
+        if f.is_file() and f.name not in excluded
+    )
+
+
+def compute_cache_keys(
+    catalog: dict[str, Path],
+    dep_graph: dict[str, set[str]],
+    platform_suffix: str,
+) -> dict[str, str]:
+    """Compute a deterministic cache key per package.
+
+    Each key incorporates the SHA-256 of all build files in the package
+    directory (excluding tests) plus, recursively, the keys of all
+    transitive dependencies.
+    """
+    import hashlib
+
+    own_hashes: dict[str, str] = {}
+    for pip_name, pkg_dir in catalog.items():
+        h = hashlib.sha256()
+        for f in get_build_files(pkg_dir):
+            h.update(str(f.relative_to(pkg_dir)).encode())
+            h.update(f.read_bytes())
+        own_hashes[pip_name] = h.hexdigest()
+
+    all_sorted = topo_sort(list(catalog.keys()), dep_graph)
+    full_hashes: dict[str, str] = {}
+    for pip_name in all_sorted:
+        h = hashlib.sha256()
+        h.update(own_hashes[pip_name].encode())
+        for dep in sorted(dep_graph.get(pip_name, set())):
+            if dep in full_hashes:
+                h.update(full_hashes[dep].encode())
+        full_hashes[pip_name] = h.hexdigest()
+
+    return {
+        pip_name: f"{platform_suffix}-{pip_name}-{full_hashes[pip_name][:16]}"
+        for pip_name in catalog
+    }
+
+
+def try_restore_from_cache(
+    pkg_name: str,
+    cache_key: str,
+    wheel_cache_dir: Path,
+    built_wheels_dir: Path,
+) -> bool:
+    """If a cached build exists for this exact cache key, copy wheels out
+    and return True.  Otherwise return False."""
+    marker = wheel_cache_dir / f"{cache_key}.marker"
+    if not marker.exists():
+        return False
+    try:
+        whl_names = json.loads(marker.read_text())
+    except (json.JSONDecodeError, OSError):
+        return False
+    if not all((wheel_cache_dir / w).exists() for w in whl_names):
+        return False
+    for w in whl_names:
+        dest = built_wheels_dir / w
+        if not dest.exists():
+            shutil.copy2(wheel_cache_dir / w, dest)
+    return True
+
+
+def save_to_cache(
+    cache_key: str,
+    new_wheels: set[str],
+    wheel_cache_dir: Path,
+    built_wheels_dir: Path,
+):
+    """Persist newly-built wheels and write a marker so future runs can
+    restore them."""
+    wheel_cache_dir.mkdir(parents=True, exist_ok=True)
+    whl_list = sorted(new_wheels)
+    for w in whl_list:
+        src = built_wheels_dir / w
+        if src.exists():
+            shutil.copy2(src, wheel_cache_dir / w)
+    (wheel_cache_dir / f"{cache_key}.marker").write_text(json.dumps(whl_list))
+
+
 def find_prebuild_candidates(dep_graph: dict[str, set[str]], threshold: int = 2) -> list[str]:
     """Return packages that appear as a dep of at least `threshold` others, plus all their transitive deps."""
     ref_count: dict[str, int] = {}
@@ -351,6 +446,8 @@ def main():
                         help="Run round 2 with the given split INDEX out of TOTAL.")
     parser.add_argument("--round1-wheels", metavar="DIR",
                         help="Directory containing Round 1 pre-built wheels.")
+    parser.add_argument("--wheel-cache-dir", metavar="DIR",
+                        help="Directory for wheel cache (persisted via actions/cache).")
     args = parser.parse_args()
 
     root_dir = Path.cwd()
@@ -391,6 +488,11 @@ def main():
     # Full catalog across packages/, dependencies/, build_tools/
     catalog = build_catalog(packages_dir, dependencies_dir, build_tools_dir)
     dep_graph = build_dep_graph(catalog)
+
+    wheel_cache_dir = Path(args.wheel_cache_dir) if args.wheel_cache_dir else None
+    cache_keys = compute_cache_keys(catalog, dep_graph, platform_suffix) if wheel_cache_dir else {}
+    if cache_keys:
+        print(f"Computed cache keys for {len(cache_keys)} packages")
 
     round1_wheels_dir = Path(args.round1_wheels) if args.round1_wheels else None
 
@@ -440,11 +542,21 @@ def main():
             pkg_dir = catalog[pkg_name]
             print(f"::group::Building {pkg_name}")
 
+            cache_key = cache_keys.get(pkg_name)
+            if cache_key and wheel_cache_dir:
+                if try_restore_from_cache(pkg_name, cache_key, wheel_cache_dir, built_wheels_dir):
+                    print(f"Cache HIT for {pkg_name} (key: {cache_key})")
+                    print("::endgroup::")
+                    continue
+                print(f"Cache MISS for {pkg_name} (key: {cache_key})")
+
             monolithpy = get_monolithpy_executable(work_monolithpy)
             run_rebuild(monolithpy)
 
             pip_cache_dir = pip_cache_base
             find_links_dir = built_wheels_dir if args.prebuild else round1_wheels_dir
+
+            pre_build_wheels = {w.name for w in built_wheels_dir.glob("*.whl")}
 
             print(f"Building {pkg_name}...")
             success, installed_packages = run_build(
@@ -459,6 +571,12 @@ def main():
 
             print(f"Build successful for {pkg_name}")
             collect_built_wheels(pip_cache_dir, built_wheels_dir)
+
+            if cache_key and wheel_cache_dir:
+                new_wheels = {w.name for w in built_wheels_dir.glob("*.whl")} - pre_build_wheels
+                if new_wheels:
+                    save_to_cache(cache_key, new_wheels, wheel_cache_dir, built_wheels_dir)
+                    print(f"Cached {len(new_wheels)} wheel(s) for {pkg_name}")
 
             write_constraint_file(pkg_name, installed_packages, constraints_dir, ensurepip_packages)
 
