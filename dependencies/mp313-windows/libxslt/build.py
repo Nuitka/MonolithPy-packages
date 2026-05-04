@@ -28,6 +28,24 @@ def run(wheel_directory):
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
     __mp__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
+    # libxslt's exports.h uses __declspec(dllimport) unless LIBXSLT_STATIC is
+    # defined. lxml doesn't define it, so inject it at the top of the headers.
+    for header, guard in (
+        ("libxslt/xsltexports.h", "LIBXSLT_STATIC"),
+        ("libexslt/exsltexports.h", "LIBEXSLT_STATIC"),
+    ):
+        p = os.path.join(install_dir, "include", header)
+        if os.path.isfile(p):
+            __mp__.prepend_to_file(p, "#define %s\n" % guard)
+
+    # lxml's setup.py in --static mode looks for libxslt_a.lib / libexslt_a.lib,
+    # but CMake's RELEASE_POSTFIX='s' gives us libxslts.lib / libexslts.lib. Rename.
+    lib_dir = os.path.join(install_dir, "lib")
+    for base in ("libxslt", "libexslt"):
+        src = os.path.join(lib_dir, base + "s.lib")
+        if os.path.isfile(src):
+            shutil.copy(src, os.path.join(lib_dir, base + "_a.lib"))
+
     result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_libxslt", "1.1.45"))
     with WheelFile(result_wheel, 'w') as w:
         __mp__.add_wheel_manifest(w, "mpy-dep-libxslt", "1.1.45")

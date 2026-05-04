@@ -22,6 +22,15 @@ def run(wheel_directory):
         __mp__.find_dep_libs("zlib")
     ])
 
+    # The static-lib export headers (xsltexports.h etc.) only skip
+    # __declspec(dllimport) when these macros are defined. lxml's setup.py
+    # only adds them in --static-deps mode (which downloads libxml2/libxslt
+    # from the internet), not in plain --static mode. Inject via CL env var.
+    os.environ["CL"] = (
+        os.environ.get("CL", "")
+        + " /DLIBXML_STATIC /DLIBXSLT_STATIC /DLIBEXSLT_STATIC"
+    )
+
     __mp__.run_with_output(sys.executable, "setup.py", "bdist_wheel", "--static")
 
     wheel_location = glob.glob(os.path.join("dist", "lxml-*.whl"))[0]

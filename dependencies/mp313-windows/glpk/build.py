@@ -22,11 +22,12 @@ def run(wheel_directory):
     __mp__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
                               "-DCMAKE_INSTALL_PREFIX=" + install_dir, "-DBUILD_SHARED_LIBS=OFF", src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
+    __mp__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
     result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_glpk", "5.0"))
     with WheelFile(result_wheel, 'w') as w:
         __mp__.add_wheel_manifest(w, "mpy-dep-glpk", "5.0")
-        __mp__.add_wheel_dep_libs(w, "glpk", os.path.join(src_dir, "bin", "*.lib"))
-        __mp__.add_wheel_dep_include(w, "glpk", os.path.join(src_dir, "src", "glpk.h"))
+        __mp__.add_wheel_dep_libs(w, "glpk", os.path.join(install_dir, "lib", "*.lib"))
+        __mp__.add_wheel_dep_include(w, "glpk", os.path.join(install_dir, "include", "glpk.h"))
 
     return result_wheel

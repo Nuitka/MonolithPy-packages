@@ -28,6 +28,13 @@ def run(wheel_directory):
 
     __mp__.prepend_to_file(os.path.join(install_dir, "include", "libxml2", "libxml", "xmlexports.h"), "#define LIBXML_STATIC\n")
 
+    # lxml's setup.py in --static mode looks for libxml2_a.lib, but CMake's
+    # RELEASE_POSTFIX='s' gives us libxml2s.lib. Rename.
+    lib_dir = os.path.join(install_dir, "lib")
+    src = os.path.join(lib_dir, "libxml2s.lib")
+    if os.path.isfile(src):
+        shutil.copy(src, os.path.join(lib_dir, "libxml2_a.lib"))
+
     result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_libxml2", "2.15.2"))
     with WheelFile(result_wheel, 'w') as w:
         __mp__.add_wheel_manifest(w, "mpy-dep-libxml2", "2.15.2")
