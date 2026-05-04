@@ -34,7 +34,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+          key: wheel-cache-windows-tools-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
           restore-keys: wheel-cache-windows-
 
       - name: Build tools
@@ -88,8 +88,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
-          restore-keys: wheel-cache-windows-
+          key: wheel-cache-windows-deps-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+          restore-keys: |
+            wheel-cache-windows-tools-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+            wheel-cache-windows-
 
       - name: Build deps
         run: python .github/scripts/build_and_test.py --prebuild deps --wheel-cache-dir wheel-cache
@@ -142,8 +144,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
-          restore-keys: wheel-cache-windows-
+          key: wheel-cache-windows-heavy-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+          restore-keys: |
+            wheel-cache-windows-deps-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+            wheel-cache-windows-
 
       - name: Build heavy packages
         run: python .github/scripts/build_and_test.py --prebuild heavy --wheel-cache-dir wheel-cache
@@ -194,7 +198,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+          key: wheel-cache-macos-tools-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
           restore-keys: wheel-cache-macos-
 
       - name: Build tools
@@ -253,8 +257,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
-          restore-keys: wheel-cache-macos-
+          key: wheel-cache-macos-deps-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+          restore-keys: |
+            wheel-cache-macos-tools-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+            wheel-cache-macos-
 
       - name: Build deps
         run: python3 .github/scripts/build_and_test.py --prebuild deps --wheel-cache-dir wheel-cache
@@ -312,8 +318,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
-          restore-keys: wheel-cache-macos-
+          key: wheel-cache-macos-heavy-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+          restore-keys: |
+            wheel-cache-macos-deps-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+            wheel-cache-macos-
 
       - name: Build heavy packages
         run: python3 .github/scripts/build_and_test.py --prebuild heavy --wheel-cache-dir wheel-cache
@@ -376,8 +384,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
-          restore-keys: wheel-cache-windows-
+          key: wheel-cache-windows-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+          restore-keys: |
+            wheel-cache-windows-heavy-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+            wheel-cache-windows-
 
       - name: Build and test packages (Round 2)
         run: python .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels --wheel-cache-dir wheel-cache
@@ -441,8 +451,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
-          restore-keys: wheel-cache-macos-
+          key: wheel-cache-macos-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+          restore-keys: |
+            wheel-cache-macos-heavy-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+            wheel-cache-macos-
 
       - name: Build and test packages (Round 2)
         run: python3 .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels --wheel-cache-dir wheel-cache
