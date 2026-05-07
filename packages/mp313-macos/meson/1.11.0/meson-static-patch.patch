@@ -164,11 +164,12 @@ index 9ae7832..be880f9 100644
  )
  from ..interpreter.type_checking import SHARED_MOD_KWS
  from ..interpreterbase import typed_kwargs, typed_pos_args, noPosargs, noKwargs, permittedKwargs
-@@ -53,7 +53,7 @@ class Python3Module(ExtensionModule):
+@@ -53,8 +53,8 @@ class Python3Module(ExtensionModule):
              suffix = None
          kwargs['name_prefix'] = ''
-         kwargs['name_suffix'] = suffix
+-        kwargs['name_suffix'] = suffix
 -        return self.interpreter.build_target(state.current_node, args, kwargs, SharedModule)
++        kwargs['name_suffix'] = None
 +        return self.interpreter.build_target(state.current_node, args, kwargs, StaticLibrary)
  
      @noPosargs
