@@ -12,11 +12,10 @@ from wheel.wheelfile import WheelFile
 def run(wheel_directory):
     env = os.environ.copy()
     env["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
-    env["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
     env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
-                   os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"])
+                   os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + env.get("PATH", ""))
     env["PKG_CONFIG"] = "/disabled"
-    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v", env=env)
+    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".", env=env)
 
     wheel_location = glob.glob("contourpy-*.whl")[0]
 

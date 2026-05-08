@@ -22,12 +22,11 @@ def run(wheel_directory):
     env["FREETYPE_ROOT"] = __mp__.find_dep_root("freetype")
     env["HARFBUZZ_ROOT"] = __mp__.find_dep_root("harfbuzz")
 
-    env["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
-    __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v",
-                           "--config-settings=jpeg=enable",
-                           "--config-settings=tiff=disable", "--config-settings=zlib=enable",
-                           "--config-settings=freetype=enable", "--config-settings=harfbuzz=enable",
-                           "--config-settings=raqm=vendor", "--config-settings=fribidi=vendor", env=env)
+    __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
+                           "-Cjpeg=enable",
+                           "-Ctiff=disable", "-Czlib=enable",
+                           "-Cfreetype=enable", "-Charfbuzz=enable",
+                           "-Craqm=vendor", "-Cfribidi=vendor", env=env)
 
     wheel_location = glob.glob("pillow-*.whl")[0]
     wheel_name = os.path.basename(wheel_location)

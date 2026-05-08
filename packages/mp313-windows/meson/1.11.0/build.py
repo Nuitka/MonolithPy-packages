@@ -12,8 +12,7 @@ def run(wheel_directory):
     __mp__.run_build_tool_exe("patch", "patch.exe", "-t", "-p1", "-i",
                               os.path.join(os.path.dirname(__file__), "meson-static-patch.patch"))
 
-    os.environ["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
-    __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v")
+    __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".")
 
     wheel_location = glob.glob("meson-*.whl")[0]
     wheel_name = os.path.basename(wheel_location)

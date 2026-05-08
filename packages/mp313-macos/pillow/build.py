@@ -19,15 +19,14 @@ def run(wheel_directory):
     env["FREETYPE_ROOT"] = __mp__.find_dep_root("base")
     env["HARFBUZZ_ROOT"] = __mp__.find_dep_root("base")
 
-    env["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
-    __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v",
-                           "--config-settings=jpeg=enable",
-                           "--config-settings=tiff=disable", "--config-settings=zlib=enable",
-                           "--config-settings=freetype=enable", "--config-settings=harfbuzz=enable",
-                           "--config-settings=raqm=vendor", "--config-settings=fribidi=vendor",
-                           "--config-settings=lcms=disable", "--config-settings=webp=disable",
-                           "--config-settings=jpeg2000=disable", "--config-settings=imagequant=disable",
-                           "--config-settings=xcb=disable", env=env)
+    __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
+                           "-Cjpeg=enable",
+                           "-Ctiff=disable", "-Czlib=enable",
+                           "-Cfreetype=enable", "-Charfbuzz=enable",
+                           "-Craqm=vendor", "-Cfribidi=vendor",
+                           "-Clcms=disable", "-Cwebp=disable",
+                           "-Cjpeg2000=disable", "-Cimagequant=disable",
+                           "-Cxcb=disable", env=env)
 
     wheel_location = glob.glob("pillow-*.whl")[0]
     wheel_name = os.path.basename(wheel_location)

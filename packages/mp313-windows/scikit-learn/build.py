@@ -36,7 +36,6 @@ def run(wheel_directory):
     import numpy as _numpy
     os.environ["INCLUDE"] = os.environ.get("INCLUDE", "") + os.pathsep + _numpy.get_include()
 
-    os.environ["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
     pip_base_path = __mp__.get_pip_base_path()
     if pip_base_path:
         overlay_site = os.path.join(pip_base_path, "Lib", "site-packages")

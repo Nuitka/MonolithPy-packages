@@ -19,16 +19,7 @@ def run(wheel_directory):
     os.environ["CXXFLAGS"] = "/DBYPASS_MP_EMBED"
     os.environ["GITHUB_ACTIONS"] = "true"
 
-    os.environ["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
     pip_base_path = __mp__.get_pip_base_path()
-    sys.stderr.write(f"[build.py] get_pip_base_path()={pip_base_path!r}\n")
-    if pip_base_path:
-        overlay_scripts = os.path.join(pip_base_path, "Scripts")
-        sys.stderr.write(f"[build.py] overlay_scripts={overlay_scripts!r} exists={os.path.isdir(overlay_scripts)}\n")
-        if os.path.isdir(overlay_scripts):
-            os.environ["PATH"] = overlay_scripts + os.pathsep + os.environ["PATH"]
-            sys.stderr.write("[build.py] Added overlay Scripts to PATH\n")
-    sys.stderr.write(f"[build.py] PATH={os.environ['PATH']}\n")
 
     # Wrap meson via the MESON env var so we can guarantee PYTHONPATH is set
     # for all subprocesses (including cython) that meson spawns.

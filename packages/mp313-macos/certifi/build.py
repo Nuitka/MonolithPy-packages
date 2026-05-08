@@ -13,7 +13,7 @@ def run(wheel_directory):
     shutil.copyfile(os.path.join(os.path.dirname(__file__), "core.py"), "certifi/core.py")
     os.remove("certifi/cacert.pem")
 
-    __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v")
+    __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".")
 
     wheel_location = glob.glob("certifi-*.whl")[0]
     wheel_name = os.path.basename(wheel_location)

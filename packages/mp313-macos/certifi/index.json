@@ -12,6 +12,7 @@
         "core.py"
       ],
       "build_requires": [
+        "build",
         "setuptools"
       ],
       "build_script": "build.py"

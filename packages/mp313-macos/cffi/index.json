@@ -12,6 +12,7 @@
         "cffi-static-patch.patch"
       ],
       "build_requires": [
+        "build",
         "setuptools"
       ],
       "dist_requires": [

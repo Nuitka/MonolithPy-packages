@@ -11,6 +11,7 @@
         "pyproject_hooks-static-patch.patch"
       ],
       "build_requires": [
+        "build",
         "setuptools"
       ],
       "build_script": "build.py"

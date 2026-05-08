@@ -11,15 +11,9 @@ from wheel.wheelfile import WheelFile
 
 def run(wheel_directory):
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
-    os.environ["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
     os.environ["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"])
     os.environ["PKG_CONFIG"] = "/disabled"
-    pip_base_path = __mp__.get_pip_base_path()
-    if pip_base_path:
-        overlay_bin = os.path.join(pip_base_path, "bin")
-        if os.path.isdir(overlay_bin):
-            os.environ["PATH"] = overlay_bin + os.pathsep + os.environ["PATH"]
 
     job_args = []
     if "MP_JOBS" in os.environ:

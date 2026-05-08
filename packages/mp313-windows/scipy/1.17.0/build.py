@@ -27,17 +27,6 @@ def run(wheel_directory):
                           os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake.exe")) + os.pathsep +
                           os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe")) + os.pathsep +
                           os.path.dirname(__mp__.find_build_tool_exe("flang", "flang-new.exe")) + os.pathsep + os.environ["PATH"])
-    os.environ["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
-    pip_base_path = __mp__.get_pip_base_path()
-    sys.stderr.write(f"[build.py] get_pip_base_path()={pip_base_path!r}\n")
-    sys.stderr.write(f"[build.py] sys.path={sys.path}\n")
-    if pip_base_path:
-        overlay_scripts = os.path.join(pip_base_path, "Scripts")
-        sys.stderr.write(f"[build.py] overlay_scripts={overlay_scripts!r} exists={os.path.isdir(overlay_scripts)}\n")
-        if os.path.isdir(overlay_scripts):
-            os.environ["PATH"] = overlay_scripts + os.pathsep + os.environ["PATH"]
-            sys.stderr.write(f"[build.py] Added overlay Scripts to PATH\n")
-    sys.stderr.write(f"[build.py] PATH={os.environ['PATH']}\n")
     os.environ["LIB"] = os.environ["LIB"] + os.pathsep + __mp__.find_dep_libs("openblas")
     os.environ["INCLUDE"] = os.environ["INCLUDE"] + os.pathsep + __mp__.find_dep_include("openblas")
     os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("openblas")

@@ -13,10 +13,10 @@ def run(wheel_directory):
     __mp__.setup_compiler_env()
 
     env = os.environ.copy()
-    job_args = []
+    config_args = []
     if "MP_JOBS" in env:
-        job_args += ["--config-settings=compile-args=-j" + env["MP_JOBS"]]
-    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v", "--no-clean", *job_args)
+        config_args += ["-Ccompile-args=-j" + env["MP_JOBS"]]
+    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".", *config_args)
 
     wheel_location = glob.glob("contourpy-*.whl")[0]
 

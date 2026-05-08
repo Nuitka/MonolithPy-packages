@@ -36,12 +36,6 @@ def run(wheel_directory):
         os.path.dirname(__mp__.find_build_tool_exe("mingw", "objdump.exe")) + os.pathsep +
         os.environ["PATH"]
     )
-    os.environ["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
-    pip_base_path = __mp__.get_pip_base_path()
-    if pip_base_path:
-        overlay_scripts = os.path.join(pip_base_path, "Scripts")
-        if os.path.isdir(overlay_scripts):
-            os.environ["PATH"] = overlay_scripts + os.pathsep + os.environ["PATH"]
 
     job_args = []
     if "MP_JOBS" in os.environ:

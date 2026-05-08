@@ -11,7 +11,7 @@ from wheel.wheelfile import WheelFile
 def run(wheel_directory):
     __mp__.setup_compiler_env()
 
-    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v")
+    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".")
 
     wheel_location = glob.glob("zstandard-*.whl")[0]
 

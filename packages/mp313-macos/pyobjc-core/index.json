@@ -13,6 +13,7 @@
         "Static_arm64.patch"
       ],
       "build_requires": [
+        "build",
         "setuptools"
       ],
       "build_script": "build.py"
