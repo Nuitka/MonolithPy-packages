@@ -34,6 +34,7 @@ def run(wheel_directory):
     os.environ["CXXFLAGS"] = "/DBYPASS_MP_EMBED"
     os.environ["GITHUB_ACTIONS"] = "true"
 
+    pip_base_path = __mp__.get_pip_base_path()
     # Wrap meson via the MESON env var so we can guarantee PYTHONPATH is set
     # for all subprocesses (including cython) that meson spawns.
     # On Windows, subprocess.Popen does not run .bat/.cmd wrappers, so a
