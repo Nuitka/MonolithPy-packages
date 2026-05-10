@@ -499,17 +499,114 @@ jobs:
           path: all-constraints/
           if-no-files-found: ignore
 
+  # ── Final test ────────────────────────────────────────────────────────────
+  # Install every top-level package together into one MonolithPy interpreter,
+  # run every package's test suite, and dump the final set of dynamic
+  # libraries the interpreter has mapped in.
+
+  final-test-windows:
+    needs: [build-and-test-windows]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_windows_x64
+          path: monolithpy
+
+      - name: Download Round 2 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-windows-*
+          path: all-wheels/
+          merge-multiple: true
+
+      - name: Download Round 1 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: round1-wheels-windows
+          path: all-wheels/
+          merge-multiple: true
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        shell: pwsh
+        run: |
+          $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
+          echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
+
+      - name: Run final test
+        run: python .github/scripts/final_test.py --monolithpy monolithpy --wheels all-wheels
+
+  final-test-macos:
+    needs: [build-and-test-macos]
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_mac_arm64_No_LTO
+          path: monolithpy
+
+      - name: Download Round 2 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-macos-*
+          path: all-wheels/
+          merge-multiple: true
+
+      - name: Download Round 1 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: round1-wheels-macos
+          path: all-wheels/
+          merge-multiple: true
+
+      - name: Uninstall homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
+
+      - name: Make MonolithPy executable
+        run: |
+          chmod +x monolithpy/* 2>/dev/null || true
+          find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
+
+      - name: Run final test
+        run: python3 .github/scripts/final_test.py --monolithpy monolithpy --wheels all-wheels
+
   # ── Upload ────────────────────────────────────────────────────────────────
   # Push all wheels + PEP 658 metadata sidecars + constraints to the staging
   # bucket.  Only runs on master and only after every build job succeeded.
 
   upload-wheels:
-    needs: [build-and-test-windows, build-and-test-macos, merge-constraints]
+    needs:
+      - build-and-test-windows
+      - build-and-test-macos
+      - merge-constraints
+      - final-test-windows
+      - final-test-macos
     if: >-
       github.ref == 'refs/heads/master'
       && needs.build-and-test-windows.result == 'success'
       && needs.build-and-test-macos.result == 'success'
       && needs.merge-constraints.result == 'success'
+      && needs.final-test-windows.result == 'success'
+      && needs.final-test-macos.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
