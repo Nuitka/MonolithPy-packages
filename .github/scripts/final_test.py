@@ -8,12 +8,14 @@ transitively as dependencies of the top-level packages, so we only install
 the top-level `packages/` entries directly.
 """
 
+import hashlib
 import json
 import os
 import platform
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 
@@ -38,9 +40,60 @@ def list_tests(pkg_dir: Path) -> list[Path]:
     return [pkg_dir / t for t in data.get("tests", []) if (pkg_dir / t).exists()]
 
 
+def inspect_wheels(wheel_dir: Path) -> None:
+    """Print per-wheel sha256 + size + zipfile sanity check for every wheel
+    under `wheel_dir`.  Any wheel that fails to open is flagged via
+    ::error:: so the CI annotation surfaces the exact file rather than
+    relying on pip's terse 'is invalid.' message."""
+    wheels = sorted(wheel_dir.rglob("*.whl"))
+    print(f"\n::group::Inspecting {len(wheels)} wheel(s) in {wheel_dir}")
+    for whl in wheels:
+        size = whl.stat().st_size
+        h = hashlib.sha256()
+        with open(whl, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        status = "ok"
+        try:
+            with zipfile.ZipFile(whl, "r") as zf:
+                bad = zf.testzip()
+                if bad is not None:
+                    status = f"CORRUPT (bad entry: {bad})"
+                else:
+                    info_dirs = sorted({
+                        n.split("/", 1)[0]
+                        for n in zf.namelist()
+                        if n.split("/", 1)[0].endswith(".dist-info")
+                    })
+                    if not info_dirs:
+                        status = "NO .dist-info DIRECTORY"
+                    elif len(info_dirs) > 1:
+                        status = f"MULTIPLE .dist-info: {info_dirs}"
+                    else:
+                        # Read METADATA to make sure it's actually readable.
+                        meta_path = f"{info_dirs[0]}/METADATA"
+                        try:
+                            md = zf.read(meta_path)
+                            status = f"ok ({len(md)} bytes metadata)"
+                        except KeyError:
+                            status = "MISSING METADATA"
+        except zipfile.BadZipFile as e:
+            status = f"BadZipFile: {e}"
+        except Exception as e:
+            status = f"{type(e).__name__}: {e}"
+
+        line = f"  {whl.name}: size={size} sha256={h.hexdigest()[:16]}... [{status}]"
+        if "ok" not in status.split()[0]:
+            print(f"::error::{line}")
+        else:
+            print(line)
+    print("::endgroup::")
+
+
 def run_pip_install(monolithpy: Path, wheel_dir: Path, packages: list[str]) -> bool:
     cmd = [
-        str(monolithpy), "-m", "pip", "install", "--verbose",
+        str(monolithpy), "-m", "pip", "install", "-vvv",
+        "--no-cache-dir",
         "--find-links", str(wheel_dir),
         *packages,
     ]
@@ -171,6 +224,8 @@ def main() -> int:
         print(f"::error::No packages found in {packages_dir}", file=sys.stderr)
         return 1
     print(f"Installing {len(packages)} top-level package(s): {packages}")
+
+    inspect_wheels(args.wheels)
 
     if not run_pip_install(monolithpy, args.wheels, packages):
         print("::error::pip install failed", file=sys.stderr)
