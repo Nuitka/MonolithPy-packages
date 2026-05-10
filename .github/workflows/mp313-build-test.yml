@@ -3,6 +3,9 @@ name: mp313 Build and Test
 on:
   workflow_dispatch:
 
+env:
+  PIP_INDEX_URL: https://pypi.org/simple/
+
 jobs:
   # ── Round 1 ──────────────────────────────────────────────────────────────
   # Builds packages that are deps of 2+ others (e.g. numpy, scipy, meson-python).
@@ -495,3 +498,59 @@ jobs:
           name: constraints
           path: all-constraints/
           if-no-files-found: ignore
+
+  # ── Upload ────────────────────────────────────────────────────────────────
+  # Push all wheels + PEP 658 metadata sidecars + constraints to the staging
+  # bucket.  Only runs on master and only after every build job succeeded.
+
+  upload-wheels:
+    needs: [build-and-test-windows, build-and-test-macos, merge-constraints]
+    if: >-
+      github.ref == 'refs/heads/master'
+      && needs.build-and-test-windows.result == 'success'
+      && needs.build-and-test-macos.result == 'success'
+      && needs.merge-constraints.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Round 2 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: all-wheels/
+          merge-multiple: true
+
+      - name: Download Round 1 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: round1-wheels-*
+          path: all-wheels/
+          merge-multiple: true
+
+      - name: Download merged constraints
+        uses: actions/download-artifact@v4
+        with:
+          name: constraints
+          path: all-constraints/
+
+      - name: Install boto3
+        run: python -m pip install --quiet boto3
+
+      - name: Upload to staging bucket
+        env:
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_CI_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_CI_SECRET_ACCESS_KEY }}
+        run: |
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          python .github/scripts/upload_wheels.py \
+            --source all-wheels \
+            --constraints all-constraints \
+            --run-id "${GITHUB_RUN_NUMBER}" \
+            --sha "${SHORT_SHA}" \
+            --ref "${GITHUB_REF_NAME}" \
+            --workflow-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

@@ -1,0 +1,37 @@
+name: Promote wheels to main
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run:
+        description: "Source run folder under builds/ (e.g. '42-abc1234' or just '42')"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run (list copies, make no changes)"
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install boto3
+        run: python -m pip install --quiet boto3
+
+      - name: Run promotion
+        env:
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_PROMOTE_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_PROMOTE_SECRET_ACCESS_KEY }}
+        run: |
+          python .github/scripts/promote_wheels.py \
+            --source-run "${{ inputs.source_run }}" \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
