@@ -132,28 +132,20 @@ sys.exit(result.returncode)
             for filename in wf.namelist():
                 wheel_files.append(filename)
                 wf.extract(filename, tmpdir)
+        # cdotc_/zdotc_ are CBLAS symbols that scipy's libdummy_g77_abi_wrappers
+        # references and expects to resolve from mpy-dep-openblas at final link time.
+        # scipy 1.17+ also contains file-scope `static` definitions of these names
+        # inside libarnaud/_propack for internal inlined use, but those can't satisfy
+        # the external references (static symbols are translation-unit-local in COFF).
+        # Protect these names so the rename step leaves both the references and
+        # the static local copies untouched — the final link then binds the
+        # external refs to openblas.lib as intended.
         __mp__.analyze_and_rename_library_symbols(tmpdir,
                                                   "scipy",
-                                                  symbol_mapping={
-                                                      "d1mach_": {
-                                                          "use_definition_from": "libmach_lib.lib"
-                                                      },
-                                                      "_cdotc_": {
-                                                          "use_definition_from": "libarnaud.lib",
-                                                          "for_libraries": ["libdummy_g77_abi_wrappers.lib"]
-                                                      },
-                                                      "_zdotc_": {
-                                                          "use_definition_from": "libarnaud.a",
-                                                          "for_libraries": ["libdummy_g77_abi_wrappers.lib"]
-                                                      },
-                                                      "cdotc_": {
-                                                          "use_definition_from": "libarnaud.lib",
-                                                          "for_libraries": ["libdummy_g77_abi_wrappers.lib"]
-                                                      },
-                                                      "zdotc_": {
-                                                          "use_definition_from": "libarnaud.a",
-                                                          "for_libraries": ["libdummy_g77_abi_wrappers.lib"]
-                                                      }},
+                                                  protected_symbol_patterns=[
+                                                      r"_?cdotc_",
+                                                      r"_?zdotc_",
+                                                  ],
                                                   write_debug=True
                                                   )
 
