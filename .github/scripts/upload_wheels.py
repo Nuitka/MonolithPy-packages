@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Upload built MonolithPy wheels + constraints to the staging bucket.
+"""Upload built MonolithPy wheels to the staging bucket.
 
 Layout written under `builds/<run-id>-<sha>/`:
 
     <norm-pkg-name>/<wheel>.whl
     <norm-pkg-name>/<wheel>.whl.metadata   # PEP 658 sidecar (dist-info METADATA)
-    constraints/<pkg>-constraint.txt
     MANIFEST.json                          # written last; presence = upload complete
 """
 
@@ -58,12 +57,6 @@ def collect_wheels(source_dir: Path) -> dict[str, Path]:
     return found
 
 
-def collect_constraints(constraints_dir: Path) -> list[Path]:
-    if not constraints_dir.exists():
-        return []
-    return sorted(p for p in constraints_dir.rglob("*") if p.is_file())
-
-
 def make_s3_client():
     endpoint = os.environ["S3_ENDPOINT"]
     region = os.environ["S3_REGION"]
@@ -101,16 +94,6 @@ def upload_metadata(s3, bucket: str, key: str, data: bytes) -> str:
     return digest
 
 
-def upload_constraint(s3, bucket: str, key: str, path: Path) -> None:
-    s3.upload_file(
-        str(path),
-        bucket,
-        key,
-        ExtraArgs={"ContentType": "text/plain; charset=utf-8"},
-    )
-    print(f"  uploaded {key}")
-
-
 def upload_manifest(s3, bucket: str, key: str, manifest: dict) -> None:
     body = json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
     s3.put_object(
@@ -125,7 +108,6 @@ def upload_manifest(s3, bucket: str, key: str, manifest: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", required=True, type=Path)
-    parser.add_argument("--constraints", required=True, type=Path)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--sha", required=True)
     parser.add_argument("--ref", default="")
@@ -140,9 +122,7 @@ def main() -> int:
         print(f"::error::No wheels found in {args.source}", file=sys.stderr)
         return 1
 
-    constraints = collect_constraints(args.constraints)
-
-    print(f"Found {len(wheels)} wheel(s), {len(constraints)} constraint file(s)")
+    print(f"Found {len(wheels)} wheel(s)")
     print(f"Target prefix: {prefix}/")
 
     bucket = os.environ["S3_BUCKET"]
@@ -175,15 +155,6 @@ def main() -> int:
         for norm, info in executor.map(upload_one_wheel, wheels.items()):
             per_package.setdefault(norm, []).append(info)
 
-    print("\nUploading constraint files...")
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        futures = []
-        for cpath in constraints:
-            key = f"{prefix}/constraints/{cpath.name}"
-            futures.append(executor.submit(upload_constraint, s3, bucket, key, cpath))
-        for f in concurrent.futures.as_completed(futures):
-            f.result()
-
     manifest = {
         "schema_version": 1,
         "run_id": args.run_id,
@@ -197,7 +168,6 @@ def main() -> int:
             name: sorted(infos, key=lambda x: x["filename"])
             for name, infos in sorted(per_package.items())
         },
-        "constraints": sorted(c.name for c in constraints),
     }
 
     print("\nUploading MANIFEST.json...")

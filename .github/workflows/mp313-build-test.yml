@@ -62,14 +62,6 @@ jobs:
           path: built_wheels/
           if-no-files-found: ignore
 
-      - name: Upload constraints
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints-windows-tools
-          path: constraints/
-          if-no-files-found: ignore
-
   pre-build-windows-deps:
     needs: [pre-build-windows-tools]
     runs-on: windows-latest
@@ -122,14 +114,6 @@ jobs:
         with:
           name: r1-wheels-windows-deps
           path: built_wheels/
-          if-no-files-found: ignore
-
-      - name: Upload constraints
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints-windows-deps
-          path: constraints/
           if-no-files-found: ignore
 
   pre-build-windows-heavy:
@@ -186,14 +170,6 @@ jobs:
           path: built_wheels/
           if-no-files-found: ignore
 
-      - name: Upload Round 1 constraints
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints-windows-round1
-          path: constraints/
-          if-no-files-found: ignore
-
   pre-build-macos-tools:
     runs-on: macos-14
     steps:
@@ -242,14 +218,6 @@ jobs:
         with:
           name: r1-wheels-macos-tools
           path: built_wheels/
-          if-no-files-found: ignore
-
-      - name: Upload constraints
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints-macos-tools
-          path: constraints/
           if-no-files-found: ignore
 
   pre-build-macos-deps:
@@ -311,14 +279,6 @@ jobs:
           path: built_wheels/
           if-no-files-found: ignore
 
-      - name: Upload constraints
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints-macos-deps
-          path: constraints/
-          if-no-files-found: ignore
-
   pre-build-macos-heavy:
     needs: [pre-build-macos-deps]
     runs-on: macos-14
@@ -376,14 +336,6 @@ jobs:
         with:
           name: round1-wheels-macos
           path: built_wheels/
-          if-no-files-found: ignore
-
-      - name: Upload Round 1 constraints
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints-macos-round1
-          path: constraints/
           if-no-files-found: ignore
 
   # ── Round 2 ──────────────────────────────────────────────────────────────
@@ -451,14 +403,6 @@ jobs:
           path: built_wheels/
           if-no-files-found: ignore
 
-      - name: Upload constraints
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints-windows-${{ matrix.split_index }}
-          path: constraints/
-          if-no-files-found: ignore
-
   build-and-test-macos:
     needs: [pre-build-macos-heavy]
     runs-on: macos-14
@@ -522,35 +466,6 @@ jobs:
         with:
           name: wheels-macos-${{ matrix.split_index }}
           path: built_wheels/
-          if-no-files-found: ignore
-
-      - name: Upload constraints
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints-macos-${{ matrix.split_index }}
-          path: constraints/
-          if-no-files-found: ignore
-
-  # ── Merge ─────────────────────────────────────────────────────────────────
-
-  merge-constraints:
-    needs: [build-and-test-windows, build-and-test-macos]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Download all constraint artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: constraints-*
-          path: all-constraints/
-          merge-multiple: true
-
-      - name: Upload merged constraints
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints
-          path: all-constraints/
           if-no-files-found: ignore
 
   # ── Final test ────────────────────────────────────────────────────────────
@@ -661,20 +576,18 @@ jobs:
         run: python3 .github/scripts/final_test.py --monolithpy monolithpy --wheels all-wheels
 
   # ── Upload ────────────────────────────────────────────────────────────────
-  # Push all wheels + PEP 658 metadata sidecars + constraints to the staging
-  # bucket.  Only runs on master and only after every build job succeeded.
+  # Push all wheels + PEP 658 metadata sidecars to the staging bucket.
+  # Only runs on master and only after every build job succeeded.
 
   upload-wheels:
     needs:
       - build-and-test-windows
       - build-and-test-macos
-      - merge-constraints
       - final-test-windows
       - final-test-macos
     if: >-
       needs.build-and-test-windows.result == 'success'
       && needs.build-and-test-macos.result == 'success'
-      && needs.merge-constraints.result == 'success'
       && needs.final-test-windows.result == 'success'
       && needs.final-test-macos.result == 'success'
     runs-on: ubuntu-latest
@@ -704,12 +617,6 @@ jobs:
             fi
           done
 
-      - name: Download merged constraints
-        uses: actions/download-artifact@v4
-        with:
-          name: constraints
-          path: all-constraints/
-
       - name: Install boto3
         run: python -m pip install --quiet boto3
 
@@ -724,7 +631,6 @@ jobs:
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
           python .github/scripts/upload_wheels.py \
             --source all-wheels \
-            --constraints all-constraints \
             --run-id "${GITHUB_RUN_NUMBER}" \
             --sha "${SHORT_SHA}" \
             --ref "${GITHUB_REF_NAME}" \

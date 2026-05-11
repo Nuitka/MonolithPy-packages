@@ -8,7 +8,6 @@ import re
 import shutil
 import subprocess
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 # Unbuffered output for CI environments
@@ -67,46 +66,6 @@ def purge_caches(pip_cache_dir: Path, work_dir: Path):
         rmtree_force(mpy_cache)
     if work_dir.exists():
         rmtree_force(work_dir)
-
-
-def parse_version(version_str: str) -> tuple:
-    """Parse version string into comparable tuple."""
-    parts = re.split(r'[.\-]', version_str)
-    result = []
-    for part in parts:
-        try:
-            result.append((0, int(part)))
-        except ValueError:
-            result.append((1, part))
-    return tuple(result)
-
-
-def get_ensurepip_package_names(monolithpy: Path) -> set[str]:
-    """Get the package names bundled with ensurepip from MonolithPy."""
-    try:
-        result = subprocess.run(
-            [str(monolithpy), "-c", "import ensurepip; print('\\n'.join(ensurepip._PACKAGE_NAMES))"],
-            capture_output=True, text=True, check=False
-        )
-        if result.returncode == 0:
-            return {name.lower() for name in result.stdout.strip().splitlines()}
-    except Exception:
-        pass
-    return set()
-
-
-def write_constraint_file(pkg_name: str, packages: dict[str, str], output_dir: Path, excluded: set[str]):
-    """Write a constraint file for a package based on pip output."""
-    if not packages:
-        return
-
-    constraint_file = output_dir / f"{pkg_name}-constraint.txt"
-    with open(constraint_file, 'w') as f:
-        for name, version in sorted(packages.items()):
-            if name.lower() not in excluded:
-                f.write(f"{name}<={version}\n")
-
-    print(f"Created constraint file: {constraint_file}")
 
 
 def rmtree_force(path: Path):
@@ -372,10 +331,8 @@ def run_build(
     package_name: str,
     pip_cache_dir: Path | None = None,
     find_links_dir: Path | None = None,
-) -> tuple[bool, dict[str, str]]:
-    """Attempt to build a package. Returns (success, packages_dict)."""
-    packages = defaultdict(list)
-
+) -> bool:
+    """Attempt to build a package. Returns True on success."""
     cmd = [str(monolithpy), "-m", "pip", "install", "--verbose"]
     if pip_cache_dir is not None:
         pip_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -389,51 +346,11 @@ def run_build(
         env["PIP_FIND_LINKS"] = str(find_links_dir)
 
     try:
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,  # Line buffered
-            env=env,
-        )
-
-        for line in process.stdout:
-            print(line, end='', flush=True)
-
-            wheel_match = re.search(r'(?:Downloading|Using cached)\s+(\S+\.whl)', line)
-            if wheel_match:
-                wheel_name = wheel_match.group(1)
-                parts_match = re.match(r'([A-Za-z0-9_][A-Za-z0-9._-]*)-(\d+[A-Za-z0-9._]*)-', wheel_name)
-                if parts_match:
-                    pkg_name = parts_match.group(1).lower().replace('_', '-')
-                    version = parts_match.group(2)
-                    packages[pkg_name].append(version)
-                continue
-
-            tarball_match = re.search(r'(?:Downloading|Using cached)\s+([A-Za-z0-9_][A-Za-z0-9._-]*)-(\d+[A-Za-z0-9._]*)\.(?:tar\.gz|zip)', line)
-            if tarball_match:
-                pkg_name = tarball_match.group(1).lower().replace('_', '-')
-                version = tarball_match.group(2)
-                packages[pkg_name].append(version)
-                continue
-
-            if 'Successfully installed' in line:
-                for match in re.finditer(r'([A-Za-z0-9_][A-Za-z0-9._-]*)-(\d+[A-Za-z0-9._]*)', line):
-                    pkg_name = match.group(1).lower().replace('_', '-')
-                    version = match.group(2)
-                    packages[pkg_name].append(version)
-
-        process.wait()
-
-        result_dict = {}
-        for pkg_name, versions in packages.items():
-            result_dict[pkg_name] = max(versions, key=parse_version)
-
-        return process.returncode == 0, result_dict
+        result = subprocess.run(cmd, env=env)
+        return result.returncode == 0
     except Exception as e:
         print(f"Build error: {e}", file=sys.stderr)
-        return False, {}
+        return False
 
 
 def run_test(monolithpy: Path, test_path: Path) -> bool:
@@ -486,8 +403,6 @@ def main():
     dependencies_dir = root_dir / "dependencies" / platform_suffix
     build_tools_dir  = root_dir / "build_tools"  / platform_suffix
 
-    constraints_dir = root_dir / "constraints"
-    constraints_dir.mkdir(exist_ok=True)
     built_wheels_dir = root_dir / "built_wheels"
     built_wheels_dir.mkdir(exist_ok=True)
     pip_cache_base = root_dir / ".pip-wheel-cache"
@@ -500,9 +415,6 @@ def main():
 
     pristine_dir = root_dir / "monolithpy_pristine"
     shutil.copytree(monolithpy_dir, pristine_dir, dirs_exist_ok=True)
-
-    ensurepip_packages = get_ensurepip_package_names(monolithpy)
-    print(f"Excluding ensurepip packages: {ensurepip_packages}")
 
     work_monolithpy = root_dir / "monolithpy_work"
 
@@ -580,7 +492,7 @@ def main():
             pre_build_wheels = {w.name for w in built_wheels_dir.glob("*.whl")}
 
             print(f"Building {pkg_name}...")
-            success, installed_packages = run_build(
+            success = run_build(
                 monolithpy, pkg_name,
                 pip_cache_dir=pip_cache_dir,
                 find_links_dir=find_links_dir,
@@ -598,8 +510,6 @@ def main():
                 if new_wheels:
                     save_to_cache(cache_key, new_wheels, wheel_cache_dir, built_wheels_dir)
                     print(f"Cached {len(new_wheels)} wheel(s) for {pkg_name}")
-
-            write_constraint_file(pkg_name, installed_packages, constraints_dir, ensurepip_packages)
 
             tests = get_tests_from_index(pkg_dir / "index.json")
             for test_file in tests:
