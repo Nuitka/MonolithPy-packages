@@ -1,0 +1,24 @@
+name: Save S3 wheel cache
+description: Save a directory to the dedicated S3 cache bucket. Idempotent — skips upload if the exact key is already present.
+
+inputs:
+  path:
+    description: Directory to archive and upload.
+    required: true
+  key:
+    description: Cache key (the final object will be stored as `<key>.tar.zst`).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install boto3
+      shell: bash
+      run: python -m pip install --quiet boto3
+
+    - name: Save to S3
+      shell: bash
+      run: |
+        python "${GITHUB_ACTION_PATH}/../../../scripts/s3_cache.py" save \
+          --path "${{ inputs.path }}" \
+          --key "${{ inputs.key }}"

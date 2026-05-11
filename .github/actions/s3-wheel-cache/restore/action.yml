@@ -1,0 +1,46 @@
+name: Restore S3 wheel cache
+description: Restore a directory from the dedicated S3 cache bucket. Mirrors actions/cache/restore semantics.
+
+inputs:
+  path:
+    description: Directory to restore into.
+    required: true
+  key:
+    description: Primary cache key. An exact match restores this key; otherwise each restore-key is tried as a prefix.
+    required: true
+  restore-keys:
+    description: Newline-separated list of prefix keys to try on exact-key miss.
+    required: false
+    default: ""
+
+outputs:
+  cache-hit:
+    description: '"true" iff the exact primary key matched; "false" for prefix-match or miss.'
+    value: ${{ steps.run.outputs.cache-hit }}
+  matched-key:
+    description: The cache key that actually matched (empty on miss).
+    value: ${{ steps.run.outputs.matched-key }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install boto3
+      shell: bash
+      run: python -m pip install --quiet boto3
+
+    - name: Restore from S3
+      id: run
+      shell: bash
+      run: |
+        restore_keys_args=()
+        while IFS= read -r rk; do
+          rk="${rk#"${rk%%[![:space:]]*}"}"
+          rk="${rk%"${rk##*[![:space:]]}"}"
+          if [ -n "$rk" ]; then
+            restore_keys_args+=("$rk")
+          fi
+        done <<< "${{ inputs.restore-keys }}"
+        python "${GITHUB_ACTION_PATH}/../../../scripts/s3_cache.py" restore \
+          --path "${{ inputs.path }}" \
+          --key "${{ inputs.key }}" \
+          ${restore_keys_args[@]+--restore-keys "${restore_keys_args[@]}"}
