@@ -13,7 +13,7 @@
       "build_requires": [
         "build",
         "setuptools",
-        "cffi~=1.17",
+        "cffi>=1.17",
         "packaging"
       ],
       "build_script": "build.py"

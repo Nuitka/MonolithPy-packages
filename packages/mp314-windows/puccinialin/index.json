@@ -15,7 +15,8 @@
       ],
       "build_requires": [
         "setuptools",
-        "build"
+        "build",
+        "flit_core"
       ],
       "dist_requires": [
         "filelock>=3.19.1,<4.0.0",
