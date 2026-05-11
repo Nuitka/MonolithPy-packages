@@ -51,11 +51,29 @@ def run(wheel_directory):
                               src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
 
+    # LLVM libomp on Windows emits two .lib files even with
+    # LIBOMP_ENABLE_SHARED=OFF: `libomp.lib` is the IMPORT library for the
+    # (phantom) DLL, and `libomp.lib.lib` is the actual static archive.  If
+    # the import lib ends up on the monolithic interpreter's link line, the
+    # resulting python.exe carries a DLL import that can't be resolved at
+    # load time (STATUS_DLL_NOT_FOUND / 0xC0000135).
+    # Delete the import lib, promote the static archive to `libomp.lib`.
+    libs_src_dir = os.path.join(build_dir, "runtime", "src")
+    import_lib = os.path.join(libs_src_dir, "libomp.lib")
+    static_lib = os.path.join(libs_src_dir, "libomp.lib.lib")
+    import_exp = os.path.join(libs_src_dir, "libomp.exp")
+    if os.path.exists(static_lib):
+        if os.path.exists(import_lib):
+            os.remove(import_lib)
+        if os.path.exists(import_exp):
+            os.remove(import_exp)
+        os.rename(static_lib, import_lib)
+
     result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_openmp", "21.1.8"))
     with WheelFile(result_wheel, 'w') as w:
         __mp__.add_wheel_manifest(w, "mpy-dep-openmp", "21.1.8")
-        __mp__.add_wheel_dep_libs(w, "openmp", os.path.join(build_dir, "runtime", "src", "*.lib"))
-        __mp__.add_wheel_dep_include(w, "openmp", os.path.join(build_dir, "runtime", "src", "omp.h"))
+        __mp__.add_wheel_dep_libs(w, "openmp", os.path.join(libs_src_dir, "*.lib"))
+        __mp__.add_wheel_dep_include(w, "openmp", os.path.join(libs_src_dir, "omp.h"))
 
     return result_wheel
 
