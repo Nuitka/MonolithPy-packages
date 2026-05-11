@@ -41,19 +41,6 @@ index c6f2d55..b7c4233 100644
  #include <kiwi/kiwi.h>
  #include "types.h"
  #include "version.h"
-diff --git a/py/src/solver.cpp b/py/src/solver.cpp
-index 0dc0fdf..2bc224d 100644
---- a/py/src/solver.cpp
-+++ b/py/src/solver.cpp
-@@ -198,7 +198,7 @@ PyObject*
- Solver_dump( Solver* self )
- {
- 	cppy::ptr dump_str( PyUnicode_FromString( self->solver.dumps().c_str() ) );
--	PyObject_Print( dump_str.get(), stdout, 0 );
-+	PyObject_Print( dump_str.get(), (EFILE*)stdout, 0 );
- 	Py_RETURN_NONE;
- }
-
 diff --git a/py/src/term.cpp b/py/src/term.cpp
 index 69fbab8..cbf12c9 100644
 --- a/py/src/term.cpp
