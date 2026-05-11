@@ -2,9 +2,12 @@ diff --git a/sklearn/preprocessing/_csr_polynomial_expansion.pyx b/sklearn/prepr
 index 0632204..15cb837 100644
 --- a/sklearn/preprocessing/_csr_polynomial_expansion.pyx
 +++ b/sklearn/preprocessing/_csr_polynomial_expansion.pyx
-@@ -21,7 +21,7 @@ cdef extern from *:
+@@ -19,9 +19,9 @@ ctypedef uint8_t FLAG_t
+ # See `test_sizeof_LARGEST_INT_t()`for more information on exact type expectations.
+ cdef extern from *:
      """
-     #ifdef __SIZEOF_INT128__
+-    #ifdef __SIZEOF_INT128__
++    #if defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
          typedef __int128 LARGEST_INT_t;
 -    #elif (__clang__ || __EMSCRIPTEN__) && !__i386__
 +    #elif (__clang__ || __EMSCRIPTEN__) && !__i386__ && !defined(_MSC_VER)
