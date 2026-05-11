@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and test mp313 packages using MonolithPy."""
+"""Build and test MonolithPy packages (any mp3XX)."""
 
 import json
 import os
@@ -16,12 +16,23 @@ sys.stdout.reconfigure(line_buffering=True)
 sys.stderr.reconfigure(line_buffering=True)
 
 
-def get_monolithpy_executable(monolithpy_dir: Path) -> Path:
+_TAG_RE = re.compile(r"^mp(?P<major>\d)(?P<minor>\d+)$")
+
+
+def parse_python_version(tag: str) -> tuple[int, int]:
+    """Derive (major, minor) from a tag like 'mp313' or 'mp314'."""
+    m = _TAG_RE.match(tag)
+    if not m:
+        raise ValueError(f"Invalid MonolithPy tag {tag!r}; expected 'mp<major><minor>' (e.g. 'mp313')")
+    return int(m.group("major")), int(m.group("minor"))
+
+
+def get_monolithpy_executable(monolithpy_dir: Path, python_version: tuple[int, int]) -> Path:
     """Get the MonolithPy executable path."""
     if platform.system() == "Windows":
         return monolithpy_dir / "python.exe"
     else:
-        return monolithpy_dir / "bin" / "python3.13"
+        return monolithpy_dir / "bin" / f"python{python_version[0]}.{python_version[1]}"
 
 
 def get_tests_from_index(index_path: Path) -> list[str]:
@@ -448,15 +459,25 @@ def main():
                         help="Directory containing Round 1 pre-built wheels.")
     parser.add_argument("--wheel-cache-dir", metavar="DIR",
                         help="Directory for wheel cache (persisted via actions/cache).")
+    parser.add_argument("--monolithpy-tag", metavar="TAG",
+                        default=os.environ.get("MONOLITHPY_TAG"),
+                        help="MonolithPy Python version tag (e.g. 'mp313', 'mp314'). "
+                             "Defaults to $MONOLITHPY_TAG.")
     args = parser.parse_args()
+
+    if not args.monolithpy_tag:
+        print("Error: --monolithpy-tag or MONOLITHPY_TAG env var is required "
+              "(e.g. 'mp313', 'mp314').", file=sys.stderr)
+        sys.exit(1)
+    python_version = parse_python_version(args.monolithpy_tag)
 
     root_dir = Path.cwd()
     monolithpy_dir = root_dir / "monolithpy"
 
     if platform.system() == "Windows":
-        platform_suffix = "mp313-windows"
+        platform_suffix = f"{args.monolithpy_tag}-windows"
     elif platform.system() == "Darwin":
-        platform_suffix = "mp313-macos"
+        platform_suffix = f"{args.monolithpy_tag}-macos"
     else:
         print(f"Unsupported platform: {platform.system()}", file=sys.stderr)
         sys.exit(1)
@@ -471,7 +492,7 @@ def main():
     built_wheels_dir.mkdir(exist_ok=True)
     pip_cache_base = root_dir / ".pip-wheel-cache"
 
-    monolithpy = get_monolithpy_executable(monolithpy_dir)
+    monolithpy = get_monolithpy_executable(monolithpy_dir, python_version)
     print(f"MonolithPy location: {monolithpy}")
     if not monolithpy.exists():
         print(f"::error::MonolithPy executable not found at {monolithpy}", file=sys.stderr)
@@ -550,7 +571,7 @@ def main():
                     continue
                 print(f"Cache MISS for {pkg_name} (key: {cache_key})")
 
-            monolithpy = get_monolithpy_executable(work_monolithpy)
+            monolithpy = get_monolithpy_executable(work_monolithpy, python_version)
             run_rebuild(monolithpy)
 
             pip_cache_dir = pip_cache_base

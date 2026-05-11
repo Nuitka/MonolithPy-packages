@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
 
 env:
+  MONOLITHPY_TAG: mp314
   PIP_INDEX_URL: https://pypi.org/simple/
   S3_CACHE_ENDPOINT: ${{ secrets.S3_CACHE_ENDPOINT }}
   S3_CACHE_BUCKET: ${{ secrets.S3_CACHE_BUCKET }}
@@ -42,8 +43,8 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-tools-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
-          restore-keys: wheel-cache-windows-
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-tools-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+          restore-keys: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-
 
       - name: Build tools
         run: python .github/scripts/build_and_test.py --prebuild tools --wheel-cache-dir wheel-cache
@@ -52,7 +53,7 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-tools-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-tools-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -102,10 +103,10 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-deps-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-deps-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
           restore-keys: |
-            wheel-cache-windows-tools-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
-            wheel-cache-windows-
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-tools-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-
 
       - name: Build deps
         run: python .github/scripts/build_and_test.py --prebuild deps --wheel-cache-dir wheel-cache
@@ -114,7 +115,7 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-deps-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-deps-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -164,10 +165,10 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-heavy-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-heavy-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
           restore-keys: |
-            wheel-cache-windows-deps-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
-            wheel-cache-windows-
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-deps-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-
 
       - name: Build heavy packages
         run: python .github/scripts/build_and_test.py --prebuild heavy --wheel-cache-dir wheel-cache
@@ -176,7 +177,7 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-heavy-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-heavy-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
 
       - name: Upload Round 1 wheels
         uses: actions/upload-artifact@v4
@@ -224,8 +225,8 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
-          restore-keys: wheel-cache-macos-
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          restore-keys: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
 
       - name: Build tools
         run: python3 .github/scripts/build_and_test.py --prebuild tools --wheel-cache-dir wheel-cache
@@ -234,7 +235,7 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -289,10 +290,10 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
           restore-keys: |
-            wheel-cache-macos-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
-            wheel-cache-macos-
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
 
       - name: Build deps
         run: python3 .github/scripts/build_and_test.py --prebuild deps --wheel-cache-dir wheel-cache
@@ -301,7 +302,7 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -356,10 +357,10 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
           restore-keys: |
-            wheel-cache-macos-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
-            wheel-cache-macos-
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
 
       - name: Build heavy packages
         run: python3 .github/scripts/build_and_test.py --prebuild heavy --wheel-cache-dir wheel-cache
@@ -368,7 +369,7 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
 
       - name: Upload Round 1 wheels
         uses: actions/upload-artifact@v4
@@ -428,10 +429,10 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
           restore-keys: |
-            wheel-cache-windows-heavy-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
-            wheel-cache-windows-
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-heavy-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-
 
       - name: Build and test packages (Round 2)
         run: python .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels --wheel-cache-dir wheel-cache
@@ -440,7 +441,7 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: wheel-cache-windows-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
 
       - name: Upload wheels
         if: always()
@@ -501,10 +502,10 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
           restore-keys: |
-            wheel-cache-macos-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
-            wheel-cache-macos-
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
 
       - name: Build and test packages (Round 2)
         run: python3 .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels --wheel-cache-dir wheel-cache
@@ -513,7 +514,7 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: wheel-cache-macos-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
 
       - name: Upload wheels
         if: always()

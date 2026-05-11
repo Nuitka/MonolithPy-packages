@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -19,10 +20,20 @@ import zipfile
 from pathlib import Path
 
 
-def get_monolithpy_executable(monolithpy_dir: Path) -> Path:
+_TAG_RE = re.compile(r"^mp(?P<major>\d)(?P<minor>\d+)$")
+
+
+def parse_python_version(tag: str) -> tuple[int, int]:
+    m = _TAG_RE.match(tag)
+    if not m:
+        raise ValueError(f"Invalid MonolithPy tag {tag!r}; expected 'mp<major><minor>'")
+    return int(m.group("major")), int(m.group("minor"))
+
+
+def get_monolithpy_executable(monolithpy_dir: Path, python_version: tuple[int, int]) -> Path:
     if platform.system() == "Windows":
         return monolithpy_dir / "python.exe"
-    return monolithpy_dir / "bin" / "python3.13"
+    return monolithpy_dir / "bin" / f"python{python_version[0]}.{python_version[1]}"
 
 
 def list_top_level_packages(packages_dir: Path) -> list[str]:
@@ -189,13 +200,22 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--monolithpy", required=True, type=Path)
     parser.add_argument("--wheels", required=True, type=Path)
+    parser.add_argument("--monolithpy-tag",
+                        default=os.environ.get("MONOLITHPY_TAG"),
+                        help="MonolithPy Python version tag (e.g. 'mp313', 'mp314'). "
+                             "Defaults to $MONOLITHPY_TAG.")
     args = parser.parse_args()
+
+    if not args.monolithpy_tag:
+        print("::error::--monolithpy-tag or MONOLITHPY_TAG env var is required", file=sys.stderr)
+        return 1
+    python_version = parse_python_version(args.monolithpy_tag)
 
     root = Path.cwd()
     if platform.system() == "Windows":
-        packages_dir = root / "packages" / "mp313-windows"
+        packages_dir = root / "packages" / f"{args.monolithpy_tag}-windows"
     elif platform.system() == "Darwin":
-        packages_dir = root / "packages" / "mp313-macos"
+        packages_dir = root / "packages" / f"{args.monolithpy_tag}-macos"
     else:
         print(f"::error::Unsupported platform: {platform.system()}", file=sys.stderr)
         return 1
@@ -207,7 +227,7 @@ def main() -> int:
         shutil.rmtree(work_dir)
     shutil.copytree(args.monolithpy, work_dir)
 
-    monolithpy = get_monolithpy_executable(work_dir)
+    monolithpy = get_monolithpy_executable(work_dir, python_version)
     if not monolithpy.exists():
         print(f"::error::MonolithPy executable not found at {monolithpy}", file=sys.stderr)
         return 1
