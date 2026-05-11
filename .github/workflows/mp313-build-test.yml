@@ -579,15 +579,24 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: wheels-windows-*
-          path: all-wheels/
-          merge-multiple: true
+          path: r2-wheels/
 
       - name: Download Round 1 wheel artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: round1-wheels-windows
-          path: all-wheels/
-          merge-multiple: true
+          path: r1-wheels/
+
+      - name: Merge wheels (skip duplicates)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path all-wheels | Out-Null
+          Get-ChildItem -Path r1-wheels,r2-wheels -Recurse -File | ForEach-Object {
+            $dest = Join-Path 'all-wheels' $_.Name
+            if (-not (Test-Path $dest)) {
+              Copy-Item $_.FullName $dest
+            }
+          }
 
       - name: Set MONOLITHPY_PACKAGE_URL
         shell: pwsh
@@ -619,15 +628,23 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: wheels-macos-*
-          path: all-wheels/
-          merge-multiple: true
+          path: r2-wheels/
 
       - name: Download Round 1 wheel artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: round1-wheels-macos
-          path: all-wheels/
-          merge-multiple: true
+          path: r1-wheels/
+
+      - name: Merge wheels (skip duplicates)
+        run: |
+          mkdir -p all-wheels
+          find r1-wheels r2-wheels -type f | while read -r src; do
+            dest="all-wheels/$(basename "$src")"
+            if [ ! -e "$dest" ]; then
+              cp "$src" "$dest"
+            fi
+          done
 
       - name: Uninstall homebrew
         run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
@@ -670,15 +687,23 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: wheels-*
-          path: all-wheels/
-          merge-multiple: true
+          path: r2-wheels/
 
       - name: Download Round 1 wheel artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: round1-wheels-*
-          path: all-wheels/
-          merge-multiple: true
+          path: r1-wheels/
+
+      - name: Merge wheels (skip duplicates)
+        run: |
+          mkdir -p all-wheels
+          find r1-wheels r2-wheels -type f | while read -r src; do
+            dest="all-wheels/$(basename "$src")"
+            if [ ! -e "$dest" ]; then
+              cp "$src" "$dest"
+            fi
+          done
 
       - name: Download merged constraints
         uses: actions/download-artifact@v4
