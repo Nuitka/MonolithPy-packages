@@ -777,3 +777,38 @@ index d9541aa..202ed1c 100644
 +#endif
  
  } // namespace xsf
+diff --git a/scipy/special/wright.cc b/scipy/special/wright.cc
+index aaaaaaa..bbbbbbb 100644
+--- a/scipy/special/wright.cc
++++ b/scipy/special/wright.cc
+@@ -97,7 +97,7 @@ int
+ 			complex<double> *cond)
+ {
+   double pi = M_PI, s = 1.0;
+-  double x, y, ympi, yppi, near;
++  double x, y, ympi, yppi, near_value;
+   complex<double> e, r, pz, wp1, t, fac;
+ 
+ 
+@@ -108,7 +108,7 @@ wright::wrightomega_ext(complex<double> z, complex<double> *w,
+   /* compute if we are near the branch cuts */
+   ympi=y-pi;
+   yppi=y+pi;
+-  near=0.1e-1;
++  near_value=0.1e-1;
+ 
+   /* Test for floating point exceptions */
+   /*****************************/
+@@ -293,10 +293,10 @@ wright::wrightomega_ext(complex<double> z, complex<double> *w,
+   /**********************************/
+   /* Regularize if near branch cuts */
+   /**********************************/
+-  if (x <= -0.1e1 + near && (fabs(ympi) <= near || fabs(yppi) <= near))
++  if (x <= -0.1e1 + near_value && (fabs(ympi) <= near_value || fabs(yppi) <= near_value))
+     {
+       s = -1.0;
+-      if (fabs(ympi) <= near)
++      if (fabs(ympi) <= near_value)
+         {
+           /* Recompute ympi with directed rounding */
+           ympi = add_round_up(y, -pi);
