@@ -30,8 +30,6 @@ def run(wheel_directory):
     os.environ["LIB"] = os.environ["LIB"] + os.pathsep + __mp__.find_dep_libs("openblas")
     os.environ["INCLUDE"] = os.environ["INCLUDE"] + os.pathsep + __mp__.find_dep_include("openblas")
     os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("openblas")
-    os.environ["CFLAGS"] = "/DBYPASS_MP_EMBED"
-    os.environ["CXXFLAGS"] = "/DBYPASS_MP_EMBED"
     os.environ["GITHUB_ACTIONS"] = "true"
 
     pip_base_path = __mp__.get_pip_base_path()

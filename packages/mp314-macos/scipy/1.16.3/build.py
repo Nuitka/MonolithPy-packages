@@ -21,8 +21,6 @@ def run(wheel_directory):
     os.environ["INCLUDE"] = __mp__.find_dep_include("openblas")
     os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("openblas")
     os.environ["FFLAGS"] = "-static-libgcc"
-    os.environ["CFLAGS"] = "-DBYPASS_MP_EMBED"
-    os.environ["CXXFLAGS"] = "-DBYPASS_MP_EMBED"
     os.environ["PKG_CONFIG"] = "/disabled"
 
     job_args = []

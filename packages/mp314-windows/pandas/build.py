@@ -15,8 +15,6 @@ def run(wheel_directory):
     __mp__.run_build_tool_exe("patch", "patch.exe", "-p1", "-ui",
                               os.path.join(os.path.dirname(__file__), "pandas-static-patch.patch"))
 
-    os.environ["CFLAGS"] = "/DBYPASS_MP_EMBED"
-    os.environ["CXXFLAGS"] = "/DBYPASS_MP_EMBED"
     os.environ["GITHUB_ACTIONS"] = "true"
 
     pip_base_path = __mp__.get_pip_base_path()
