@@ -1,0 +1,20 @@
+{
+  "version": "10.2.0",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "dependencies": [
+    "zlib"
+  ],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "10.2.0",
+      "link": "https://github.com/harfbuzz/harfbuzz/archive/refs/tags/10.2.0.zip"
+    }
+  ],
+  "build_script": "build.py"
+}

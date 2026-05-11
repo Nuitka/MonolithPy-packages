@@ -1,0 +1,14 @@
+{
+  "version": "19.1.7",
+  "build_tools": [],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "19.1.7",
+      "link": "https://pip-mpy.ohrtech.net/dummy/empty/mpy_tool_clang-19.1.7.zip"
+    }
+  ],
+  "build_script": "build.py"
+}

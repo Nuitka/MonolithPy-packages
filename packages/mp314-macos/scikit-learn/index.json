@@ -1,0 +1,36 @@
+{
+  "tests": ["test.py"],
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": ["cmake", "ninja", "clang"],
+      "dependencies": [],
+      "files": [
+        "build.py",
+        "scikit_learn-static-patch.patch"
+      ],
+      "build_requires": [
+        "setuptools",
+        "meson-python>=0.17.1",
+        "meson>=1.2.1",
+        "wheel",
+        "cython>=3.1.2,<3.3.0",
+        "numpy>=2.0",
+        "versioneer[toml]",
+        "build"
+      ],
+      "dist_requires": [
+        "numpy>=2.0",
+        "scipy",
+        "python-dateutil>=2.8.2",
+        "tzdata>=2022.7",
+        "pytz>=2020.1",
+        "joblib>=1.2.0",
+        "threadpoolctl>=3.1.0"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

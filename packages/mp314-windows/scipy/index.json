@@ -1,0 +1,76 @@
+{
+  "tests": ["test.py"],
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "1.16.[3-9]"
+      },
+      "build_tools": [
+        "patch",
+        "cmake",
+        "ninja",
+        "flang",
+        "clang",
+        "mingw",
+        "git"
+      ],
+      "dependencies": [
+        "flang-rt",
+        "openblas"
+      ],
+      "files": [
+        "1.16.3/build.py",
+        "1.16.3/scipy-static-patch.patch"
+      ],
+      "build_requires": [
+        "setuptools",
+        "meson-python>=0.15.0,<0.21.0",
+        "pyproject-metadata",
+        "Cython>=3.0.8,<3.2.0",
+        "pybind11>=2.13.2,<3.1.0",
+        "pythran>=0.14.0,<0.19.0",
+        "build"
+      ],
+      "dist_requires": [
+        "numpy>=2.0.0"
+      ],
+      "build_script": "build.py"
+    },
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": [
+        "patch",
+        "cmake",
+        "ninja",
+        "flang",
+        "clang",
+        "mingw",
+        "git",
+        "7zip"
+      ],
+      "dependencies": [
+        "flang-rt",
+        "openblas"
+      ],
+      "files": [
+        "1.17.0/build.py",
+        "1.17.0/scipy-static-patch.patch"
+      ],
+      "build_requires": [
+        "setuptools",
+        "meson-python",
+        "pyproject-metadata",
+        "Cython>=3.0.8",
+        "pybind11>=2.13.2",
+        "pythran>=0.14.0",
+        "build"
+      ],
+      "dist_requires": [
+        "numpy>=2.0.0"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

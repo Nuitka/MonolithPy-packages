@@ -1,0 +1,13 @@
+{
+  "version": "3.1.0013-1",
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "3.1.0013",
+      "link": "http://www.panda3d.org/download/noversion/nvidiacg-win64.zip"
+    }
+  ],
+  "build_script": "build.py"
+}

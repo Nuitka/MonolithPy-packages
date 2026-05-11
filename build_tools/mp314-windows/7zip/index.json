@@ -1,0 +1,16 @@
+{
+  "version": "24.09",
+  "build_tools": [
+    "lessmsi"
+  ],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "24.09",
+      "link": "https://pip-mpy.ohrtech.net/dummy/empty/mpy_tool_7zip-24.09.zip"
+    }
+  ],
+  "build_script": "build.py"
+}

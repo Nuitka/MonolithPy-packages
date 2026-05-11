@@ -1,0 +1,14 @@
+{
+  "version": "14.2.0",
+  "build_tools": [ "7zip" ],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "14.2.0",
+      "link": "https://pip-mpy.ohrtech.net/dummy/empty/mpy_tool_mingw-14.2.0.zip"
+    }
+  ],
+  "build_script": "build.py"
+}

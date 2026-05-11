@@ -1,0 +1,80 @@
+diff --git a/sklearn/preprocessing/_csr_polynomial_expansion.pyx b/sklearn/preprocessing/_csr_polynomial_expansion.pyx
+index 0632204..15cb837 100644
+--- a/sklearn/preprocessing/_csr_polynomial_expansion.pyx
++++ b/sklearn/preprocessing/_csr_polynomial_expansion.pyx
+@@ -21,7 +21,7 @@ cdef extern from *:
+     """
+     #ifdef __SIZEOF_INT128__
+         typedef __int128 LARGEST_INT_t;
+-    #elif (__clang__ || __EMSCRIPTEN__) && !__i386__
++    #elif (__clang__ || __EMSCRIPTEN__) && !__i386__ && !defined(_MSC_VER)
+         typedef _BitInt(128) LARGEST_INT_t;
+     #else
+         typedef long long LARGEST_INT_t;
+diff --git a/sklearn/svm/src/liblinear/linear.cpp b/sklearn/svm/src/liblinear/linear.cpp
+index 70d8f68..7b852f1 100644
+--- a/sklearn/svm/src/liblinear/linear.cpp
++++ b/sklearn/svm/src/liblinear/linear.cpp
+@@ -43,6 +43,13 @@
+ #include <random>
+ #include "../newrand/newrand.h"
+ 
++extern "C" {
++std::mt19937 mt_rand(std::mt19937::default_seed);
++void set_seed(unsigned custom_seed) {
++    mt_rand.seed(custom_seed);
++}
++}
++
+ typedef signed char schar;
+ template <class T> static inline void swap(T& x, T& y) { T t=x; x=y; y=t; }
+ #ifndef min
+diff --git a/sklearn/svm/src/newrand/newrand.h b/sklearn/svm/src/newrand/newrand.h
+index e01bea9..0a35100 100644
+--- a/sklearn/svm/src/newrand/newrand.h
++++ b/sklearn/svm/src/newrand/newrand.h
+@@ -18,12 +18,10 @@ extern "C" {
+ // used in LibSVM / LibLinear, to ensure the same behaviour on windows-linux,
+ // with increased speed
+ // - (1) Init a `mt_rand` object
+-std::mt19937 mt_rand(std::mt19937::default_seed);
++extern std::mt19937 mt_rand;
+ 
+ // - (2) public `set_seed()` function that should be used instead of `srand()` to set a new seed.
+-void set_seed(unsigned custom_seed) {
+-    mt_rand.seed(custom_seed);
+-}
++void set_seed(unsigned custom_seed);
+ 
+ // - (3) New internal `bounded_rand_int` function, used instead of rand() everywhere.
+ inline uint32_t bounded_rand_int(uint32_t range) {
+diff --git a/sklearn/utils/src/MurmurHash3.h b/sklearn/utils/src/MurmurHash3.h
+index 8bfaca6..9b4c3c9 100644
+--- a/sklearn/utils/src/MurmurHash3.h
++++ b/sklearn/utils/src/MurmurHash3.h
+@@ -5,25 +5,8 @@
+ #ifndef _MURMURHASH3_H_
+ #define _MURMURHASH3_H_
+ 
+-//-----------------------------------------------------------------------------
+-// Platform-specific functions and macros
+-
+-// Microsoft Visual Studio
+-
+-#if defined(_MSC_VER)
+-
+-typedef unsigned char uint8_t;
+-typedef unsigned long uint32_t;
+-typedef unsigned __int64 uint64_t;
+-
+-// Other compilers
+-
+-#else	// defined(_MSC_VER)
+-
+ #include <stdint.h>
+ 
+-#endif // !defined(_MSC_VER)
+-
+ //-----------------------------------------------------------------------------
+ #ifdef __cplusplus
+ extern "C" {

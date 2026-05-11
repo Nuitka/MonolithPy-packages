@@ -1,0 +1,14 @@
+{
+  "version": "24.09",
+  "build_tools": [],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "24.09",
+      "link": "https://7-zip.org/a/7z2409-mac.tar.xz"
+    }
+  ],
+  "build_script": "build.py"
+}

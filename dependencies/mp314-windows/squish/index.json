@@ -1,0 +1,20 @@
+{
+  "version": "1.15",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "dependencies": [
+    "zlib"
+  ],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "1.15",
+      "link": "http://prdownloads.sourceforge.net/libsquish/libsquish-1.15.tgz?download"
+    }
+  ],
+  "build_script": "build.py"
+}

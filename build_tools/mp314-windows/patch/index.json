@@ -1,0 +1,14 @@
+{
+  "version": "2.5.9-7",
+  "files": [
+    "build.py",
+    "patch.exe.manifest"
+  ],
+  "sources": [
+    {
+      "version": "2.5.9-7",
+      "link": "https://sourceforge.net/projects/gnuwin32/files/patch/2.5.9-7/patch-2.5.9-7-bin.zip/download"
+    }
+  ],
+  "build_script": "build.py"
+}

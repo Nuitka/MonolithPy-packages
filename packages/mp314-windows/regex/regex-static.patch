@@ -1,0 +1,12 @@
+diff --git a/src/_regex_unicode.h b/src/_regex_unicode.h
+index fc1aee7..04d4024 100644
+--- a/src/_regex_unicode.h
++++ b/src/_regex_unicode.h
+@@ -5,7 +5,6 @@ typedef signed short RE_INT16;
+ typedef unsigned int RE_UINT32;
+ typedef signed int RE_INT32;
+
+-typedef unsigned char BOOL;
+ #if !defined(FALSE) || !defined(TRUE)
+ #define FALSE 0
+ #define TRUE 1

@@ -1,0 +1,12 @@
+diff --git a/include/pybind11/detail/common.h b/include/pybind11/detail/common.h
+index 314dba4..bc9014b 100644
+--- a/include/pybind11/detail/common.h
++++ b/include/pybind11/detail/common.h
+@@ -133,6 +133,7 @@
+ #    endif
+ #endif
+ 
++#define PYBIND11_EXPORT
+ #if !defined(PYBIND11_EXPORT)
+ #    if defined(WIN32) || defined(_WIN32)
+ #        define PYBIND11_EXPORT __declspec(dllexport)

@@ -1,0 +1,18 @@
+{
+  "version": "1.5.0",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "dependencies": [],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "1.5.0",
+      "link": "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.5.0.tar.gz"
+    }
+  ],
+  "build_script": "build.py"
+}

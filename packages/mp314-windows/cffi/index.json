@@ -1,0 +1,27 @@
+{
+  "tests": ["test.py"],
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": [
+        "patch",
+        "clang"
+      ],
+      "dependencies": [],
+      "files": [
+        "build.py",
+        "cffi-static-patch.patch"
+      ],
+      "build_requires": [
+        "setuptools",
+        "build"
+      ],
+      "dist_requires": [
+        "pycparser"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

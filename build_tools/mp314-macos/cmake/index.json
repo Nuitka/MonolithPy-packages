@@ -1,0 +1,14 @@
+{
+  "version": "3.31.4",
+  "build_tools": [],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "3.31.4",
+      "link": "https://github.com/Kitware/CMake/releases/download/v3.31.4/cmake-3.31.4-macos-universal.tar.gz"
+    }
+  ],
+  "build_script": "build.py"
+}

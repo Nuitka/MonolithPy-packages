@@ -1,0 +1,22 @@
+{
+  "tests": ["test.py"],
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": ["cmake", "ninja", "gcc", "clang"],
+      "dependencies": ["openblas", "gcc-rt"],
+      "files": [
+        "build.py",
+        "numpy-static-patch.patch"
+      ],
+      "build_requires": [
+        "meson-python>=0.18.0",
+        "Cython>=3.0.6",
+        "build"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

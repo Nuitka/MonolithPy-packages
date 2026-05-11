@@ -1,0 +1,14 @@
+{
+  "version": "21.1.8",
+  "build_tools": [ ],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "21.1.8",
+      "link": "https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/clang+llvm-21.1.8-x86_64-pc-windows-msvc.tar.xz"
+    }
+  ],
+  "build_script": "build.py"
+}

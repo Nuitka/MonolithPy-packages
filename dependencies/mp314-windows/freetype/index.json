@@ -1,0 +1,21 @@
+{
+  "version": "2.13.3",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "dependencies": [
+    "harfbuzz",
+    "zlib"
+  ],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "2.13.3",
+      "link": "http://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.gz"
+    }
+  ],
+  "build_script": "build.py"
+}

@@ -1,0 +1,14 @@
+{
+  "version": "2.47.1",
+  "build_tools": [ "7zip" ],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "2.47.1",
+      "link": "https://pip-mpy.ohrtech.net/dummy/empty/mpy_tool_git-2.47.1.zip"
+    }
+  ],
+  "build_script": "build.py"
+}

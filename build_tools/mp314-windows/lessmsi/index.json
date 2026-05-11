@@ -1,0 +1,13 @@
+{
+  "version": "2.2.0",
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "2.2.0",
+      "link": "https://github.com/activescott/lessmsi/releases/download/v2.2.0/lessmsi-v2.2.0.zip"
+    }
+  ],
+  "build_script": "build.py"
+}
