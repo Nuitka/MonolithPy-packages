@@ -672,8 +672,7 @@ jobs:
       - final-test-windows
       - final-test-macos
     if: >-
-      github.ref == 'refs/heads/master'
-      && needs.build-and-test-windows.result == 'success'
+      needs.build-and-test-windows.result == 'success'
       && needs.build-and-test-macos.result == 'success'
       && needs.merge-constraints.result == 'success'
       && needs.final-test-windows.result == 'success'
