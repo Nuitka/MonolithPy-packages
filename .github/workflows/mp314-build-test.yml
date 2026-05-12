@@ -179,7 +179,7 @@ jobs:
             runner: macos-14
             mp_artifact: MonolithPy314_mac_arm64_No_LTO
           - arch: x86_64
-            runner: macos-13
+            runner: macos-14
             mp_artifact: MonolithPy314_mac_x86_64_No_LTO
     runs-on: ${{ matrix.runner }}
     steps:
@@ -215,7 +215,7 @@ jobs:
           restore-keys: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-
 
       - name: Build tools
-        run: python3 .github/scripts/build_and_test.py --prebuild tools --wheel-cache-dir wheel-cache
+        run: arch -${{ matrix.arch }} python3 .github/scripts/build_and_test.py --prebuild tools --wheel-cache-dir wheel-cache
 
       - name: Save wheel cache
         uses: ./.github/actions/s3-wheel-cache/save
@@ -240,7 +240,7 @@ jobs:
             runner: macos-14
             mp_artifact: MonolithPy314_mac_arm64_No_LTO
           - arch: x86_64
-            runner: macos-13
+            runner: macos-14
             mp_artifact: MonolithPy314_mac_x86_64_No_LTO
     runs-on: ${{ matrix.runner }}
     steps:
@@ -284,7 +284,7 @@ jobs:
             ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-
 
       - name: Build deps
-        run: python3 .github/scripts/build_and_test.py --prebuild deps --wheel-cache-dir wheel-cache
+        run: arch -${{ matrix.arch }} python3 .github/scripts/build_and_test.py --prebuild deps --wheel-cache-dir wheel-cache
 
       - name: Save wheel cache
         uses: ./.github/actions/s3-wheel-cache/save
@@ -309,7 +309,7 @@ jobs:
             runner: macos-14
             mp_artifact: MonolithPy314_mac_arm64_No_LTO
           - arch: x86_64
-            runner: macos-13
+            runner: macos-14
             mp_artifact: MonolithPy314_mac_x86_64_No_LTO
     runs-on: ${{ matrix.runner }}
     steps:
@@ -353,7 +353,7 @@ jobs:
             ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-
 
       - name: Build heavy packages
-        run: python3 .github/scripts/build_and_test.py --prebuild heavy --wheel-cache-dir wheel-cache
+        run: arch -${{ matrix.arch }} python3 .github/scripts/build_and_test.py --prebuild heavy --wheel-cache-dir wheel-cache
 
       - name: Save wheel cache
         uses: ./.github/actions/s3-wheel-cache/save
@@ -445,7 +445,7 @@ jobs:
             runner: macos-14
             mp_artifact: MonolithPy314_mac_arm64_No_LTO
           - arch: x86_64
-            runner: macos-13
+            runner: macos-14
             mp_artifact: MonolithPy314_mac_x86_64_No_LTO
     runs-on: ${{ matrix.runner }}
 
@@ -490,7 +490,7 @@ jobs:
             ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-
 
       - name: Build and test packages (Round 2)
-        run: python3 .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels --wheel-cache-dir wheel-cache
+        run: arch -${{ matrix.arch }} python3 .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels --wheel-cache-dir wheel-cache
 
       - name: Save wheel cache
         uses: ./.github/actions/s3-wheel-cache/save
@@ -570,7 +570,7 @@ jobs:
             runner: macos-14
             mp_artifact: MonolithPy314_mac_arm64_No_LTO
           - arch: x86_64
-            runner: macos-13
+            runner: macos-14
             mp_artifact: MonolithPy314_mac_x86_64_No_LTO
     runs-on: ${{ matrix.runner }}
     steps:
@@ -621,7 +621,7 @@ jobs:
           find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
 
       - name: Run final test
-        run: python3 .github/scripts/final_test.py --monolithpy monolithpy --wheels all-wheels
+        run: arch -${{ matrix.arch }} python3 .github/scripts/final_test.py --monolithpy monolithpy --wheels all-wheels
 
   # ── Upload ────────────────────────────────────────────────────────────────
   # Push all wheels + PEP 658 metadata sidecars to the staging bucket.
