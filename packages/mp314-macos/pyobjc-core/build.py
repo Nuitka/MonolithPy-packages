@@ -15,7 +15,7 @@ def run(wheel_directory):
         __mp__.run_with_output("patch", "--binary", "-p1", "-i",
                                 os.path.join(os.path.dirname(__file__), "Static_x86_64.patch"))
 
-    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.15"
     __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".")
 
     wheel_location = glob.glob("pyobjc_core-*.whl")[0]

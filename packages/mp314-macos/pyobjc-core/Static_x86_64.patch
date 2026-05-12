@@ -1,5 +1,5 @@
 diff --git a/Modules/objc/libffi_extra.m b/Modules/objc/libffi_extra.m
-index 5e0ed3e..3e23536 100644
+index 5e0ed3e..825a400 100644
 --- a/Modules/objc/libffi_extra.m
 +++ b/Modules/objc/libffi_extra.m
 @@ -72,29 +72,11 @@
@@ -7,7 +7,7 @@ index 5e0ed3e..3e23536 100644
      ffi_closure* cl;
  
 -#ifdef HAVE_CLOSURE_POOL
- 
+-
 -#if PyObjC_BUILD_RELEASE >= 1015
 -    if (@available(macOS 10.15, *)) { // LCOV_BR_EXCL_LINE
 -        cl        = ffi_find_closure_for_code_np(codeloc);
@@ -16,20 +16,21 @@ index 5e0ed3e..3e23536 100644
 -        ffi_closure_free(cl);
 -    } else
 -#endif
-     {
-         cl        = (ffi_closure*)codeloc;
-         *cif      = cl->cif;
-         *userdata = cl->user_data;
-         PyObjC_ffi_closure_free(cl);
-     }
+-    {
+-        cl        = (ffi_closure*)codeloc;
+-        *cif      = cl->cif;
+-        *userdata = cl->user_data;
+-        PyObjC_ffi_closure_free(cl);
+-    }
 -#else
--#pragma clang diagnostic push
--#pragma clang diagnostic ignored "-Wunguarded-availability-new"
+ #pragma clang diagnostic push
+ #pragma clang diagnostic ignored "-Wunguarded-availability-new"
 -    cl        = ffi_find_closure_for_code_np(codeloc);
--    *cif      = cl->cif;
--    *userdata = cl->user_data;
--    ffi_closure_free(cl);
--#pragma clang diagnostic pop
++    cl        = (ffi_closure*)codeloc;
+     *cif      = cl->cif;
+     *userdata = cl->user_data;
+     ffi_closure_free(cl);
+ #pragma clang diagnostic pop
 -#endif
  }
 diff --git a/setup.py b/setup.py
