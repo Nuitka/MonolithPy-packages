@@ -42,12 +42,31 @@ def parse_wheel_filename(filename: str) -> tuple[str, str]:
 
 
 def is_universal_wheel(filename: str) -> bool:
-    """A wheel with abi=none and platform=any is pure Python and lives on PyPI;
-    we don't need to ship it from our staging bucket."""
+    """A wheel with abi=none and platform=any is pure Python."""
     m = _WHEEL_NAME_RE.match(filename)
     if not m:
         return False
     return m.group("abi") == "none" and m.group("platform") == "any"
+
+
+def has_build_recipe(norm_name: str, repo_root: Path) -> bool:
+    """True if the repo contains an explicit build.py recipe for this package.
+    Recipes live at packages/<platform>/<name>/build.py (or under a version
+    subdir) or the equivalent under dependencies/ or build_tools/."""
+    for root_name in ("packages", "dependencies", "build_tools"):
+        root = repo_root / root_name
+        if not root.is_dir():
+            continue
+        for platform_dir in root.iterdir():
+            pkg_dir = platform_dir / norm_name
+            if not pkg_dir.is_dir():
+                continue
+            if (pkg_dir / "build.py").is_file():
+                return True
+            for sub in pkg_dir.iterdir():
+                if sub.is_dir() and (sub / "build.py").is_file():
+                    return True
+    return False
 
 
 def extract_metadata_from_wheel(wheel_path: Path) -> bytes:
@@ -132,9 +151,21 @@ def main() -> int:
         print(f"::error::No wheels found in {args.source}", file=sys.stderr)
         return 1
 
-    skipped_universal = sorted(name for name in wheels if is_universal_wheel(name))
-    for name in skipped_universal:
+    # Skip pure-Python wheels (abi=none, plat=any) UNLESS the repo has an
+    # explicit build.py recipe for that package — those are wheels we built
+    # ourselves (e.g. meson, meson-python) and must ship from our bucket so
+    # downstream installs pick our patched version instead of pristine PyPI.
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    skipped_universal = []
+    for name in list(wheels):
+        if not is_universal_wheel(name):
+            continue
+        dist_name, _ = parse_wheel_filename(name)
+        if has_build_recipe(pep503_normalize(dist_name), repo_root):
+            continue
+        skipped_universal.append(name)
         del wheels[name]
+    skipped_universal.sort()
     if skipped_universal:
         print(f"Skipping {len(skipped_universal)} pure-Python wheel(s) already on PyPI:")
         for name in skipped_universal:
