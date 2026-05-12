@@ -8,7 +8,7 @@ import setuptools.build_meta
 
 
 def run(wheel_directory):
-    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
 
     shutil.copyfile(os.path.join(os.path.dirname(__file__), "core.py"), "certifi/core.py")
     os.remove("certifi/cacert.pem")

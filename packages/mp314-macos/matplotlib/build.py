@@ -25,7 +25,7 @@ def run(wheel_directory):
     with open(pyproject_path, "w") as f:
         f.write(content)
 
-    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
     os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("freetype")
     os.environ["INCLUDE"] = sysconfig.get_config_var("INCLUDEPY")
     os.environ["CFLAGS"] = "-I" + sysconfig.get_config_var("INCLUDEPY")

@@ -15,7 +15,7 @@ def run(wheel_directory):
     install_dir = os.path.join(src_dir, "glpk_install")
     os.mkdir(install_dir)
 
-    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
     os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"]
     __mp__.run_build_tool_exe("cmake", "cmake", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
                               "-DCMAKE_INSTALL_PREFIX=" + install_dir, "-DBUILD_SHARED_LIBS=OFF", src_dir)

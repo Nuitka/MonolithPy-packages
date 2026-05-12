@@ -356,13 +356,18 @@ def run_build(
 def run_test(monolithpy: Path, test_path: Path) -> bool:
     """Run a test file. Returns True on success."""
     try:
-        result = subprocess.run(
-            [str(monolithpy), str(test_path)],
-        )
-        return result.returncode == 0
+        result = subprocess.run([str(monolithpy), str(test_path)])
     except Exception as e:
         print(f"Test error: {e}", file=sys.stderr)
         return False
+    rc = result.returncode
+    if rc == 0:
+        return True
+    if rc < 0:
+        print(f"Test killed by signal {-rc}", file=sys.stderr)
+    else:
+        print(f"Test exited with code {rc}", file=sys.stderr)
+    return False
 
 
 def main():

@@ -22,13 +22,13 @@ def run(wheel_directory):
                    os.path.join(os.path.dirname(__file__), "openblas-intel.patch"), cwd=src_dir)
 
     env = os.environ.copy()
-    env["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    env["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
     env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep + os.environ["PATH"])
     env["FFLAGS"] = "-static-libgcc"
     if platform.machine() == "arm64":
         platform_args = ["-DCMAKE_OSX_ARCHITECTURES=arm64", "-DCMAKE_OSX_DEPLOYMENT_TARGET=11", "-DCMAKE_BUILD_TYPE=Debug"]
     else:
-        platform_args = ["-DCMAKE_OSX_ARCHITECTURES=x86_64", "-DCMAKE_OSX_DEPLOYMENT_TARGET=10.9", "-DCMAKE_BUILD_TYPE=Debug"]  # Must build in Debug to workaround bug.
+        platform_args = ["-DCMAKE_OSX_ARCHITECTURES=x86_64", "-DCMAKE_OSX_DEPLOYMENT_TARGET=10.13", "-DCMAKE_BUILD_TYPE=Debug"]  # Must build in Debug to workaround bug.
     __mp__.run_build_tool_exe("cmake", "cmake",
                               "-DCMAKE_Fortran_COMPILER=" + __mp__.find_build_tool_exe("gcc", "gfortran-nuitka"),
                               "-DCMAKE_INSTALL_PREFIX=" + install_dir, "-DBUILD_STATIC_LIBS=ON", "-DBUILD_SHARED_LIBS=OFF",

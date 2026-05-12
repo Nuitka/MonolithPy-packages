@@ -8,7 +8,7 @@ from wheel.wheelfile import WheelFile
 def run(wheel_directory):
     src_dir = os.getcwd()
 
-    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
     os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"]
 
     build_dir = os.path.join(src_dir, "build")

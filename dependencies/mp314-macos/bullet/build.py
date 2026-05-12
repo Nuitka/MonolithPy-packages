@@ -20,7 +20,7 @@ def run(wheel_directory):
     install_dir = os.path.join(src_dir, "install")
     os.mkdir(install_dir)
 
-    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
     os.environ["CFLAGS"] = sysconfig.get_config_var("CFLAGS")
     os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"]
     __mp__.run_build_tool_exe("cmake", "cmake", "-G", "Ninja",

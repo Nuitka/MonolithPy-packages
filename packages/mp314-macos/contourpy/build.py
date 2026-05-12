@@ -11,7 +11,7 @@ from wheel.wheelfile import WheelFile
 
 def run(wheel_directory):
     env = os.environ.copy()
-    env["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    env["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
     env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + env.get("PATH", ""))
     env["PKG_CONFIG"] = "/disabled"

@@ -13,7 +13,7 @@ def run(wheel_directory):
     os.mkdir(prefix_dir)
     os.chdir(src_dir)
 
-    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
     os.environ["CFLAGS"] = sysconfig.get_config_var("CFLAGS")
     print("bash", os.path.join(src_dir, "configure"), "--disable-shared", "--with-zlib-prefix=" + __mp__.find_dep_root("zlib"))
     __mp__.run_with_output("bash", os.path.join(src_dir, "configure"), "--disable-shared", "--with-zlib-prefix=" + __mp__.find_dep_root("zlib"), "--prefix=" + prefix_dir)

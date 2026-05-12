@@ -12,7 +12,7 @@ def run(wheel_directory):
     __mp__.run_with_output("patch", "-t", "-p1", "-i",
                               os.path.join(os.path.dirname(__file__), "kiwisolver-static-patch.patch"))
 
-    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
     __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".")
 
     wheel_location = glob.glob("kiwisolver-*.whl")[0]
