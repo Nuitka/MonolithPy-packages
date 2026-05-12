@@ -171,7 +171,17 @@ jobs:
           if-no-files-found: ignore
 
   pre-build-macos-tools:
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+            mp_artifact: MonolithPy314_mac_arm64_No_LTO
+          - arch: x86_64
+            runner: macos-13
+            mp_artifact: MonolithPy314_mac_x86_64_No_LTO
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -183,7 +193,7 @@ jobs:
           workflow: main.yml
           workflow_conclusion: success
           branch: 3.14
-          name: MonolithPy314_mac_arm64_No_LTO
+          name: ${{ matrix.mp_artifact }}
           path: monolithpy
 
       - name: Uninstall homebrew
@@ -201,8 +211,8 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
-          restore-keys: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          restore-keys: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-
 
       - name: Build tools
         run: python3 .github/scripts/build_and_test.py --prebuild tools --wheel-cache-dir wheel-cache
@@ -211,18 +221,28 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: r1-wheels-macos-tools
+          name: r1-wheels-macos-${{ matrix.arch }}-tools
           path: built_wheels/
           if-no-files-found: ignore
 
   pre-build-macos-deps:
     needs: [pre-build-macos-tools]
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+            mp_artifact: MonolithPy314_mac_arm64_No_LTO
+          - arch: x86_64
+            runner: macos-13
+            mp_artifact: MonolithPy314_mac_x86_64_No_LTO
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -234,13 +254,13 @@ jobs:
           workflow: main.yml
           workflow_conclusion: success
           branch: 3.14
-          name: MonolithPy314_mac_arm64_No_LTO
+          name: ${{ matrix.mp_artifact }}
           path: monolithpy
 
       - name: Download tool wheels
         uses: actions/download-artifact@v4
         with:
-          name: r1-wheels-macos-tools
+          name: r1-wheels-macos-${{ matrix.arch }}-tools
           path: built_wheels/
 
       - name: Uninstall homebrew
@@ -258,10 +278,10 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
           restore-keys: |
-            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
-            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-tools-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-
 
       - name: Build deps
         run: python3 .github/scripts/build_and_test.py --prebuild deps --wheel-cache-dir wheel-cache
@@ -270,18 +290,28 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: r1-wheels-macos-deps
+          name: r1-wheels-macos-${{ matrix.arch }}-deps
           path: built_wheels/
           if-no-files-found: ignore
 
   pre-build-macos-heavy:
     needs: [pre-build-macos-deps]
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+            mp_artifact: MonolithPy314_mac_arm64_No_LTO
+          - arch: x86_64
+            runner: macos-13
+            mp_artifact: MonolithPy314_mac_x86_64_No_LTO
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -293,13 +323,13 @@ jobs:
           workflow: main.yml
           workflow_conclusion: success
           branch: 3.14
-          name: MonolithPy314_mac_arm64_No_LTO
+          name: ${{ matrix.mp_artifact }}
           path: monolithpy
 
       - name: Download dep wheels
         uses: actions/download-artifact@v4
         with:
-          name: r1-wheels-macos-deps
+          name: r1-wheels-macos-${{ matrix.arch }}-deps
           path: built_wheels/
 
       - name: Uninstall homebrew
@@ -317,10 +347,10 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
           restore-keys: |
-            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
-            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-deps-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-
 
       - name: Build heavy packages
         run: python3 .github/scripts/build_and_test.py --prebuild heavy --wheel-cache-dir wheel-cache
@@ -329,12 +359,12 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
 
       - name: Upload Round 1 wheels
         uses: actions/upload-artifact@v4
         with:
-          name: round1-wheels-macos
+          name: round1-wheels-macos-${{ matrix.arch }}
           path: built_wheels/
           if-no-files-found: ignore
 
@@ -405,11 +435,19 @@ jobs:
 
   build-and-test-macos:
     needs: [pre-build-macos-heavy]
-    runs-on: macos-14
     strategy:
       fail-fast: false
       matrix:
+        arch: [arm64, x86_64]
         split_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        include:
+          - arch: arm64
+            runner: macos-14
+            mp_artifact: MonolithPy314_mac_arm64_No_LTO
+          - arch: x86_64
+            runner: macos-13
+            mp_artifact: MonolithPy314_mac_x86_64_No_LTO
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout repository
@@ -422,13 +460,13 @@ jobs:
           workflow: main.yml
           workflow_conclusion: success
           branch: 3.14
-          name: MonolithPy314_mac_arm64_No_LTO
+          name: ${{ matrix.mp_artifact }}
           path: monolithpy
 
       - name: Download Round 1 wheels
         uses: actions/download-artifact@v4
         with:
-          name: round1-wheels-macos
+          name: round1-wheels-macos-${{ matrix.arch }}
           path: round1-wheels/
 
       - name: Uninstall homebrew
@@ -446,10 +484,10 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/restore
         with:
           path: wheel-cache/
-          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
           restore-keys: |
-            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
-            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-heavy-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-
 
       - name: Build and test packages (Round 2)
         run: python3 .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels --wheel-cache-dir wheel-cache
@@ -458,13 +496,13 @@ jobs:
         uses: ./.github/actions/s3-wheel-cache/save
         with:
           path: wheel-cache/
-          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-${{ matrix.arch }}-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp314-macos/**', 'dependencies/mp314-macos/**', 'build_tools/mp314-macos/**') }}
 
       - name: Upload wheels
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-macos-${{ matrix.split_index }}
+          name: wheels-macos-${{ matrix.arch }}-${{ matrix.split_index }}
           path: built_wheels/
           if-no-files-found: ignore
 
@@ -524,7 +562,17 @@ jobs:
 
   final-test-macos:
     needs: [build-and-test-macos]
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+            mp_artifact: MonolithPy314_mac_arm64_No_LTO
+          - arch: x86_64
+            runner: macos-13
+            mp_artifact: MonolithPy314_mac_x86_64_No_LTO
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -536,19 +584,19 @@ jobs:
           workflow: main.yml
           workflow_conclusion: success
           branch: 3.14
-          name: MonolithPy314_mac_arm64_No_LTO
+          name: ${{ matrix.mp_artifact }}
           path: monolithpy
 
       - name: Download Round 2 wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: wheels-macos-*
+          pattern: wheels-macos-${{ matrix.arch }}-*
           path: r2-wheels/
 
       - name: Download Round 1 wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: round1-wheels-macos
+          name: round1-wheels-macos-${{ matrix.arch }}
           path: r1-wheels/
 
       - name: Merge wheels (skip duplicates)
