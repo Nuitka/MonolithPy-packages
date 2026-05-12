@@ -25,7 +25,8 @@ from botocore.config import Config
 
 _WHEEL_NAME_RE = re.compile(
     r"^(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*?)-(?P<version>\d[^-]*)"
-    r"(?:-\d[^-]*)?-[^-]+-[^-]+-[^.]+\.whl$"
+    r"(?:-\d[^-]*)?"
+    r"-(?P<python>[^-]+)-(?P<abi>[^-]+)-(?P<platform>[^.]+)\.whl$"
 )
 
 
@@ -38,6 +39,15 @@ def parse_wheel_filename(filename: str) -> tuple[str, str]:
     if not m:
         raise ValueError(f"Cannot parse wheel filename: {filename}")
     return m.group("name"), m.group("version")
+
+
+def is_universal_wheel(filename: str) -> bool:
+    """A wheel with abi=none and platform=any is pure Python and lives on PyPI;
+    we don't need to ship it from our staging bucket."""
+    m = _WHEEL_NAME_RE.match(filename)
+    if not m:
+        return False
+    return m.group("abi") == "none" and m.group("platform") == "any"
 
 
 def extract_metadata_from_wheel(wheel_path: Path) -> bytes:
@@ -122,7 +132,15 @@ def main() -> int:
         print(f"::error::No wheels found in {args.source}", file=sys.stderr)
         return 1
 
-    print(f"Found {len(wheels)} wheel(s)")
+    skipped_universal = sorted(name for name in wheels if is_universal_wheel(name))
+    for name in skipped_universal:
+        del wheels[name]
+    if skipped_universal:
+        print(f"Skipping {len(skipped_universal)} pure-Python wheel(s) already on PyPI:")
+        for name in skipped_universal:
+            print(f"  - {name}")
+
+    print(f"Found {len(wheels)} wheel(s) to upload")
     print(f"Target prefix: {prefix}/")
 
     bucket = os.environ["S3_BUCKET"]
