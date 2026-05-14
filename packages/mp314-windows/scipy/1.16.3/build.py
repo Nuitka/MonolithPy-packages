@@ -10,7 +10,7 @@ from wheel.wheelfile import WheelFile
 
 
 def run(wheel_directory):
-    __mp__.setup_compiler_env()
+    __mp__.setup_compiler_env(disable_msvc_lto=False)  # build uses clang-cl, not cl.exe
 
     __mp__.run_build_tool_exe("patch", "patch.exe", "-p1", "-ui",
                               os.path.join(os.path.dirname(__file__), "scipy-static-patch.patch"))

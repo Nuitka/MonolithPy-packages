@@ -10,7 +10,7 @@ from wheel.wheelfile import WheelFile
 def run(wheel_directory):
     src_dir = os.getcwd()
 
-    __mp__.setup_compiler_env()
+    __mp__.setup_compiler_env(disable_msvc_lto=False)  # build uses clang-cl, not cl.exe
 
     __mp__.auto_patch_build_file(os.path.join(src_dir, "CMakeLists.txt"))
 
