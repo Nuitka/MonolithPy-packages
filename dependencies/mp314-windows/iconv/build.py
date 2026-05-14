@@ -15,9 +15,14 @@ def run(wheel_directory):
     else:
         build_dir = os.path.join(src_dir, "build-VS2022-MT")
 
+    # /GL produces LTCG IR tied to the exact cl micro-version, which
+    # breaks linking when extension wheels are compiled with a different
+    # MSVC patch level than this bin-dep. Disable WPO so iconv.lib stays
+    # portable plain COFF.
     __mp__.msbuild(os.path.join(build_dir, "libiconv.sln"),
                     "/property:Configuration=Release",
-                    "/property:Platform=x64")
+                    "/property:Platform=x64",
+                    "/property:WholeProgramOptimization=false")
 
     # Rename the output file to the standard name.
     shutil.copy(os.path.join(build_dir, "x64", "Release", "libiconv-static.lib"), os.path.join(src_dir, "iconv.lib"))
