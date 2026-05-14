@@ -37,7 +37,8 @@ def run(wheel_directory):
         os.environ["PATH"]
     )
 
-    job_args = []
+    # Disable LTO on windows because MSVC is terrible.
+    job_args = ["-Csetup-args=-Db_lto=false"]
     if "MP_JOBS" in os.environ:
         job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
     __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
