@@ -62,6 +62,17 @@ jobs:
           path: built_wheels/
           if-no-files-found: ignore
 
+      - name: Snapshot to S3
+        if: always()
+        shell: bash
+        run: |
+          python3 -m pip install --quiet --break-system-packages zstandard boto3
+          python3 .github/scripts/s3_upload_wheels.py \
+            --source built_wheels/ \
+            --run-id "${GITHUB_RUN_ID}" \
+            --arch "x64" \
+            --name "tools"
+
   pre-build-windows-deps:
     needs: [pre-build-windows-tools]
     runs-on: windows-2025-vs2026
@@ -115,6 +126,17 @@ jobs:
           name: r1-wheels-windows-deps
           path: built_wheels/
           if-no-files-found: ignore
+
+      - name: Snapshot to S3
+        if: always()
+        shell: bash
+        run: |
+          python3 -m pip install --quiet --break-system-packages zstandard boto3
+          python3 .github/scripts/s3_upload_wheels.py \
+            --source built_wheels/ \
+            --run-id "${GITHUB_RUN_ID}" \
+            --arch "x64" \
+            --name "deps"
 
   pre-build-windows-heavy:
     needs: [pre-build-windows-deps]
@@ -170,6 +192,17 @@ jobs:
           path: built_wheels/
           if-no-files-found: ignore
 
+      - name: Snapshot to S3
+        if: always()
+        shell: bash
+        run: |
+          python3 -m pip install --quiet --break-system-packages zstandard boto3
+          python3 .github/scripts/s3_upload_wheels.py \
+            --source built_wheels/ \
+            --run-id "${GITHUB_RUN_ID}" \
+            --arch "x64" \
+            --name "heavy"
+
   pre-build-macos-tools:
     strategy:
       fail-fast: false
@@ -197,7 +230,8 @@ jobs:
           path: monolithpy
 
       - name: Uninstall homebrew
-        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+        run: |
+          sudo rm -rf /usr/local/Homebrew /opt/homebrew 2>/dev/null || true
 
       - name: Set MONOLITHPY_PACKAGE_URL
         run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
@@ -229,6 +263,17 @@ jobs:
           name: r1-wheels-macos-${{ matrix.arch }}-tools
           path: built_wheels/
           if-no-files-found: ignore
+
+      - name: Snapshot to S3
+        if: always()
+        shell: bash
+        run: |
+          python3 -m pip install --quiet --break-system-packages zstandard boto3
+          python3 .github/scripts/s3_upload_wheels.py \
+            --source built_wheels/ \
+            --run-id "${GITHUB_RUN_ID}" \
+            --arch "${{ matrix.arch }}" \
+            --name "tools"
 
   pre-build-macos-deps:
     needs: [pre-build-macos-tools]
@@ -264,7 +309,8 @@ jobs:
           path: built_wheels/
 
       - name: Uninstall homebrew
-        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+        run: |
+          sudo rm -rf /usr/local/Homebrew /opt/homebrew 2>/dev/null || true
 
       - name: Set MONOLITHPY_PACKAGE_URL
         run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
@@ -298,6 +344,17 @@ jobs:
           name: r1-wheels-macos-${{ matrix.arch }}-deps
           path: built_wheels/
           if-no-files-found: ignore
+
+      - name: Snapshot to S3
+        if: always()
+        shell: bash
+        run: |
+          python3 -m pip install --quiet --break-system-packages zstandard boto3
+          python3 .github/scripts/s3_upload_wheels.py \
+            --source built_wheels/ \
+            --run-id "${GITHUB_RUN_ID}" \
+            --arch "${{ matrix.arch }}" \
+            --name "deps"
 
   pre-build-macos-heavy:
     needs: [pre-build-macos-deps]
@@ -333,7 +390,8 @@ jobs:
           path: built_wheels/
 
       - name: Uninstall homebrew
-        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+        run: |
+          sudo rm -rf /usr/local/Homebrew /opt/homebrew 2>/dev/null || true
 
       - name: Set MONOLITHPY_PACKAGE_URL
         run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
@@ -367,6 +425,17 @@ jobs:
           name: round1-wheels-macos-${{ matrix.arch }}
           path: built_wheels/
           if-no-files-found: ignore
+
+      - name: Snapshot to S3
+        if: always()
+        shell: bash
+        run: |
+          python3 -m pip install --quiet --break-system-packages zstandard boto3
+          python3 .github/scripts/s3_upload_wheels.py \
+            --source built_wheels/ \
+            --run-id "${GITHUB_RUN_ID}" \
+            --arch "${{ matrix.arch }}" \
+            --name "heavy"
 
   # ── Round 2 ──────────────────────────────────────────────────────────────
   # Builds all remaining packages in parallel splits.  Each worker downloads
@@ -433,6 +502,17 @@ jobs:
           path: built_wheels/
           if-no-files-found: ignore
 
+      - name: Snapshot to S3
+        if: always()
+        shell: bash
+        run: |
+          python3 -m pip install --quiet --break-system-packages zstandard boto3
+          python3 .github/scripts/s3_upload_wheels.py \
+            --source built_wheels/ \
+            --run-id "${GITHUB_RUN_ID}" \
+            --arch "x64" \
+            --name "r2-${{ matrix.split_index }}"
+
   build-and-test-macos:
     needs: [pre-build-macos-heavy]
     strategy:
@@ -470,7 +550,8 @@ jobs:
           path: round1-wheels/
 
       - name: Uninstall homebrew
-        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+        run: |
+          sudo rm -rf /usr/local/Homebrew /opt/homebrew 2>/dev/null || true
 
       - name: Set MONOLITHPY_PACKAGE_URL
         run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
@@ -506,6 +587,17 @@ jobs:
           path: built_wheels/
           if-no-files-found: ignore
 
+      - name: Snapshot to S3
+        if: always()
+        shell: bash
+        run: |
+          python3 -m pip install --quiet --break-system-packages zstandard boto3
+          python3 .github/scripts/s3_upload_wheels.py \
+            --source built_wheels/ \
+            --run-id "${GITHUB_RUN_ID}" \
+            --arch "${{ matrix.arch }}" \
+            --name "r2-${{ matrix.split_index }}"
+
   # ── Final test ────────────────────────────────────────────────────────────
   # Install every top-level package together into one MonolithPy interpreter,
   # run every package's test suite, and dump the final set of dynamic
@@ -528,28 +620,21 @@ jobs:
           name: MonolithPy314_windows_x64
           path: monolithpy
 
-      - name: Download Round 2 wheel artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: wheels-windows-*
-          path: r2-wheels/
-
-      - name: Download Round 1 wheel artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: round1-wheels-windows
-          path: r1-wheels/
-
-      - name: Merge wheels (skip duplicates)
-        shell: pwsh
+      - name: Download wheels from S3
+        shell: bash
+        env:
+          S3_CACHE_ENDPOINT: ${{ secrets.S3_CACHE_ENDPOINT }}
+          S3_CACHE_BUCKET: ${{ secrets.S3_CACHE_BUCKET }}
+          S3_CACHE_REGION: ${{ secrets.S3_CACHE_REGION }}
+          S3_CACHE_ACCESS_KEY_ID: ${{ secrets.S3_CACHE_ACCESS_KEY_ID }}
+          S3_CACHE_SECRET_ACCESS_KEY: ${{ secrets.S3_CACHE_SECRET_ACCESS_KEY }}
         run: |
-          New-Item -ItemType Directory -Force -Path all-wheels | Out-Null
-          Get-ChildItem -Path r1-wheels,r2-wheels -Recurse -File | ForEach-Object {
-            $dest = Join-Path 'all-wheels' $_.Name
-            if (-not (Test-Path $dest)) {
-              Copy-Item $_.FullName $dest
-            }
-          }
+          python3 -m pip install --quiet --break-system-packages zstandard boto3
+          mkdir -p all-wheels
+          python3 .github/scripts/s3_download_wheels.py \
+            --run-id "${GITHUB_RUN_ID}" \
+            --arch "x64" \
+            --output all-wheels
 
       - name: Set MONOLITHPY_PACKAGE_URL
         shell: pwsh
@@ -587,30 +672,25 @@ jobs:
           name: ${{ matrix.mp_artifact }}
           path: monolithpy
 
-      - name: Download Round 2 wheel artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: wheels-macos-${{ matrix.arch }}-*
-          path: r2-wheels/
-
-      - name: Download Round 1 wheel artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: round1-wheels-macos-${{ matrix.arch }}
-          path: r1-wheels/
-
-      - name: Merge wheels (skip duplicates)
+      - name: Download wheels from S3
+        shell: bash
+        env:
+          S3_CACHE_ENDPOINT: ${{ secrets.S3_CACHE_ENDPOINT }}
+          S3_CACHE_BUCKET: ${{ secrets.S3_CACHE_BUCKET }}
+          S3_CACHE_REGION: ${{ secrets.S3_CACHE_REGION }}
+          S3_CACHE_ACCESS_KEY_ID: ${{ secrets.S3_CACHE_ACCESS_KEY_ID }}
+          S3_CACHE_SECRET_ACCESS_KEY: ${{ secrets.S3_CACHE_SECRET_ACCESS_KEY }}
         run: |
+          python3 -m pip install --quiet --break-system-packages zstandard boto3
           mkdir -p all-wheels
-          find r1-wheels r2-wheels -type f | while read -r src; do
-            dest="all-wheels/$(basename "$src")"
-            if [ ! -e "$dest" ]; then
-              cp "$src" "$dest"
-            fi
-          done
+          python3 .github/scripts/s3_download_wheels.py \
+            --run-id "${GITHUB_RUN_ID}" \
+            --arch "${{ matrix.arch }}" \
+            --output all-wheels
 
       - name: Uninstall homebrew
-        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+        run: |
+          sudo rm -rf /usr/local/Homebrew /opt/homebrew 2>/dev/null || true
 
       - name: Set MONOLITHPY_PACKAGE_URL
         run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
