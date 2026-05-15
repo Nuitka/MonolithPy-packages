@@ -51,12 +51,17 @@ def list_tests(pkg_dir: Path) -> list[Path]:
     return [pkg_dir / t for t in data.get("tests", []) if (pkg_dir / t).exists()]
 
 
-def inspect_wheels(wheel_dir: Path) -> None:
+def inspect_wheels(wheel_dir: Path, top_level_names: set[str]) -> set[str]:
     """Print per-wheel sha256 + size + zipfile sanity check for every wheel
     under `wheel_dir`.  Any wheel that fails to open is flagged via
     ::error:: so the CI annotation surfaces the exact file rather than
-    relying on pip's terse 'is invalid.' message."""
+    relying on pip's terse 'is invalid.' message.
+
+    Returns the set of top-level package names whose wheels are corrupted,
+    so callers can skip them in the pip install pass instead of failing
+    the whole run on one artifact-download glitch."""
     wheels = sorted(wheel_dir.rglob("*.whl"))
+    bad_packages: set[str] = set()
     print(f"\n::group::Inspecting {len(wheels)} wheel(s) in {wheel_dir}")
     for whl in wheels:
         size = whl.stat().st_size
@@ -96,9 +101,15 @@ def inspect_wheels(wheel_dir: Path) -> None:
         line = f"  {whl.name}: size={size} sha256={h.hexdigest()[:16]}... [{status}]"
         if "ok" not in status.split()[0]:
             print(f"::error::{line}")
+            # Map wheel basename back to its top-level package so we can skip it.
+            name = whl.name.split("-", 1)[0]
+            pkg = name.lower().replace("_", "-")
+            if pkg in top_level_names:
+                bad_packages.add(pkg)
         else:
             print(line)
     print("::endgroup::")
+    return bad_packages
 
 
 def run_pip_install(monolithpy: Path, wheel_dir: Path, packages: list[str]) -> bool:
@@ -245,7 +256,11 @@ def main() -> int:
         return 1
     print(f"Installing {len(packages)} top-level package(s): {packages}")
 
-    inspect_wheels(args.wheels)
+    top_level_set = set(packages)
+    bad = inspect_wheels(args.wheels, top_level_set)
+    if bad:
+        print(f"::warning::Skipping {len(bad)} package(s) with corrupted wheel(s): {sorted(bad)}")
+        packages = [p for p in packages if p not in bad]
 
     if not run_pip_install(monolithpy, args.wheels, packages):
         print("::error::pip install failed", file=sys.stderr)
