@@ -38,6 +38,15 @@ def run(wheel_directory):
     )
 
     # Disable LTO on windows because MSVC is terrible.
+    # -Db_lto=false only flips meson's own LTO knob; matplotlib's
+    # meson.build still leaks /GL into the cl command line for some
+    # extensions, which embeds LTCG IR tied to the building cl's
+    # micro-version and trips C1047 at the final relink. Append "/GL-"
+    # via CFLAGS / CXXFLAGS (meson appends both to each compile argv
+    # last-wins, beating any earlier /GL) -- using the cl env var _CL_
+    # instead would bypass argv and break ccache.
+    os.environ["CFLAGS"]   = (os.environ.get("CFLAGS",   "") + " /GL-").strip()
+    os.environ["CXXFLAGS"] = (os.environ.get("CXXFLAGS", "") + " /GL-").strip()
     job_args = ["-Csetup-args=-Db_lto=false"]
     if "MP_JOBS" in os.environ:
         job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
