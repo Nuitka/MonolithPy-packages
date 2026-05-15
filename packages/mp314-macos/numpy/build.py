@@ -48,7 +48,7 @@ def run(wheel_directory):
 
         ext_suffix = sysconfig.get_config_var("EXT_SUFFIX")
         __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"numpy/_core/_multiarray_tests{ext_suffix}"),
-                                      "np_multiarray_tests_")
+                                      "_np_multiarray_tests")
         __mp__.analyze_and_rename_library_symbols(tmpdir, "numpy",
                                                   protected_symbol_patterns=["_?PyUFunc.+", "_?npy_.+", "_?PyArray.+", "_?Py.+_Type"],
                                                   exclude_libraries=["_multiarray_umath*"])
