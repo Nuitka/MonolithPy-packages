@@ -1,0 +1,19 @@
+name: Promote wheels to main
+
+# Stub definition: the real workflow lives on the `wheels` branch.
+# This file exists on master only so GitHub indexes the workflow and
+# makes `workflow_dispatch` (with ref=wheels) addressable via the API
+# and the Actions UI.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  stub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stub
+        run: |
+          echo "This is a stub definition on master."
+          echo "Dispatch this workflow with ref=wheels (or any branch that"
+          echo "carries the real workflow) to run the actual build pipeline."
