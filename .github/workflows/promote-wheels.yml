@@ -1,0 +1,25 @@
+name: Promote wheels to main
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run:
+        description: "Source run folder under builds/ (e.g. '42-abc1234' or just '42')"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run (list copies, make no changes)"
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Stub
+        run: |
+          echo "This is a stub definition on master."
+          echo "Dispatch this workflow with ref=wheels (or any branch that"
+          echo "carries the real workflow) to run the actual build pipeline."
