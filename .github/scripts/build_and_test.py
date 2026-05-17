@@ -281,6 +281,90 @@ def save_to_cache(
     (wheel_cache_dir / f"{cache_key}.marker").write_text(json.dumps(whl_list))
 
 
+def iter_pure_test_packages(root_dir: Path, packages_dir: Path) -> list[tuple[str, str, Path]]:
+    """Return [(pip_name, version_spec, test_path), ...] for pure-test entries.
+
+    A pure-test entry is a directory under `pure_test_packages/` whose contents
+    declare a package that should be pip-installed from PyPI and exercised via a
+    user-provided `test.py`, with no MonolithPy build recipe. The pip name is
+    taken from the directory name; an optional `pin.txt` next to `test.py`
+    contributes a version spec (e.g. `>=2.30`) that gets concatenated to the
+    install requirement.
+
+    If `packages_dir / <name>` exists (i.e. a same-named platform-specific build
+    recipe is present), the pure-test entry is skipped: build recipes take
+    precedence so the same package isn't tested twice on platforms where it's
+    fully built locally. This makes pure_test_packages/ a natural place to drop
+    "missing platform counterparts" for packages whose build recipe only exists
+    on one side.
+
+    Directories without a `test.py` are skipped with a CI warning so a stray
+    placeholder doesn't silently cost a split slot.
+    """
+    base = root_dir / "pure_test_packages"
+    if not base.is_dir():
+        return []
+    out: list[tuple[str, str, Path]] = []
+    for entry in sorted(base.iterdir()):
+        if not entry.is_dir():
+            continue
+        if (packages_dir / entry.name).is_dir():
+            print(f"::notice::pure_test_packages/{entry.name}: superseded by "
+                  f"{packages_dir.name}/{entry.name} build recipe; skipping")
+            continue
+        test_py = entry / "test.py"
+        if not test_py.is_file():
+            print(f"::warning::pure_test_packages/{entry.name}: no test.py, skipping")
+            continue
+        pin_file = entry / "pin.txt"
+        pin = pin_file.read_text().strip() if pin_file.is_file() else ""
+        out.append((entry.name, pin, test_py))
+    return out
+
+
+def run_pure_test_install(
+    monolithpy: Path,
+    requirement: str,
+    built_wheels_dir: Path,
+    find_links_dir: Path | None,
+    pip_cache_dir: Path,
+) -> bool:
+    """Resolve a pip requirement to a wheel, drop the wheel into built_wheels_dir,
+    then install offline from the captured wheel set. Used for pure-test entries
+    so they participate in the wheel pipeline the same way build-recipe packages
+    do — the captured wheels flow through the wheels-<platform>-<split>
+    artifacts and into upload-wheels at the end of the run.
+
+    Two pip invocations on purpose:
+      1) `pip wheel` resolves the requirement against PyPI + round-1 wheels and
+         lands a `.whl` (plus any transitive deps not already in find-links)
+         into built_wheels_dir.
+      2) `pip install --no-index` installs from the local wheel store so the
+         test runs against exactly the wheels we just captured (no surprise
+         re-resolution against PyPI).
+    """
+    pip_cache_dir.mkdir(parents=True, exist_ok=True)
+    common: list[str] = ["--cache-dir", str(pip_cache_dir),
+                         "--find-links", str(built_wheels_dir)]
+    if find_links_dir is not None and find_links_dir.is_dir():
+        common += ["--find-links", str(find_links_dir)]
+
+    env = os.environ.copy()
+    if find_links_dir is not None and find_links_dir.is_dir():
+        # Mirror the round-2 build path so MonolithPy's PackageFinder sees the
+        # round-1 wheel dir too.
+        env["PIP_FIND_LINKS"] = str(find_links_dir)
+
+    wheel_cmd = ([str(monolithpy), "-m", "pip", "wheel", "--verbose",
+                  "-w", str(built_wheels_dir)] + common + [requirement])
+    if subprocess.run(wheel_cmd, env=env).returncode != 0:
+        return False
+
+    install_cmd = ([str(monolithpy), "-m", "pip", "install", "--verbose",
+                    "--no-index"] + common + [requirement])
+    return subprocess.run(install_cmd, env=env).returncode == 0
+
+
 def find_prebuild_candidates(dep_graph: dict[str, set[str]], threshold: int = 2) -> list[str]:
     """Return packages that appear as a dep of at least `threshold` others, plus all their transitive deps."""
     ref_count: dict[str, int] = {}
@@ -459,10 +543,27 @@ def main():
             print(f"  {tier_label}: {tier_packages}")
     else:
         all_packages = sorted(d.name for d in _iter_subdirs(packages_dir))
+        pure_test_entries = iter_pure_test_packages(root_dir, packages_dir)
+        my_pure_tests: list[tuple[str, str, Path]] = []
         if args.round2:
             split_index, split_total = int(args.round2[0]), int(args.round2[1])
-            all_packages = [p for i, p in enumerate(all_packages) if i % split_total == split_index]
-            print(f"Round 2, split {split_index+1}/{split_total}: {len(all_packages)} packages: {all_packages}")
+            # Combined index space across builds and pure-tests so the split
+            # math distributes both evenly; otherwise a large pure-test set
+            # would all land on split 0.
+            combined = ([("build", name) for name in all_packages] +
+                        [("pure",  name) for name, _, _ in pure_test_entries])
+            my = [item for i, item in enumerate(combined) if i % split_total == split_index]
+            all_packages = [name for kind, name in my if kind == "build"]
+            pure_in_split = {name for kind, name in my if kind == "pure"}
+            my_pure_tests = [(n, p, t) for (n, p, t) in pure_test_entries if n in pure_in_split]
+            print(f"Round 2, split {split_index+1}/{split_total}: {len(all_packages)} build "
+                  f"package(s) + {len(my_pure_tests)} pure-test(s)")
+            if all_packages:
+                print(f"  builds: {all_packages}")
+            if my_pure_tests:
+                print(f"  pure tests: {[n for n,_,_ in my_pure_tests]}")
+        else:
+            my_pure_tests = pure_test_entries
         if round1_wheels_dir:
             print(f"Using Round 1 pre-built wheels from: {round1_wheels_dir}")
         tiers = [("all", all_packages)]
@@ -532,6 +633,32 @@ def main():
         if args.prebuild:
             collect_built_wheels(pip_cache_base, built_wheels_dir)
             print(f"Tier {tier_label} complete.")
+            print("::endgroup::")
+
+    # Pure-test pass: capture a wheel for each entry into built_wheels/ (so it
+    # rides along with the other Round 2 outputs through wheels-<platform>-<split>
+    # artifacts) and then install it offline so test.py runs against exactly
+    # that wheel. Pure-tests bypass the wheel-cache plumbing — their input is
+    # PyPI, not a local recipe, so per-recipe cache keys don't apply.
+    if not args.prebuild and my_pure_tests:
+        monolithpy = get_monolithpy_executable(work_monolithpy, python_version)
+        run_rebuild(monolithpy)
+        for name, pin, test_path in my_pure_tests:
+            requirement = name + pin  # pin already includes the operator (e.g. ">=2.30")
+            print(f"::group::Pure test: {name} ({requirement!r})")
+            if not run_pure_test_install(monolithpy, requirement,
+                                         built_wheels_dir=built_wheels_dir,
+                                         find_links_dir=round1_wheels_dir,
+                                         pip_cache_dir=pip_cache_base):
+                print(f"::error::pip wheel/install failed for pure test {name}")
+                print("::endgroup::")
+                sys.exit(1)
+            print(f"Running test: pure_test_packages/{name}/test.py")
+            if not run_test(monolithpy, test_path):
+                print(f"::error::Pure test failed for {name}")
+                print("::endgroup::")
+                sys.exit(1)
+            print(f"Pure test passed: {name}")
             print("::endgroup::")
 
 
