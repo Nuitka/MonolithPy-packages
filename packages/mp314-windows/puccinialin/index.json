@@ -1,0 +1,30 @@
+{
+  "tests": ["test.py"],
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": [
+        "patch"
+      ],
+      "dependencies": [ ],
+      "files": [
+        "build.py",
+        "puccinialin-static-patch.patch"
+      ],
+      "build_requires": [
+        "setuptools",
+        "build",
+        "flit_core"
+      ],
+      "dist_requires": [
+        "filelock>=3.19.1,<4.0.0",
+        "httpx>=0.28.1,<0.29",
+        "platformdirs>=4.3.6,<5",
+        "tqdm>=4.67.1,<5"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

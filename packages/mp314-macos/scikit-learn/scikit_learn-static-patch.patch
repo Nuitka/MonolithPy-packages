@@ -1,0 +1,52 @@
+diff --git a/pyproject.toml b/pyproject.toml
+index a867cda..85027e3 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -97,8 +97,8 @@ build-backend = "mesonpy"
+ requires = [
+     "meson-python>=0.17.1,<0.19.0",
+     "cython>=3.1.2,<3.3.0",
+-    "numpy>=2,<2.4.0",
+-    "scipy>=1.10.0,<1.17.0",
++    "numpy>=2",
++    "scipy>=1.10.0",
+ ]
+ 
+ [tool.pytest.ini_options]
+diff --git a/sklearn/svm/src/liblinear/linear.cpp b/sklearn/svm/src/liblinear/linear.cpp
+index 70d8f68..7b852f1 100644
+--- a/sklearn/svm/src/liblinear/linear.cpp
++++ b/sklearn/svm/src/liblinear/linear.cpp
+@@ -43,6 +43,13 @@
+ #include <random>
+ #include "../newrand/newrand.h"
+ 
++extern "C" {
++std::mt19937 mt_rand(std::mt19937::default_seed);
++void set_seed(unsigned custom_seed) {
++    mt_rand.seed(custom_seed);
++}
++}
++
+ typedef signed char schar;
+ template <class T> static inline void swap(T& x, T& y) { T t=x; x=y; y=t; }
+ #ifndef min
+diff --git a/sklearn/svm/src/newrand/newrand.h b/sklearn/svm/src/newrand/newrand.h
+index e01bea9..0a35100 100644
+--- a/sklearn/svm/src/newrand/newrand.h
++++ b/sklearn/svm/src/newrand/newrand.h
+@@ -18,12 +18,10 @@ extern "C" {
+ // used in LibSVM / LibLinear, to ensure the same behaviour on windows-linux,
+ // with increased speed
+ // - (1) Init a `mt_rand` object
+-std::mt19937 mt_rand(std::mt19937::default_seed);
++extern std::mt19937 mt_rand;
+ 
+ // - (2) public `set_seed()` function that should be used instead of `srand()` to set a new seed.
+-void set_seed(unsigned custom_seed) {
+-    mt_rand.seed(custom_seed);
+-}
++void set_seed(unsigned custom_seed);
+ 
+ // - (3) New internal `bounded_rand_int` function, used instead of rand() everywhere.
+ inline uint32_t bounded_rand_int(uint32_t range) {

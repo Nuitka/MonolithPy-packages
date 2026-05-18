@@ -1,0 +1,177 @@
+diff --git a/mesonbuild/backend/ninjabackend.py b/mesonbuild/backend/ninjabackend.py
+index b78ad07..61e7898 100644
+--- a/mesonbuild/backend/ninjabackend.py
++++ b/mesonbuild/backend/ninjabackend.py
+@@ -4,6 +4,7 @@
+ 
+ from __future__ import annotations
+ 
++import sys
+ from collections import OrderedDict
+ from dataclasses import dataclass
+ from enum import Enum, unique
+@@ -1081,6 +1082,25 @@ class NinjaBackend(backends.Backend):
+         elem = self.generate_link(target, outname, final_obj_list, linker, pch_objects, stdlib_args=stdlib_args)
+         self.generate_dependency_scan_target(target, compiled_sources, source2object, generated_source_files, fortran_order_deps)
+         self.add_build(elem)
++
++        if isinstance(target, build.StaticLibrary):
++            if elem.outfilenames:  # elem is the NinjaBuildElement from self.generate_link()
++                linked_library_path = elem.outfilenames[0]  # Path to the .so/.pyd file
++
++                # 4. Create a new NinjaBuildElement for your custom command.
++                post_link_elem = NinjaBuildElement(
++                    all_outputs=self.all_outputs,  # Use the existing set of all outputs
++                    outfilenames=[linked_library_path + ".stamp"],
++                    rulename='rename_pyinit_symbols',
++                    infilenames=[linked_library_path]  # Depends on the successfully linked library
++                )
++
++                # Add any specific variables your NinjaRule might expect (e.g., if your rule uses $TARGET_NAME)
++                # post_link_elem.add_item('TARGET_NAME', target.name)
++
++                # 5. Add this new element to the build.
++                self.add_build(post_link_elem)
++
+         #In AIX, we archive shared libraries. If the instance is a shared library, we add a command to archive the shared library
+         #object and create the build element.
+         if isinstance(target, build.SharedLibrary) and self.environment.machines[target.for_machine].is_aix():
+@@ -1352,6 +1372,11 @@ class NinjaBackend(backends.Backend):
+         self.add_rule_comment(NinjaComment('Rules for linking.'))
+         self.generate_static_link_rules()
+         self.generate_dynamic_link_rules()
++        self.add_rule(NinjaRule('rename_pyinit_symbols',
++                                [sys.executable, "-m", "__mp__.tools.rename_init", '$in', '$out'],  # Command
++                                [],  # rspable args (empty for this example)
++                                'Running PyInit rename script on $in',
++                                extra='restat = 1'))
+         self.add_rule_comment(NinjaComment('Other rules'))
+         # Ninja errors out if you have deps = gcc but no depfile, so we must
+         # have two rules for custom commands.
+@@ -3719,6 +3744,8 @@ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=47485'''))
+                         linker, stdlib_args = t.get_clink_dynamic_linker_and_stdlibs()
+                         t.get_outputs()[0] = linker.get_archive_name(t.get_outputs()[0])
+                 targetlist.append(os.path.join(self.get_target_dir(t), t.get_outputs()[0]))
++                if isinstance(t, build.StaticLibrary):
++                    targetlist.append(os.path.join(self.get_target_dir(t), t.get_outputs()[0]) + ".stamp")
+ 
+             elem = NinjaBuildElement(self.all_outputs, targ, 'phony', targetlist)
+             self.add_build(elem)
+diff --git a/mesonbuild/build.py b/mesonbuild/build.py
+index cf71dc2..423b008 100644
+--- a/mesonbuild/build.py
++++ b/mesonbuild/build.py
+@@ -2169,7 +2169,10 @@ class StaticLibrary(BuildTarget):
+                 elif self.rust_crate_type == 'staticlib':
+                     self.suffix = 'a'
+             else:
+-                self.suffix = 'a'
++                if self.environment.machines[self.for_machine].is_windows():
++                    self.suffix = 'lib'
++                else:
++                    self.suffix = 'a'
+         self.filename = self.prefix + self.name + '.' + self.suffix
+         self.outputs[0] = self.filename
+ 
+@@ -2233,6 +2236,8 @@ class SharedLibrary(BuildTarget):
+             environment: environment.Environment,
+             compilers: T.Dict[str, 'Compiler'],
+             kwargs):
++        raise NotImplementedError("SharedLibrary builds not allowed on Nuitka-Python!")
++
+         self.soversion: T.Optional[str] = None
+         self.ltversion: T.Optional[str] = None
+         # Max length 2, first element is compatibility_version, second is current_version
+diff --git a/mesonbuild/cmake/toolchain.py b/mesonbuild/cmake/toolchain.py
+index 9eb961c..ffa9f89 100644
+--- a/mesonbuild/cmake/toolchain.py
++++ b/mesonbuild/cmake/toolchain.py
+@@ -174,6 +174,8 @@ class CMakeToolchain:
+ 
+         # Set the compiler variables
+         for lang, comp_obj in self.compilers.items():
++            if lang == 'cython':
++                continue
+             prefix = 'CMAKE_{}_'.format(language_map.get(lang, lang.upper()))
+ 
+             exe_list = comp_obj.get_exelist()
+@@ -210,7 +212,7 @@ class CMakeToolchain:
+         # Generate the CMakeLists.txt
+         mlog.debug('CMake Toolchain: Calling CMake once to generate the compiler state')
+         languages = list(self.compilers.keys())
+-        lang_ids = [language_map.get(x, x.upper()) for x in languages]
++        lang_ids = [language_map.get(x, x.upper()) for x in languages if x != 'cython']
+         cmake_content = dedent(f'''
+             cmake_minimum_required(VERSION 3.10)
+             project(CompInfo {' '.join(lang_ids)})
+diff --git a/mesonbuild/dependencies/python.py b/mesonbuild/dependencies/python.py
+index 326e605..aa19f83 100644
+--- a/mesonbuild/dependencies/python.py
++++ b/mesonbuild/dependencies/python.py
+@@ -217,7 +217,7 @@ class _PythonDependencyBase(_Base):
+             verdot = self.variables.get('py_version_short')
+             imp_lower = self.variables.get('implementation_lower', 'python')
+             if self.static:
+-                libpath = Path('libs') / f'libpython{vernum}.a'
++                libpath = Path('libs') / f'python{vernum}.lib'
+             else:
+                 if limited_api:
+                     vernum = vernum[0]
+diff --git a/mesonbuild/interpreter/interpreter.py b/mesonbuild/interpreter/interpreter.py
+index ac4a55e..14c345b 100644
+--- a/mesonbuild/interpreter/interpreter.py
++++ b/mesonbuild/interpreter/interpreter.py
+@@ -1865,6 +1865,9 @@ class Interpreter(InterpreterBase, HoldableObject):
+     def func_static_lib(self, node: mparser.BaseNode,
+                         args: T.Tuple[str, SourcesVarargsType],
+                         kwargs: kwtypes.StaticLibrary) -> build.StaticLibrary:
++        import sys
++        kwargs['install'] = True
++        kwargs["install_dir"] = kwargs.get("install_dir", self._holderify(self.modules['python'].installations[sys.executable])._get_install_dir_impl(False, self.build.project_name.lower()))
+         return self.build_target(node, args, kwargs, build.StaticLibrary)
+ 
+     @permittedKwargs(build.known_shlib_kwargs)
+diff --git a/mesonbuild/modules/python.py b/mesonbuild/modules/python.py
+index 1b7a056..198aa30 100644
+--- a/mesonbuild/modules/python.py
++++ b/mesonbuild/modules/python.py
+@@ -10,7 +10,7 @@ from . import ExtensionModule, ModuleInfo
+ from .. import mesonlib
+ from .. import mlog
+ from ..options import UserFeatureOption
+-from ..build import known_shmod_kwargs, CustomTarget, CustomTargetIndex, BuildTarget, GeneratedList, StructuredSources, ExtractedObjects, SharedModule
++from ..build import known_shmod_kwargs, CustomTarget, CustomTargetIndex, BuildTarget, GeneratedList, StructuredSources, ExtractedObjects, SharedModule, StaticLibrary
+ from ..dependencies import NotFoundDependency
+ from ..dependencies.detect import get_dep_identifier, find_external_dependency
+ from ..dependencies.python import BasicPythonExternalProgram, python_factory, _PythonDependencyBase
+@@ -230,7 +230,7 @@ class PythonInstallation(_ExternalProgramHolder['PythonExternalProgram']):
+                 (self.is_pypy or mesonlib.version_compare(self.version, '>=3.9')):
+             kwargs['gnu_symbol_visibility'] = 'inlineshidden'
+ 
+-        return self.interpreter.build_target(self.current_node, args, kwargs, SharedModule)
++        return self.interpreter.build_target(self.current_node, args, kwargs, StaticLibrary)
+ 
+     def _convert_api_version_to_py_version_hex(self, api_version: str, detected_version: str) -> str:
+         python_api_version_format = re.compile(r'[0-9]\.[0-9]{1,2}')
+diff --git a/mesonbuild/modules/python3.py b/mesonbuild/modules/python3.py
+index 2e6779a..20068d6 100644
+--- a/mesonbuild/modules/python3.py
++++ b/mesonbuild/modules/python3.py
+@@ -10,7 +10,7 @@ from .. import mesonlib
+ from . import ExtensionModule, ModuleInfo
+ from ..build import (
+     BuildTarget, CustomTarget, CustomTargetIndex, ExtractedObjects,
+-    GeneratedList, SharedModule, StructuredSources, known_shmod_kwargs
++    GeneratedList, SharedModule, StaticLibrary, StructuredSources, known_shmod_kwargs
+ )
+ from ..interpreter.type_checking import SHARED_MOD_KWS
+ from ..interpreterbase import typed_kwargs, typed_pos_args, noPosargs, noKwargs, permittedKwargs
+@@ -53,7 +53,7 @@ class Python3Module(ExtensionModule):
+             suffix = []
+         kwargs['name_prefix'] = ''
+         kwargs['name_suffix'] = suffix
+-        return self.interpreter.build_target(state.current_node, args, kwargs, SharedModule)
++        return self.interpreter.build_target(state.current_node, args, kwargs, StaticLibrary)
+ 
+     @noPosargs
+     @noKwargs

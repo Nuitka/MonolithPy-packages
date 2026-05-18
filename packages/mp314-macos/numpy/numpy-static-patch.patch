@@ -1,0 +1,805 @@
+diff --git a/meson.build b/meson.build
+index 2cb7ce9..def988a 100644
+--- a/meson.build
++++ b/meson.build
+@@ -10,6 +10,8 @@ project(
+     'c_std=c11',
+     'cpp_std=c++17',
+     'pkgconfig.relocatable=true',
++    'prefer_static=True',
++    'b_vscrt=mt',
+   ],
+ )
+ 
+diff --git a/numpy/_core/code_generators/generate_numpy_api.py b/numpy/_core/code_generators/generate_numpy_api.py
+index 23d6788..350f25c 100644
+--- a/numpy/_core/code_generators/generate_numpy_api.py
++++ b/numpy/_core/code_generators/generate_numpy_api.py
+@@ -8,7 +8,12 @@
+ 
+ # use annotated api when running under cpychecker
+ h_template = r"""
+-#if defined(_MULTIARRAYMODULE) || defined(WITH_CPYCHECKER_STEALS_REFERENCE_TO_ARG_ATTRIBUTE)
++static inline int _import_array(void) { return 0; }
++#define import_array() {}
++static inline int PyArray_ImportNumPyAPI(void) { return 0; }
++#define PyArray_RUNTIME_VERSION NPY_API_VERSION
++#define NO_IMPORT_ARRAY
++#if 1
+ 
+ typedef struct {
+         PyObject_HEAD
+@@ -20,6 +25,8 @@
+ 
+ %s
+ 
++#include "numpy/_public_dtype_api_table.h"
++
+ #else
+ 
+ #if defined(PY_ARRAY_UNIQUE_SYMBOL)
+@@ -163,35 +170,7 @@
+ #define _RETURN_VALUE 0
+ #endif
+ 
+-#define import_array() { \
+-  if (_import_array() < 0) { \
+-    PyErr_Print(); \
+-    PyErr_SetString( \
+-        PyExc_ImportError, \
+-        "numpy._core.multiarray failed to import" \
+-    ); \
+-    return _RETURN_VALUE; \
+-  } \
+-}
+-
+-#define import_array1(ret) { \
+-  if (_import_array() < 0) { \
+-    PyErr_Print(); \
+-    PyErr_SetString( \
+-        PyExc_ImportError, \
+-        "numpy._core.multiarray failed to import" \
+-    ); \
+-    return ret; \
+-  } \
+-}
+ 
+-#define import_array2(msg, ret) { \
+-  if (_import_array() < 0) { \
+-    PyErr_Print(); \
+-    PyErr_SetString(PyExc_ImportError, msg); \
+-    return ret; \
+-  } \
+-}
+ 
+ #endif
+ 
+diff --git a/numpy/_core/code_generators/generate_ufunc_api.py b/numpy/_core/code_generators/generate_ufunc_api.py
+index 265fe84..62820fc 100644
+--- a/numpy/_core/code_generators/generate_ufunc_api.py
++++ b/numpy/_core/code_generators/generate_ufunc_api.py
+@@ -6,7 +6,13 @@
+ from genapi import FunctionApi, TypeApi
+ 
+ h_template = r"""
+-#ifdef _UMATHMODULE
++static inline int import_umath(void) { return 0; }
++static inline int import_ufunc(void) { return 0; }
++#define _import_umath import_umath
++#define _import_ufunc import_ufunc
++static inline int PyUFunc_ImportUFuncAPI(void) { return 0; }
++#define NO_IMPORT_UFUNC
++#if 1
+ 
+ extern NPY_NO_EXPORT PyTypeObject PyUFunc_Type;
+ 
+diff --git a/numpy/_core/include/numpy/_public_dtype_api_table.h b/numpy/_core/include/numpy/_public_dtype_api_table.h
+index 632a7bc..303e164 100644
+--- a/numpy/_core/include/numpy/_public_dtype_api_table.h
++++ b/numpy/_core/include/numpy/_public_dtype_api_table.h
+@@ -1,160 +1,17 @@
+-#ifndef NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_
+-#define NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_
++#ifndef NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_a
++#define NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_a
+ 
+-#define _MULTIARRAYMODULE
+ #include "numpy/arrayobject.h"
+ 
+-#include "array_method.h"
+-#include "dtype_traversal.h"
+-
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+ 
+ #include "numpy/dtype_api.h"
+ 
+-/* DType flags, currently private, since we may just expose functions
+-   Other publicly visible flags are in _dtype_api.h                   */
+-#define NPY_DT_LEGACY 1 << 0
+-
+-
+-typedef struct {
+-    /* DType methods, these could be moved into its own struct */
+-    PyArrayDTypeMeta_DiscoverDescrFromPyobject *discover_descr_from_pyobject;
+-    PyArrayDTypeMeta_IsKnownScalarType *is_known_scalar_type;
+-    PyArrayDTypeMeta_DefaultDescriptor *default_descr;
+-    PyArrayDTypeMeta_CommonDType *common_dtype;
+-    PyArrayDTypeMeta_CommonInstance *common_instance;
+-    PyArrayDTypeMeta_EnsureCanonical *ensure_canonical;
+-    /*
+-     * Currently only used for experimental user DTypes.
+-     */
+-    PyArrayDTypeMeta_SetItem *setitem;
+-    PyArrayDTypeMeta_GetItem *getitem;
+-    /*
+-     * Either NULL or fetches a clearing function.  Clearing means deallocating
+-     * any referenced data and setting it to a safe state.  For Python objects
+-     * this means using `Py_CLEAR` which is equivalent to `Py_DECREF` and
+-     * setting the `PyObject *` to NULL.
+-     * After the clear, the data must be fillable via cast/copy and calling
+-     * clear a second time must be safe.
+-     * If the DType class does not implement `get_clear_loop` setting
+-     * NPY_ITEM_REFCOUNT on its dtype instances is invalid.  Note that it is
+-     * acceptable for  NPY_ITEM_REFCOUNT to indicate references that are not
+-     * Python objects.
+-     */
+-    PyArrayMethod_GetTraverseLoop *get_clear_loop;
+-    /*
+-       Either NULL or a function that sets a function pointer to a traversal
+-       loop that fills an array with zero values appropriate for the dtype. If
+-       get_fill_zero_loop is undefined or the function pointer set by it is
+-       NULL, the array buffer is allocated with calloc. If this function is
+-       defined and it sets a non-NULL function pointer, the array buffer is
+-       allocated with malloc and the zero-filling loop function pointer is
+-       called to fill the buffer. For the best performance, avoid using this
+-       function if a zero-filled array buffer allocated with calloc makes sense
+-       for the dtype.
+-
+-       Note that this is currently used only for zero-filling a newly allocated
+-       array. While it can be used to zero-fill an already-filled buffer, that
+-       will not work correctly for arrays holding references. If you need to do
+-       that, clear the array first.
+-    */
+-    PyArrayMethod_GetTraverseLoop *get_fill_zero_loop;
+-    /*
+-     * Either NULL or a function that performs finalization on a dtype, either
+-     * returning that dtype or a newly created instance that has the same
+-     * parameters, if any, as the operand dtype.
+-     */
+-    PyArrayDTypeMeta_FinalizeDescriptor *finalize_descr;
+-    /*
+-     * Function to fetch constants.  Always defined, but may return "undefined"
+-     * for all values.
+-     */
+-    PyArrayDTypeMeta_GetConstant *get_constant;
+-    /*
+-     * The casting implementation (ArrayMethod) to convert between two
+-     * instances of this DType, stored explicitly for fast access:
+-     */
+-    PyArrayMethodObject *within_dtype_castingimpl;
+-    /*
+-     * Dictionary of ArrayMethods representing most possible casts
+-     * (structured and object are exceptions).
+-     * This should potentially become a weak mapping in the future.
+-     */
+-    PyObject *castingimpls;
+-
+-    /*
+-     * Storage for `descr->f`, since we may need to allow some customization
+-     * here at least in a transition period and we need to set it on every
+-     * dtype instance for backward compatibility.  (Keep this at end)
+-     */
+-    PyArray_ArrFuncs f;
+-
+-    /*
+-     * Hidden slots for the sort and argsort arraymethods.
+-     */
+-    PyArrayMethodObject *sort_meth;
+-    PyArrayMethodObject *argsort_meth;
+-} NPY_DType_Slots;
+-
+-// This must be updated if new slots before within_dtype_castingimpl
+-// are added
+-#define NPY_NUM_DTYPE_SLOTS 12
+-#define NPY_NUM_DTYPE_PYARRAY_ARRFUNCS_SLOTS 22
+-#define NPY_DT_MAX_ARRFUNCS_SLOT \
+-  NPY_NUM_DTYPE_PYARRAY_ARRFUNCS_SLOTS + _NPY_DT_ARRFUNCS_OFFSET
+-
+-
+-#define NPY_DT_SLOTS(dtype) ((NPY_DType_Slots *)(dtype)->dt_slots)
+-
+-#define NPY_DT_is_legacy(dtype) (((dtype)->flags & NPY_DT_LEGACY) != 0)
+-#define NPY_DT_is_abstract(dtype) (((dtype)->flags & NPY_DT_ABSTRACT) != 0)
+-#define NPY_DT_is_parametric(dtype) (((dtype)->flags & NPY_DT_PARAMETRIC) != 0)
+-#define NPY_DT_is_numeric(dtype) (((dtype)->flags & NPY_DT_NUMERIC) != 0)
+-#define NPY_DT_is_user_defined(dtype) (((dtype)->type_num == -1))
+ 
+-/*
+- * Macros for convenient classmethod calls, since these require
+- * the DType both for the slot lookup and as first arguments.
+- *
+- * (Macros may include NULL checks where appropriate)
+- */
+-#define NPY_DT_CALL_discover_descr_from_pyobject(dtype, obj)  \
+-    NPY_DT_SLOTS(dtype)->discover_descr_from_pyobject(dtype, obj)
+-#define NPY_DT_CALL_is_known_scalar_type(dtype, obj)  \
+-    (NPY_DT_SLOTS(dtype)->is_known_scalar_type != NULL  \
+-        && NPY_DT_SLOTS(dtype)->is_known_scalar_type(dtype, obj))
+-#define NPY_DT_CALL_default_descr(dtype)  \
+-    NPY_DT_SLOTS(dtype)->default_descr(dtype)
+-#define NPY_DT_CALL_common_dtype(dtype, other)  \
+-    NPY_DT_SLOTS(dtype)->common_dtype(dtype, other)
+-#define NPY_DT_CALL_ensure_canonical(descr)  \
+-    NPY_DT_SLOTS(NPY_DTYPE(descr))->ensure_canonical(descr)
+-#define NPY_DT_CALL_getitem(descr, data_ptr)  \
+-    NPY_DT_SLOTS(NPY_DTYPE(descr))->getitem(descr, data_ptr)
+-#define NPY_DT_CALL_setitem(descr, value, data_ptr)  \
+-    NPY_DT_SLOTS(NPY_DTYPE(descr))->setitem(descr, value, data_ptr)
+-#define NPY_DT_CALL_get_constant(descr, constant_id, data_ptr)  \
+-    NPY_DT_SLOTS(NPY_DTYPE(descr))->get_constant(descr, constant_id, data_ptr)
+ 
+ 
+-/*
+- * This function will hopefully be phased out or replaced, but was convenient
+- * for incremental implementation of new DTypes based on DTypeMeta.
+- * (Error checking is not required for DescrFromType, assuming that the
+- * type is valid.)
+- */
+-static inline PyArray_DTypeMeta *
+-PyArray_DTypeFromTypeNum(int typenum)
+-{
+-    PyArray_Descr *descr = PyArray_DescrFromType(typenum);
+-    PyArray_DTypeMeta *dtype = NPY_DTYPE(descr);
+-    Py_INCREF(dtype);
+-    Py_DECREF(descr);
+-    return dtype;
+-}
+-
+ NPY_NO_EXPORT PyArray_Descr *
+ dtypemeta_discover_as_default(
+         PyArray_DTypeMeta *cls, PyObject* obj);
+@@ -272,55 +129,14 @@ extern PyArray_DTypeMeta PyArray_StringDType;
+ #endif
+ 
+ 
+-/* Internal version see dtypmeta.c for more information. */
+-static inline PyArray_ArrFuncs *
+-PyDataType_GetArrFuncs(const PyArray_Descr *descr)
+-{
+-    return &NPY_DT_SLOTS(NPY_DTYPE(descr))->f;
+-}
+-
+-/*
+- * Internal versions.  Note that `PyArray_Pack` or `PyArray_Scalar` are often
+- * preferred (PyArray_Pack knows how to cast and deal with arrays,
+- * PyArray_Scalar will convert to the Python type).
+- */
+-static inline PyObject *
+-PyArray_GETITEM(const PyArrayObject *arr, const char *itemptr)
+-{
+-    return PyDataType_GetArrFuncs(((PyArrayObject_fields *)arr)->descr)->getitem(
+-            (void *)itemptr, (PyArrayObject *)arr);
+-}
+-
+-static inline int
+-PyArray_SETITEM(PyArrayObject *arr, char *itemptr, PyObject *v)
+-{
+-    return NPY_DT_CALL_setitem(PyArray_DESCR(arr), v, itemptr);
+-}
+-
+-// Like PyArray_DESCR_REPLACE, but calls ensure_canonical instead of DescrNew
+-#define PyArray_DESCR_REPLACE_CANONICAL(descr) do { \
+-                PyArray_Descr *_new_ = NPY_DT_CALL_ensure_canonical(descr); \
+-                Py_XSETREF(descr, _new_);  \
+-        } while(0)
+-
+-
+-// Get the pointer to the PyArray_DTypeMeta for the type associated with the typenum.
+-static inline PyArray_DTypeMeta *
+-typenum_to_dtypemeta(enum NPY_TYPES typenum) {
+-    PyArray_Descr * descr = PyArray_DescrFromType(typenum);
+-    Py_DECREF(descr);
+-    return NPY_DTYPE(descr);
+-}
+-
+ 
+ #endif  /* NUMPY_CORE_SRC_MULTIARRAY_DTYPEMETA_H_ */
+ 
+-#ifndef NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_
+-#define NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_
++#ifndef NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_a
++#define NUMPY_CORE_SRC_MULTIARRAY_ABSTRACTDTYPES_H_a
+ 
+ #include "numpy/ndarraytypes.h"
+ #include "arrayobject.h"
+-#include "dtypemeta.h"
+ 
+ 
+ #ifdef __cplusplus
+@@ -343,48 +159,6 @@ NPY_NO_EXPORT int
+ initialize_and_map_pytypes_to_dtypes(void);
+ 
+ 
+-/*
+- * When we get a Python int, float, or complex, we may have to use weak
+- * promotion logic.
+- * To implement this, we sometimes have to tag the converted (temporary)
+- * array when the original object was a Python scalar.
+- *
+- * @param obj The original Python object.
+- * @param arr The array into which the Python object was converted.
+- * @param[in,out] **dtype A pointer to the array's DType, if not NULL it will be
+- *        replaced with the abstract DType.
+- * @return 0 if the `obj` was not a python scalar, and 1 if it was.
+- */
+-static inline int
+-npy_mark_tmp_array_if_pyscalar(
+-        PyObject *obj, PyArrayObject *arr, PyArray_DTypeMeta **dtype)
+-{
+-    if (PyLong_CheckExact(obj)) {
+-        ((PyArrayObject_fields *)arr)->flags |= NPY_ARRAY_WAS_PYTHON_INT;
+-        if (dtype != NULL) {
+-            Py_INCREF(&PyArray_PyLongDType);
+-            Py_SETREF(*dtype, &PyArray_PyLongDType);
+-        }
+-        return 1;
+-    }
+-    else if (PyFloat_CheckExact(obj)) {
+-        ((PyArrayObject_fields *)arr)->flags |= NPY_ARRAY_WAS_PYTHON_FLOAT;
+-        if (dtype != NULL) {
+-            Py_INCREF(&PyArray_PyFloatDType);
+-            Py_SETREF(*dtype, &PyArray_PyFloatDType);
+-        }
+-        return 1;
+-    }
+-    else if (PyComplex_CheckExact(obj)) {
+-        ((PyArrayObject_fields *)arr)->flags |= NPY_ARRAY_WAS_PYTHON_COMPLEX;
+-        if (dtype != NULL) {
+-            Py_INCREF(&PyArray_PyComplexDType);
+-            Py_SETREF(*dtype, &PyArray_PyComplexDType);
+-        }
+-        return 1;
+-    }
+-    return 0;
+-}
+ 
+ 
+ NPY_NO_EXPORT int
+diff --git a/numpy/_core/include/numpy/arrayscalars.h b/numpy/_core/include/numpy/arrayscalars.h
+index 46bc58c..3eb9d04 100644
+--- a/numpy/_core/include/numpy/arrayscalars.h
++++ b/numpy/_core/include/numpy/arrayscalars.h
+@@ -1,7 +1,7 @@
+ #ifndef NUMPY_CORE_INCLUDE_NUMPY_ARRAYSCALARS_H_
+ #define NUMPY_CORE_INCLUDE_NUMPY_ARRAYSCALARS_H_
+ 
+-#ifndef _MULTIARRAYMODULE
++#if 0==1
+ typedef struct {
+         PyObject_HEAD
+         npy_bool obval;
+diff --git a/numpy/_core/include/numpy/random/distributions.h b/numpy/_core/include/numpy/random/distributions.h
+index e7fa4bd..f114f91 100644
+--- a/numpy/_core/include/numpy/random/distributions.h
++++ b/numpy/_core/include/numpy/random/distributions.h
+@@ -28,7 +28,7 @@ extern "C" {
+ #define RAND_INT_MAX INT64_MAX
+ #endif
+ 
+-#ifdef _MSC_VER
++#ifdef _MSC_VER_disabled
+ #define DECLDIR __declspec(dllexport)
+ #else
+ #define DECLDIR extern
+diff --git a/numpy/_core/src/common/dlpack/dlpack.h b/numpy/_core/src/common/dlpack/dlpack.h
+index 4dc164f..d51a231 100644
+--- a/numpy/_core/src/common/dlpack/dlpack.h
++++ b/numpy/_core/src/common/dlpack/dlpack.h
+@@ -25,7 +25,7 @@
+ #define DLPACK_MINOR_VERSION 0
+ 
+ /*! \brief DLPACK_DLL prefix for windows */
+-#ifdef _WIN32
++#ifdef _WIN32_disabled
+ #ifdef DLPACK_EXPORTS
+ #define DLPACK_DLL __declspec(dllexport)
+ #else
+diff --git a/numpy/_core/src/common/numpyos.c b/numpy/_core/src/common/numpyos.c
+index a5ca280..e33e5d1 100644
+--- a/numpy/_core/src/common/numpyos.c
++++ b/numpy/_core/src/common/numpyos.c
+@@ -814,14 +814,7 @@ NumPyOS_strtoull(const char *str, char **endptr, int base)
+  * earlier than 14.0 (_MSC_VER == 1900).
+  */
+ 
+-static void __cdecl _silent_invalid_parameter_handler(
+-    wchar_t const* expression,
+-    wchar_t const* function,
+-    wchar_t const* file,
+-    unsigned int line,
+-    uintptr_t pReserved) { }
+-
+-_invalid_parameter_handler _Py_silent_invalid_parameter_handler = _silent_invalid_parameter_handler;
++
+ 
+ #endif
+ 
+diff --git a/numpy/_core/src/common/utils.hpp b/numpy/_core/src/common/utils.hpp
+index 22bb9af..d0a3cf4 100644
+--- a/numpy/_core/src/common/utils.hpp
++++ b/numpy/_core/src/common/utils.hpp
+@@ -2,6 +2,7 @@
+ #define NUMPY_CORE_SRC_COMMON_UTILS_HPP
+ 
+ #include "npdef.hpp"
++#undef BitScanReverse
+ 
+ #if NP_HAS_CPP20
+     #include <bit>
+diff --git a/numpy/_core/src/highway/hwy/highway_export.h b/numpy/_core/src/highway/hwy/highway_export.h
+index 30edc17..cc07797 100644
+--- a/numpy/_core/src/highway/hwy/highway_export.h
++++ b/numpy/_core/src/highway/hwy/highway_export.h
+@@ -18,7 +18,7 @@
+ #ifndef HWY_DLLEXPORT
+ #if defined(hwy_EXPORTS)
+ /* We are building this library */
+-#ifdef _WIN32
++#ifdef _WIN32_disabled
+ #define HWY_DLLEXPORT __declspec(dllexport)
+ #else
+ #define HWY_DLLEXPORT __attribute__((visibility("default")))
+@@ -36,7 +36,7 @@
+ #ifndef HWY_CONTRIB_DLLEXPORT
+ #if defined(hwy_contrib_EXPORTS)
+ /* We are building this library */
+-#ifdef _WIN32
++#ifdef _WIN32_disabled
+ #define HWY_CONTRIB_DLLEXPORT __declspec(dllexport)
+ #else
+ #define HWY_CONTRIB_DLLEXPORT __attribute__((visibility("default")))
+@@ -54,7 +54,7 @@
+ #ifndef HWY_TEST_DLLEXPORT
+ #if defined(hwy_test_EXPORTS)
+ /* We are building this library */
+-#ifdef _WIN32
++#ifdef _WIN32_disabled
+ #define HWY_TEST_DLLEXPORT __declspec(dllexport)
+ #else
+ #define HWY_TEST_DLLEXPORT __attribute__((visibility("default")))
+diff --git a/numpy/_core/src/multiarray/_multiarray_tests.c.src b/numpy/_core/src/multiarray/_multiarray_tests.c.src
+index b79908e..253c38d 100644
+--- a/numpy/_core/src/multiarray/_multiarray_tests.c.src
++++ b/numpy/_core/src/multiarray/_multiarray_tests.c.src
+@@ -16,7 +16,7 @@
+ #include "npy_hashtable.h"
+ #include "dtypemeta.h"
+ 
+-#if defined(MS_WIN32) || defined(__CYGWIN__)
++#if 0  //defined(MS_WIN32) || defined(__CYGWIN__)
+ #define EXPORT(x) __declspec(dllexport) x
+ #else
+ #define EXPORT(x) x
+diff --git a/numpy/_core/tests/test_array_interface.py b/numpy/_core/tests/test_array_interface.py
+index afb19f4..cb0abd0 100644
+--- a/numpy/_core/tests/test_array_interface.py
++++ b/numpy/_core/tests/test_array_interface.py
+@@ -117,7 +117,7 @@ def get_module(tmp_path):
+         """)
+         ]
+ 
+-    more_init = "import_array();"
++    more_init = ""
+ 
+     try:
+         import array_interface_testing
+diff --git a/numpy/_core/tests/test_mem_policy.py b/numpy/_core/tests/test_mem_policy.py
+index 313d3ef..891e729 100644
+--- a/numpy/_core/tests/test_mem_policy.py
++++ b/numpy/_core/tests/test_mem_policy.py
+@@ -214,7 +214,7 @@ def get_module(tmp_path):
+             free(obj);
+         };
+         '''
+-    more_init = "import_array();"
++    more_init = ""
+     try:
+         import mem_policy
+         return mem_policy
+diff --git a/numpy/distutils/command/build_ext.py b/numpy/distutils/command/build_ext.py
+index 42137e5..344c019 100644
+--- a/numpy/distutils/command/build_ext.py
++++ b/numpy/distutils/command/build_ext.py
+@@ -617,15 +617,37 @@ def build_extension(self, ext):
+                     fcompiler, library_dirs,
+                     unlinkable_fobjects)
+ 
+-        linker(objects, ext_filename,
+-               libraries=libraries,
+-               library_dirs=library_dirs,
+-               runtime_library_dirs=ext.runtime_library_dirs,
+-               extra_postargs=extra_args,
+-               export_symbols=self.get_export_symbols(ext),
+-               debug=self.debug,
+-               build_temp=self.build_temp,
+-               target_lang=ext.language)
++        ext_filename = ext_filename.replace(".so", "")
++
++        self.compiler.create_static_lib(
++            objects, ext_filename,
++            output_dir=os.path.abspath("."),
++            debug=self.debug,
++            target_lang=ext.language)
++
++        result_path = \
++            self.compiler.library_filename(ext_filename,
++                                           output_dir=os.path.abspath("."))
++
++        import json
++        with open(result_path + '.link.json', 'w') as f:
++            json.dump({
++                'libraries': self.get_libraries(ext),
++                'library_dirs': ext.library_dirs + ['lib'],
++                'runtime_library_dirs': ext.runtime_library_dirs,
++                'extra_postargs': extra_args}, f)
++
++        for lib in self.get_libraries(ext):
++            for dir in ext.library_dirs:
++                lib_install_dir = os.path.join(os.path.dirname(ext_path), dir)
++                print(os.path.join(ext_path, dir, lib + '.lib'))
++                if os.path.isfile(os.path.join(dir, lib + '.lib')):
++                    if not os.path.isabs(dir):
++                        if not os.path.exists(lib_install_dir):
++                            os.makedirs(lib_install_dir)
++                        shutil.copyfile(os.path.join(dir, lib + '.lib'),
++                                        os.path.join(lib_install_dir, lib + '.lib'))
++                    break
+ 
+     def _add_dummy_mingwex_sym(self, c_sources):
+         build_src = self.get_finalized_command("build_src").build_src
+diff --git a/numpy/f2py/rules.py b/numpy/f2py/rules.py
+index 68c49e6..411b506 100644
+--- a/numpy/f2py/rules.py
++++ b/numpy/f2py/rules.py
+@@ -255,7 +255,7 @@
+     PyObject *m,*d, *s, *tmp;
+     m = #modulename#_module = PyModule_Create(&moduledef);
+     Py_SET_TYPE(&PyFortran_Type, &PyType_Type);
+-    import_array();
++
+     if (PyErr_Occurred())
+         {PyErr_SetString(PyExc_ImportError, \"can't initialize module #modulename# (failed to import numpy)\"); return m;}
+     d = PyModule_GetDict(m);
+diff --git a/numpy/f2py/src/fortranobject.h b/numpy/f2py/src/fortranobject.h
+index 4aed2f6..5337f16 100644
+--- a/numpy/f2py/src/fortranobject.h
++++ b/numpy/f2py/src/fortranobject.h
+@@ -9,10 +9,6 @@ extern "C" {
+ #ifndef NPY_NO_DEPRECATED_API
+ #define NPY_NO_DEPRECATED_API NPY_API_VERSION
+ #endif
+-#ifdef FORTRANOBJECT_C
+-#define NO_IMPORT_ARRAY
+-#endif
+-#define PY_ARRAY_UNIQUE_SYMBOL _npy_f2py_ARRAY_API
+ #include "numpy/arrayobject.h"
+ #include "numpy/npy_3kcompat.h"
+ 
+diff --git a/numpy/linalg/meson.build b/numpy/linalg/meson.build
+index 1d32972..f413b07 100644
+--- a/numpy/linalg/meson.build
++++ b/numpy/linalg/meson.build
+@@ -3,18 +3,7 @@
+ python_xerbla_sources = ['lapack_lite/python_xerbla.c']
+ 
+ lapack_lite_sources = []
+-if not have_lapack
+-  lapack_lite_sources = [
+-    'lapack_lite/f2c.c',
+-    'lapack_lite/f2c_c_lapack.c',
+-    'lapack_lite/f2c_d_lapack.c',
+-    'lapack_lite/f2c_s_lapack.c',
+-    'lapack_lite/f2c_z_lapack.c',
+-    'lapack_lite/f2c_blas.c',
+-    'lapack_lite/f2c_config.c',
+-    'lapack_lite/f2c_lapack.c',
+-  ]
+-endif
++
+ 
+ py.extension_module('lapack_lite',
+   [
+diff --git a/numpy/random/meson.build b/numpy/random/meson.build
+index 1645027..45be721 100644
+--- a/numpy/random/meson.build
++++ b/numpy/random/meson.build
+@@ -73,7 +73,7 @@ random_pyx_sources = [
+   ['_generator', fs.copyfile('_generator.pyx'), [], [npyrandom_lib, npymath_lib]],
+   ['mtrand', [
+       fs.copyfile('mtrand.pyx'),
+-      'src/distributions/distributions.c',
++      #'src/distributions/distributions.c',
+       'src/legacy/legacy-distributions.c'
+     ],
+     ['-DNP_RANDOM_LEGACY=1'], [npymath_lib],
+diff --git a/vendored-meson/meson/mesonbuild/backend/ninjabackend.py b/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
+index 12ac145..69e0a16 100644
+--- a/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
++++ b/vendored-meson/meson/mesonbuild/backend/ninjabackend.py
+@@ -13,6 +13,7 @@
+ import itertools
+ import json
+ import os
++import sys
+ import pickle
+ import re
+ import subprocess
+@@ -1096,6 +1097,25 @@ def generate_target(self, target) -> None:
+ 
+         elem = self.generate_link(target, outname, final_obj_list, linker, pch_objects, stdlib_args=stdlib_args)
+         self.add_build(elem)
++
++        if isinstance(target, build.StaticLibrary):
++            if elem.outfilenames:  # elem is the NinjaBuildElement from self.generate_link()
++                linked_library_path = elem.outfilenames[0]  # Path to the .so/.pyd file
++
++                # 4. Create a new NinjaBuildElement for your custom command.
++                post_link_elem = NinjaBuildElement(
++                    all_outputs=self.all_outputs,  # Use the existing set of all outputs
++                    outfilenames=[linked_library_path + ".stamp"],
++                    rulename='rename_pyinit_symbols',
++                    infilenames=[linked_library_path]  # Depends on the successfully linked library
++                )
++
++                # Add any specific variables your NinjaRule might expect (e.g., if your rule uses $TARGET_NAME)
++                # post_link_elem.add_item('TARGET_NAME', target.name)
++
++                # 5. Add this new element to the build.
++                self.add_build(post_link_elem)
++
+         #In AIX, we archive shared libraries. If the instance is a shared library, we add a command to archive the shared library
+         #object and create the build element.
+         if isinstance(target, build.SharedLibrary) and self.environment.machines[target.for_machine].is_aix():
+@@ -1384,6 +1404,11 @@ def generate_rules(self) -> None:
+         self.add_rule_comment(NinjaComment('Rules for linking.'))
+         self.generate_static_link_rules()
+         self.generate_dynamic_link_rules()
++        self.add_rule(NinjaRule('rename_pyinit_symbols',
++                                [sys.executable, "-m", "__mp__.tools.rename_init", '$in', '$out'],  # Command
++                                [],  # rspable args (empty for this example)
++                                'Running PyInit rename script on $in',
++                                extra='restat = 1'))
+         self.add_rule_comment(NinjaComment('Other rules'))
+         # Ninja errors out if you have deps = gcc but no depfile, so we must
+         # have two rules for custom commands.
+@@ -3964,6 +3989,8 @@ def generate_ending(self) -> None:
+                         linker, stdlib_args = t.get_clink_dynamic_linker_and_stdlibs()
+                         t.get_outputs()[0] = linker.get_archive_name(t.get_outputs()[0])
+                 targetlist.append(os.path.join(self.get_target_dir(t), t.get_outputs()[0]))
++                if isinstance(t, build.StaticLibrary):
++                    targetlist.append(os.path.join(self.get_target_dir(t), t.get_outputs()[0]) + ".stamp")
+ 
+             elem = NinjaBuildElement(self.all_outputs, targ, 'phony', targetlist)
+             self.add_build(elem)
+diff --git a/vendored-meson/meson/mesonbuild/build.py b/vendored-meson/meson/mesonbuild/build.py
+index 1f91f37..7dd6ffb 100644
+--- a/vendored-meson/meson/mesonbuild/build.py
++++ b/vendored-meson/meson/mesonbuild/build.py
+@@ -2330,7 +2330,10 @@ def post_init(self) -> None:
+                 elif self.rust_crate_type == 'staticlib':
+                     self.suffix = 'a'
+             else:
+-                self.suffix = 'a'
++                if self.environment.machines[self.for_machine].is_windows():
++                    self.suffix = 'lib'
++                else:
++                    self.suffix = 'a'
+                 if 'c' in self.compilers and self.compilers['c'].get_id() == 'tasking' and not self.prelink:
+                     key = OptionKey('b_lto', self.subproject, self.for_machine)
+                     try:
+@@ -2407,6 +2410,8 @@ def __init__(
+             environment: environment.Environment,
+             compilers: T.Dict[str, 'Compiler'],
+             kwargs):
++        raise NotImplementedError("SharedLibrary builds not allowed on Nuitka-Python!")
++
+         self.soversion: T.Optional[str] = None
+         self.ltversion: T.Optional[str] = None
+         # Max length 2, first element is compatibility_version, second is current_version
+diff --git a/vendored-meson/meson/mesonbuild/cmake/toolchain.py b/vendored-meson/meson/mesonbuild/cmake/toolchain.py
+index 11a00be..0d9689c 100644
+--- a/vendored-meson/meson/mesonbuild/cmake/toolchain.py
++++ b/vendored-meson/meson/mesonbuild/cmake/toolchain.py
+@@ -175,6 +175,8 @@ def make_abs(exe: str) -> str:
+ 
+         # Set the compiler variables
+         for lang, comp_obj in self.compilers.items():
++            if lang == 'cython':
++                continue
+             language = language_map.get(lang, None)
+ 
+             if not language:
+@@ -216,7 +218,7 @@ def update_cmake_compiler_state(self) -> None:
+         # Generate the CMakeLists.txt
+         mlog.debug('CMake Toolchain: Calling CMake once to generate the compiler state')
+         languages = list(self.compilers.keys())
+-        lang_ids = [language_map.get(x) for x in languages if x in language_map]
++        lang_ids = [language_map.get(x) for x in languages if x in language_map and x != 'cython']
+         cmake_content = dedent(f'''
+             cmake_minimum_required(VERSION 3.10)
+             project(CompInfo {' '.join(lang_ids)})
+diff --git a/vendored-meson/meson/mesonbuild/dependencies/python.py b/vendored-meson/meson/mesonbuild/dependencies/python.py
+index 7f9bd20..14b8636 100644
+--- a/vendored-meson/meson/mesonbuild/dependencies/python.py
++++ b/vendored-meson/meson/mesonbuild/dependencies/python.py
+@@ -223,7 +223,7 @@ def get_windows_link_args(self, limited_api: bool) -> T.Optional[T.List[str]]:
+             verdot = self.variables.get('py_version_short')
+             imp_lower = self.variables.get('implementation_lower', 'python')
+             if self.static:
+-                libpath = Path('libs') / f'libpython{vernum}.a'
++                libpath = Path('libs') / f'python{vernum}.lib'
+             else:
+                 if limited_api:
+                     vernum = vernum[0]
+diff --git a/vendored-meson/meson/mesonbuild/interpreter/interpreter.py b/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
+index 09f8287..dad9153 100644
+--- a/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
++++ b/vendored-meson/meson/mesonbuild/interpreter/interpreter.py
+@@ -1869,6 +1869,11 @@ def func_executable(self, node: mparser.BaseNode,
+     def func_static_lib(self, node: mparser.BaseNode,
+                         args: T.Tuple[str, SourcesVarargsType],
+                         kwargs: kwtypes.StaticLibrary) -> build.StaticLibrary:
++        import sys
++        kwargs['install'] = True
++        kwargs["install_dir"] = kwargs.get("install_dir", self._holderify(
++            self.modules['python'].installations[sys.executable])._get_install_dir_impl(False,
++                                                                                        self.build.project_name.lower()))
+         return self.build_target(node, args, kwargs, build.StaticLibrary)
+ 
+     @permittedKwargs(build.known_shlib_kwargs)
+diff --git a/vendored-meson/meson/mesonbuild/modules/python.py b/vendored-meson/meson/mesonbuild/modules/python.py
+index df13163..1acf830 100644
+--- a/vendored-meson/meson/mesonbuild/modules/python.py
++++ b/vendored-meson/meson/mesonbuild/modules/python.py
+@@ -10,7 +10,7 @@
+ from .. import mesonlib
+ from .. import mlog
+ from ..options import UserFeatureOption
+-from ..build import known_shmod_kwargs, CustomTarget, CustomTargetIndex, BuildTarget, GeneratedList, StructuredSources, ExtractedObjects, SharedModule
++from ..build import known_shmod_kwargs, CustomTarget, CustomTargetIndex, BuildTarget, GeneratedList, StructuredSources, ExtractedObjects, SharedModule, StaticLibrary
+ from ..dependencies import NotFoundDependency
+ from ..dependencies.detect import get_dep_identifier, find_external_dependency
+ from ..dependencies.python import BasicPythonExternalProgram, python_factory, _PythonDependencyBase
+@@ -218,7 +218,7 @@ def extension_module_method(self, args: T.Tuple[str, T.List[BuildTargetSource]],
+                 (self.is_pypy or mesonlib.version_compare(self.version, '>=3.9')):
+             kwargs['gnu_symbol_visibility'] = 'inlineshidden'
+ 
+-        return self.interpreter.build_target(self.current_node, args, kwargs, SharedModule)
++        return self.interpreter.build_target(self.current_node, args, kwargs, StaticLibrary)
+ 
+     def _convert_api_version_to_py_version_hex(self, api_version: str, detected_version: str) -> str:
+         python_api_version_format = re.compile(r'[0-9]\.[0-9]{1,2}')
+diff --git a/vendored-meson/meson/mesonbuild/modules/python3.py b/vendored-meson/meson/mesonbuild/modules/python3.py
+index 2e6779a..20068d6 100644
+--- a/vendored-meson/meson/mesonbuild/modules/python3.py
++++ b/vendored-meson/meson/mesonbuild/modules/python3.py
+@@ -10,7 +10,7 @@
+ from . import ExtensionModule, ModuleInfo
+ from ..build import (
+     BuildTarget, CustomTarget, CustomTargetIndex, ExtractedObjects,
+-    GeneratedList, SharedModule, StructuredSources, known_shmod_kwargs
++    GeneratedList, SharedModule, StaticLibrary, StructuredSources, known_shmod_kwargs
+ )
+ from ..interpreter.type_checking import SHARED_MOD_KWS
+ from ..interpreterbase import typed_kwargs, typed_pos_args, noPosargs, noKwargs, permittedKwargs
+@@ -53,7 +53,7 @@ def extension_module(self, state: ModuleState, args: T.Tuple[str, T.List[BuildTa
+             suffix = []
+         kwargs['name_prefix'] = ''
+         kwargs['name_suffix'] = suffix
+-        return self.interpreter.build_target(state.current_node, args, kwargs, SharedModule)
++        return self.interpreter.build_target(state.current_node, args, kwargs, StaticLibrary)
+ 
+     @noPosargs
+     @noKwargs

@@ -18,14 +18,30 @@ def run(wheel_directory):
 
     __mp__.patch_all_source(os.getcwd())
 
+    # Relax meson-python upper bound so builds work with newer installed versions
+    import re
+    pyproject_path = os.path.join(os.getcwd(), "pyproject.toml")
+    with open(pyproject_path, "r") as f:
+        content = f.read()
+    content = re.sub(r'"meson-python[^"]*"', '"meson-python>=0.13.1"', content)
+    with open(pyproject_path, "w") as f:
+        f.write(content)
+
     os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("freetype")
     os.environ["INCLUDE"] = os.environ["INCLUDE"] + os.pathsep + sysconfig.get_config_var("INCLUDEPY")
 
+    os.environ["PATH"] = (
+        os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake.exe")) + os.pathsep +
+        os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep +
+        os.path.dirname(__mp__.find_build_tool_exe("mingw", "objdump.exe")) + os.pathsep +
+        os.environ["PATH"]
+    )
+
     job_args = []
     if "MP_JOBS" in os.environ:
-        job_args += ["--config-settings=compile-args=-j" + os.environ["MP_JOBS"]]
-    __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v",
-                           "--config-settings=setup-args=-Dsystem-freetype=True", *job_args)
+        job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
+    __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
+                           "-Csetup-args=-Dsystem-freetype=True", *job_args)
 
     wheel_location = glob.glob("matplotlib-*.whl")[0]
 
@@ -35,14 +51,15 @@ def run(wheel_directory):
             for filename in wf.namelist():
                 wheel_files.append(filename)
                 wf.extract(filename, tmpdir)
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "matplotlib\\_c_internal_utils.mp313-win_amd64.lib"), "matplotlib__c_internal_utils_", [".*fflush.*"])
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "matplotlib\\_image.mp313-win_amd64.lib"), "matplotlib__image_", [".*fflush.*"])
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "matplotlib\\_path.mp313-win_amd64.lib"), "matplotlib__path_", [".*fflush.*"])
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "matplotlib\\_qhull.mp313-win_amd64.lib"), "matplotlib__qhull_", [".*fflush.*"])
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "matplotlib\\_tri.mp313-win_amd64.lib"), "matplotlib__tri_", [".*fflush.*"])
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "matplotlib\\ft2font.mp313-win_amd64.lib"), "matplotlib_ft2font_", [".*fflush.*"])
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "matplotlib\\backends\\_backend_agg.mp313-win_amd64.lib"), "matplotlib__backend_agg_", [".*fflush.*"])
-        __mp__.rename_symbols_in_file(os.path.join(tmpdir, "matplotlib\\backends\\_tkagg.mp313-win_amd64.lib"), "matplotlib__tkagg_", [".*fflush.*"])
+        ext_suffix = sysconfig.get_config_var("EXT_SUFFIX")
+        __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\_c_internal_utils{ext_suffix}"), "matplotlib__c_internal_utils_", [".*fflush.*"])
+        __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\_image{ext_suffix}"), "matplotlib__image_", [".*fflush.*"])
+        __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\_path{ext_suffix}"), "matplotlib__path_", [".*fflush.*"])
+        __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\_qhull{ext_suffix}"), "matplotlib__qhull_", [".*fflush.*"])
+        __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\_tri{ext_suffix}"), "matplotlib__tri_", [".*fflush.*"])
+        __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\ft2font{ext_suffix}"), "matplotlib_ft2font_", [".*fflush.*"])
+        __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\backends\\_backend_agg{ext_suffix}"), "matplotlib__backend_agg_", [".*fflush.*"])
+        __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\backends\\_tkagg{ext_suffix}"), "matplotlib__tkagg_", [".*fflush.*"])
         with WheelFile(wheel_location, 'w') as wf:
             for filename in wheel_files:
                 wf.write(os.path.join(tmpdir, filename), filename)

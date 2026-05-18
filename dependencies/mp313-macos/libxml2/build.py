@@ -1,20 +1,33 @@
 import __mp__
 import os
-import sysconfig
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("https://download.gnome.org/sources/libxml2/2.9/libxml2-2.9.13.tar.xz", temp_dir)
+def run(wheel_directory):
+    src_dir = os.getcwd()
 
-    os.chdir(os.path.join(temp_dir, "libxml2-2.9.13"))
+    install_dir = os.path.join(src_dir, "install")
+    os.mkdir(install_dir)
+    build_dir = os.path.join(src_dir, "build")
+    os.mkdir(build_dir)
+    os.chdir(build_dir)
 
-    __mp__.run_with_output("/bin/bash",
-                           "configure",
-                           f"CC={sysconfig.get_config_var('CC')}",
-                           f"CXX={sysconfig.get_config_var('CXX')}",
-                           "--prefix=" + __mp__.find_dep_root("libxml2"),
-                           "--with-libiconv-prefix=" + __mp__.find_dep_root("iconv"),
-                           "--disable-shared")
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"]
 
-    __mp__.run_with_output("make", f"-j{__mp__.get_num_jobs()}")
-    __mp__.run_with_output("make", "install")
+    __mp__.run_build_tool_exe("cmake", "cmake", "-G", "Ninja",
+                              "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=OFF",
+                              "-DCMAKE_INSTALL_PREFIX=" + install_dir,
+                              "-DLIBXML2_WITH_PROGRAMS=OFF", "-DLIBXML2_WITH_TESTS=OFF",
+                              src_dir)
+    __mp__.run_build_tool_exe("ninja", "ninja")
+    __mp__.run_build_tool_exe("ninja", "ninja", "install")
+
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_libxml2", "2.15.2"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-libxml2", "2.15.2")
+        __mp__.add_wheel_dep_libs(w, "libxml2", os.path.join(install_dir, "lib", "*.a"),
+                                  base_dir=os.path.join(install_dir, "lib"))
+        __mp__.add_wheel_dep_include(w, "libxml2", os.path.join(install_dir, "include", "libxml2", "*"))
+
+    return result_wheel

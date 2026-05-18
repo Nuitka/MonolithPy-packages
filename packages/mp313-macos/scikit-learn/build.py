@@ -10,18 +10,26 @@ from wheel.wheelfile import WheelFile
 
 
 def run(wheel_directory):
-    __mp__.run_build_tool_exe("patch", "-p1", "-ui",
-                              os.path.join(os.path.dirname(__file__), "scikit_learn-static-patch.patch"))
+    __mp__.run_with_output("patch", "-p1", "-ui",
+                           os.path.join(os.path.dirname(__file__), "scikit_learn-static-patch.patch"))
 
-    env = os.environ.copy()
-    env["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
-    env["PEP517_BACKEND_PATH"] = os.pathsep.join([x for x in sys.path if not x.endswith(os.path.sep + "site")])
-    env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
+    with open("pyproject.toml", "r") as f:
+        pyproject = f.read()
+    pyproject = pyproject.replace("meson-python>=0.17.1,<0.19.0", "meson-python>=0.17.1")
+    with open("pyproject.toml", "w") as f:
+        f.write(pyproject)
+
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+    os.environ["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"])
-    env["PKG_CONFIG"] = "/disabled"
-    __mp__.run(sys.executable, "-m", "pip", "wheel", ".", "-v", env=env)
+    os.environ["PKG_CONFIG"] = "/disabled"
 
-    wheel_location = glob.glob("scikit_learn-*.whl")[0]
+    job_args = []
+    if "MP_JOBS" in os.environ:
+        job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
+    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", *job_args)
+
+    wheel_location = glob.glob(os.path.join("dist", "scikit_learn-*.whl"))[0]
 
     wheel_files = []
     with TemporaryDirectory() as tmpdir:

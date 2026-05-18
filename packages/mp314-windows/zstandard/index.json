@@ -1,0 +1,22 @@
+{
+  "tests": ["test.py"],
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": ["clang"],
+      "dependencies": [],
+      "files": [
+        "build.py"
+      ],
+      "build_requires": [
+        "build",
+        "setuptools",
+        "cffi>=1.17",
+        "packaging"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

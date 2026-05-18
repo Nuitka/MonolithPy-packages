@@ -1,0 +1,22 @@
+{
+  "tests": ["test.py"],
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": [],
+      "dependencies": [
+        "glpk"
+      ],
+      "files": [
+        "build.py"
+      ],
+      "build_requires": [
+        "setuptools",
+        "setuptools_scm"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

@@ -3,14 +3,22 @@ name: mp313 Build and Test
 on:
   workflow_dispatch:
 
-jobs:
-  build-and-test-windows:
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        split_index: [0, 1, 2, 3, 4]
+env:
+  MONOLITHPY_TAG: mp313
+  PIP_INDEX_URL: https://pypi.org/simple/
+  S3_CACHE_ENDPOINT: ${{ secrets.S3_CACHE_ENDPOINT }}
+  S3_CACHE_BUCKET: ${{ secrets.S3_CACHE_BUCKET }}
+  S3_CACHE_REGION: ${{ secrets.S3_CACHE_REGION }}
+  S3_CACHE_ACCESS_KEY_ID: ${{ secrets.S3_CACHE_ACCESS_KEY_ID }}
+  S3_CACHE_SECRET_ACCESS_KEY: ${{ secrets.S3_CACHE_SECRET_ACCESS_KEY }}
 
+jobs:
+  # ── Round 1 ──────────────────────────────────────────────────────────────
+  # Builds packages that are deps of 2+ others (e.g. numpy, scipy, meson-python).
+  # Produces pre-built wheels so Round 2 workers skip recompiling them.
+
+  pre-build-windows-tools:
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,7 +29,7 @@ jobs:
           repo: Nuitka/MonolithPy
           workflow: main.yml
           workflow_conclusion: success
-          branch: 3.13
+          branch: 3.13-wheels
           name: MonolithPy313_windows_x64
           path: monolithpy
 
@@ -31,25 +39,32 @@ jobs:
           $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
           echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
 
-      - name: Build and test packages
-        env:
-          SPLIT_INDEX: ${{ matrix.split_index }}
-          SPLIT_TOTAL: 5
-        run: python .github/scripts/build_and_test.py
+      - name: Restore wheel cache
+        uses: ./.github/actions/s3-wheel-cache/restore
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-tools-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+          restore-keys: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-
 
-      - name: Upload constraints
+      - name: Build tools
+        run: python .github/scripts/build_and_test.py --prebuild tools --wheel-cache-dir wheel-cache
+
+      - name: Save wheel cache
+        uses: ./.github/actions/s3-wheel-cache/save
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-tools-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+
+      - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: constraints-windows-${{ matrix.split_index }}
-          path: constraints/
+          name: r1-wheels-windows-tools
+          path: built_wheels/
+          if-no-files-found: ignore
 
-  build-and-test-macos:
-    runs-on: macos-14
-    strategy:
-      fail-fast: false
-      matrix:
-        split_index: [0, 1, 2, 3, 4]
-
+  pre-build-windows-deps:
+    needs: [pre-build-windows-tools]
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,7 +75,114 @@ jobs:
           repo: Nuitka/MonolithPy
           workflow: main.yml
           workflow_conclusion: success
-          branch: 3.13
+          branch: 3.13-wheels
+          name: MonolithPy313_windows_x64
+          path: monolithpy
+
+      - name: Download tool wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: r1-wheels-windows-tools
+          path: built_wheels/
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        shell: pwsh
+        run: |
+          $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
+          echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
+
+      - name: Restore wheel cache
+        uses: ./.github/actions/s3-wheel-cache/restore
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-deps-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+          restore-keys: |
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-tools-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-
+
+      - name: Build deps
+        run: python .github/scripts/build_and_test.py --prebuild deps --wheel-cache-dir wheel-cache
+
+      - name: Save wheel cache
+        uses: ./.github/actions/s3-wheel-cache/save
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-deps-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: r1-wheels-windows-deps
+          path: built_wheels/
+          if-no-files-found: ignore
+
+  pre-build-windows-heavy:
+    needs: [pre-build-windows-deps]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_windows_x64
+          path: monolithpy
+
+      - name: Download dep wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: r1-wheels-windows-deps
+          path: built_wheels/
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        shell: pwsh
+        run: |
+          $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
+          echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
+
+      - name: Restore wheel cache
+        uses: ./.github/actions/s3-wheel-cache/restore
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-heavy-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+          restore-keys: |
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-deps-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-
+
+      - name: Build heavy packages
+        run: python .github/scripts/build_and_test.py --prebuild heavy --wheel-cache-dir wheel-cache
+
+      - name: Save wheel cache
+        uses: ./.github/actions/s3-wheel-cache/save
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-heavy-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+
+      - name: Upload Round 1 wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: round1-wheels-windows
+          path: built_wheels/
+          if-no-files-found: ignore
+
+  pre-build-macos-tools:
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
           name: MonolithPy313_mac_arm64_No_LTO
           path: monolithpy
 
@@ -75,14 +197,441 @@ jobs:
           chmod +x monolithpy/* 2>/dev/null || true
           find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
 
-      - name: Build and test packages
-        env:
-          SPLIT_INDEX: ${{ matrix.split_index }}
-          SPLIT_TOTAL: 5
-        run: python3 .github/scripts/build_and_test.py
+      - name: Restore wheel cache
+        uses: ./.github/actions/s3-wheel-cache/restore
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-tools-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+          restore-keys: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
 
-      - name: Upload constraints
+      - name: Build tools
+        run: python3 .github/scripts/build_and_test.py --prebuild tools --wheel-cache-dir wheel-cache
+
+      - name: Save wheel cache
+        uses: ./.github/actions/s3-wheel-cache/save
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-tools-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+
+      - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: constraints-macos-${{ matrix.split_index }}
-          path: constraints/
+          name: r1-wheels-macos-tools
+          path: built_wheels/
+          if-no-files-found: ignore
+
+  pre-build-macos-deps:
+    needs: [pre-build-macos-tools]
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_mac_arm64_No_LTO
+          path: monolithpy
+
+      - name: Download tool wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: r1-wheels-macos-tools
+          path: built_wheels/
+
+      - name: Uninstall homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
+
+      - name: Make MonolithPy executable
+        run: |
+          chmod +x monolithpy/* 2>/dev/null || true
+          find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
+
+      - name: Restore wheel cache
+        uses: ./.github/actions/s3-wheel-cache/restore
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-deps-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+          restore-keys: |
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-tools-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
+
+      - name: Build deps
+        run: python3 .github/scripts/build_and_test.py --prebuild deps --wheel-cache-dir wheel-cache
+
+      - name: Save wheel cache
+        uses: ./.github/actions/s3-wheel-cache/save
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-deps-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: r1-wheels-macos-deps
+          path: built_wheels/
+          if-no-files-found: ignore
+
+  pre-build-macos-heavy:
+    needs: [pre-build-macos-deps]
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_mac_arm64_No_LTO
+          path: monolithpy
+
+      - name: Download dep wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: r1-wheels-macos-deps
+          path: built_wheels/
+
+      - name: Uninstall homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
+
+      - name: Make MonolithPy executable
+        run: |
+          chmod +x monolithpy/* 2>/dev/null || true
+          find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
+
+      - name: Restore wheel cache
+        uses: ./.github/actions/s3-wheel-cache/restore
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-heavy-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+          restore-keys: |
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-deps-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
+
+      - name: Build heavy packages
+        run: python3 .github/scripts/build_and_test.py --prebuild heavy --wheel-cache-dir wheel-cache
+
+      - name: Save wheel cache
+        uses: ./.github/actions/s3-wheel-cache/save
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-heavy-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+
+      - name: Upload Round 1 wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: round1-wheels-macos
+          path: built_wheels/
+          if-no-files-found: ignore
+
+  # ── Round 2 ──────────────────────────────────────────────────────────────
+  # Builds all remaining packages in parallel splits.  Each worker downloads
+  # the Round 1 wheel directory and passes it to pip via --find-links so that
+  # shared deps are served from pre-built wheels without recompilation.
+
+  build-and-test-windows:
+    needs: [pre-build-windows-heavy]
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        split_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_windows_x64
+          path: monolithpy
+
+      - name: Download Round 1 wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: round1-wheels-windows
+          path: round1-wheels/
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        shell: pwsh
+        run: |
+          $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
+          echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
+
+      - name: Restore wheel cache
+        uses: ./.github/actions/s3-wheel-cache/restore
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+          restore-keys: |
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-heavy-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-
+
+      - name: Build and test packages (Round 2)
+        run: python .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels --wheel-cache-dir wheel-cache
+
+      - name: Save wheel cache
+        uses: ./.github/actions/s3-wheel-cache/save
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp313-windows/**', 'dependencies/mp313-windows/**', 'build_tools/mp313-windows/**') }}
+
+      - name: Upload wheels
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows-${{ matrix.split_index }}
+          path: built_wheels/
+          if-no-files-found: ignore
+
+  build-and-test-macos:
+    needs: [pre-build-macos-heavy]
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        split_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_mac_arm64_No_LTO
+          path: monolithpy
+
+      - name: Download Round 1 wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: round1-wheels-macos
+          path: round1-wheels/
+
+      - name: Uninstall homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
+
+      - name: Make MonolithPy executable
+        run: |
+          chmod +x monolithpy/* 2>/dev/null || true
+          find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
+
+      - name: Restore wheel cache
+        uses: ./.github/actions/s3-wheel-cache/restore
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+          restore-keys: |
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-heavy-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+            ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-
+
+      - name: Build and test packages (Round 2)
+        run: python3 .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels --wheel-cache-dir wheel-cache
+
+      - name: Save wheel cache
+        uses: ./.github/actions/s3-wheel-cache/save
+        with:
+          path: wheel-cache/
+          key: ${{ env.MONOLITHPY_TAG }}-wheel-cache-macos-r2-${{ matrix.split_index }}-${{ hashFiles('packages/mp313-macos/**', 'dependencies/mp313-macos/**', 'build_tools/mp313-macos/**') }}
+
+      - name: Upload wheels
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-${{ matrix.split_index }}
+          path: built_wheels/
+          if-no-files-found: ignore
+
+  # ── Final test ────────────────────────────────────────────────────────────
+  # Install every top-level package together into one MonolithPy interpreter,
+  # run every package's test suite, and dump the final set of dynamic
+  # libraries the interpreter has mapped in.
+
+  final-test-windows:
+    needs: [build-and-test-windows]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_windows_x64
+          path: monolithpy
+
+      - name: Download Round 2 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-windows-*
+          path: r2-wheels/
+
+      - name: Download Round 1 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: round1-wheels-windows
+          path: r1-wheels/
+
+      - name: Merge wheels (skip duplicates)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path all-wheels | Out-Null
+          Get-ChildItem -Path r1-wheels,r2-wheels -Recurse -File | ForEach-Object {
+            $dest = Join-Path 'all-wheels' $_.Name
+            if (-not (Test-Path $dest)) {
+              Copy-Item $_.FullName $dest
+            }
+          }
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        shell: pwsh
+        run: |
+          $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
+          echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
+
+      - name: Run final test
+        run: python .github/scripts/final_test.py --monolithpy monolithpy --wheels all-wheels
+
+  final-test-macos:
+    needs: [build-and-test-macos]
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MonolithPy artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          repo: Nuitka/MonolithPy
+          workflow: main.yml
+          workflow_conclusion: success
+          branch: 3.13-wheels
+          name: MonolithPy313_mac_arm64_No_LTO
+          path: monolithpy
+
+      - name: Download Round 2 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-macos-*
+          path: r2-wheels/
+
+      - name: Download Round 1 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: round1-wheels-macos
+          path: r1-wheels/
+
+      - name: Merge wheels (skip duplicates)
+        run: |
+          mkdir -p all-wheels
+          find r1-wheels r2-wheels -type f | while read -r src; do
+            dest="all-wheels/$(basename "$src")"
+            if [ ! -e "$dest" ]; then
+              cp "$src" "$dest"
+            fi
+          done
+
+      - name: Uninstall homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+
+      - name: Set MONOLITHPY_PACKAGE_URL
+        run: echo "MONOLITHPY_PACKAGE_URL=file://${PWD}" >> $GITHUB_ENV
+
+      - name: Make MonolithPy executable
+        run: |
+          chmod +x monolithpy/* 2>/dev/null || true
+          find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
+
+      - name: Run final test
+        run: python3 .github/scripts/final_test.py --monolithpy monolithpy --wheels all-wheels
+
+  # ── Upload ────────────────────────────────────────────────────────────────
+  # Push all wheels + PEP 658 metadata sidecars to the staging bucket.
+  # Only runs on master and only after every build job succeeded.
+
+  upload-wheels:
+    needs:
+      - build-and-test-windows
+      - build-and-test-macos
+      - final-test-windows
+      - final-test-macos
+    if: >-
+      needs.build-and-test-windows.result == 'success'
+      && needs.build-and-test-macos.result == 'success'
+      && needs.final-test-windows.result == 'success'
+      && needs.final-test-macos.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Round 2 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: r2-wheels/
+
+      - name: Download Round 1 wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: round1-wheels-*
+          path: r1-wheels/
+
+      - name: Merge wheels (skip duplicates)
+        run: |
+          mkdir -p all-wheels
+          find r1-wheels r2-wheels -type f | while read -r src; do
+            dest="all-wheels/$(basename "$src")"
+            if [ ! -e "$dest" ]; then
+              cp "$src" "$dest"
+            fi
+          done
+
+      - name: Install boto3
+        run: python -m pip install --quiet boto3
+
+      - name: Upload to staging bucket
+        env:
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_CI_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_CI_SECRET_ACCESS_KEY }}
+        run: |
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          python .github/scripts/upload_wheels.py \
+            --source all-wheels \
+            --run-id "${GITHUB_RUN_NUMBER}" \
+            --sha "${SHORT_SHA}" \
+            --ref "${GITHUB_REF_NAME}" \
+            --workflow-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

@@ -1,13 +1,12 @@
 import __mp__
 import glob
+import re
 import shutil
 import sys
 import os
 import sysconfig
 import setuptools.build_meta
 from tempfile import TemporaryDirectory
-
-import mesonpy
 
 from wheel.wheelfile import WheelFile
 
@@ -18,6 +17,14 @@ def run(wheel_directory):
 
     __mp__.patch_all_source(os.getcwd())
 
+    # Relax meson-python upper bound so builds work with newer installed versions
+    pyproject_path = os.path.join(os.getcwd(), "pyproject.toml")
+    with open(pyproject_path, "r") as f:
+        content = f.read()
+    content = re.sub(r'"meson-python[^"]*"', '"meson-python>=0.13.1"', content)
+    with open(pyproject_path, "w") as f:
+        f.write(content)
+
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
     os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("freetype")
     os.environ["INCLUDE"] = sysconfig.get_config_var("INCLUDEPY")
@@ -26,8 +33,11 @@ def run(wheel_directory):
     os.environ["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"])
 
-    __mp__.run_with_output(sys.executable, "-m", "pip", "wheel", ".", "-v",
-                           "--config-settings=setup-args=-Dsystem-freetype=True")
+    job_args = []
+    if "MP_JOBS" in os.environ:
+        job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
+    __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
+                           "-Csetup-args=-Dsystem-freetype=True", *job_args)
 
     wheel_location = glob.glob("matplotlib-*.whl")[0]
 

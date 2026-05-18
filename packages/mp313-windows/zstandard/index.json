@@ -5,12 +5,13 @@
       "metadata": {
         "Version": "*"
       },
-      "build_tools": [],
+      "build_tools": ["clang"],
       "dependencies": [],
       "files": [
         "build.py"
       ],
       "build_requires": [
+        "build",
         "setuptools",
         "cffi~=1.17",
         "packaging"

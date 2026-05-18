@@ -1,0 +1,19 @@
+{
+  "tests": ["test.py"],
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "dependencies": [
+        "libxml2",
+        "libxslt",
+        "zlib"
+      ],
+      "files": [
+        "build.py"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}

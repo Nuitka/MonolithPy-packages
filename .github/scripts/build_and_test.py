@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and test mp313 packages using MonolithPy."""
+"""Build and test MonolithPy packages (any mp3XX)."""
 
 import json
 import os
@@ -8,7 +8,6 @@ import re
 import shutil
 import subprocess
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 # Unbuffered output for CI environments
@@ -16,12 +15,23 @@ sys.stdout.reconfigure(line_buffering=True)
 sys.stderr.reconfigure(line_buffering=True)
 
 
-def get_monolithpy_executable(monolithpy_dir: Path) -> Path:
+_TAG_RE = re.compile(r"^mp(?P<major>\d)(?P<minor>\d+)$")
+
+
+def parse_python_version(tag: str) -> tuple[int, int]:
+    """Derive (major, minor) from a tag like 'mp313' or 'mp314'."""
+    m = _TAG_RE.match(tag)
+    if not m:
+        raise ValueError(f"Invalid MonolithPy tag {tag!r}; expected 'mp<major><minor>' (e.g. 'mp313')")
+    return int(m.group("major")), int(m.group("minor"))
+
+
+def get_monolithpy_executable(monolithpy_dir: Path, python_version: tuple[int, int]) -> Path:
     """Get the MonolithPy executable path."""
     if platform.system() == "Windows":
         return monolithpy_dir / "python.exe"
     else:
-        return monolithpy_dir / "bin" / "python3.13"
+        return monolithpy_dir / "bin" / f"python{python_version[0]}.{python_version[1]}"
 
 
 def get_tests_from_index(index_path: Path) -> list[str]:
@@ -45,58 +55,26 @@ def clear_pip_cache(monolithpy: Path):
         pass
 
 
-def parse_version(version_str: str) -> tuple:
-    """Parse version string into comparable tuple."""
-    # Handle versions like "1.2.3", "1.2.3a1", "1.2.3.post1", etc.
-    parts = re.split(r'[.\-]', version_str)
-    result = []
-    for part in parts:
-        # Try to convert to int, otherwise keep as string for comparison
-        try:
-            result.append((0, int(part)))
-        except ValueError:
-            # Handle alpha/beta/rc/post suffixes
-            result.append((1, part))
-    return tuple(result)
-
-
-def get_ensurepip_package_names(monolithpy: Path) -> set[str]:
-    """Get the package names bundled with ensurepip from MonolithPy."""
-    try:
-        result = subprocess.run(
-            [str(monolithpy), "-c", "import ensurepip; print('\\n'.join(ensurepip._PACKAGE_NAMES))"],
-            capture_output=True, text=True, check=False
-        )
-        if result.returncode == 0:
-            return {name.lower() for name in result.stdout.strip().splitlines()}
-    except Exception:
-        pass
-    return set()
-
-
-def write_constraint_file(pkg_name: str, packages: dict[str, str], output_dir: Path, excluded: set[str]):
-    """Write a constraint file for a package based on pip output."""
-    if not packages:
-        return
-
-    constraint_file = output_dir / f"{pkg_name}-constraint.txt"
-    with open(constraint_file, 'w') as f:
-        for name, version in sorted(packages.items()):
-            if name.lower() not in excluded:
-                f.write(f"{name}<={version}\n")
-
-    print(f"Created constraint file: {constraint_file}")
+def purge_caches(pip_cache_dir: Path, work_dir: Path):
+    """Reclaim disk between prebuild tiers."""
+    import tempfile
+    if pip_cache_dir.exists():
+        rmtree_force(pip_cache_dir)
+    mpy_cache = Path(os.environ.get("MPY_WHEEL_CACHE_DIR",
+                     os.path.join(tempfile.gettempdir(), "mpy-wheel-cache")))
+    if mpy_cache.exists():
+        rmtree_force(mpy_cache)
+    if work_dir.exists():
+        rmtree_force(work_dir)
 
 
 def rmtree_force(path: Path):
     """Remove directory tree, handling Windows permission issues."""
     def on_error(func, path, exc_info):
         try:
-            # Handle read-only files on Windows
             os.chmod(path, 0o777)
             func(path)
         except Exception:
-            # If we still can't delete, move the file out of the way
             import uuid
             trash_dir = Path.cwd() / ".trash"
             trash_dir.mkdir(exist_ok=True)
@@ -106,7 +84,7 @@ def rmtree_force(path: Path):
 
 
 def run_rebuild(monolithpy: Path):
-    """Clear pip cache, ignoring errors."""
+    """Run rebuildpython, ignoring errors."""
     try:
         subprocess.run([str(monolithpy), "-m", "rebuildpython"],
                        capture_output=True, check=False)
@@ -114,165 +92,575 @@ def run_rebuild(monolithpy: Path):
         pass
 
 
-def run_build(monolithpy: Path, package_name: str) -> tuple[bool, dict[str, str]]:
-    """Attempt to build a package. Returns (success, packages_dict)."""
-    packages = defaultdict(list)
+def collect_built_wheels(pip_cache_dir: Path, output_dir: Path):
+    """Copy wheels from pip's wheel cache to output_dir."""
+    wheels_subdir = pip_cache_dir / "wheels"
+    if not wheels_subdir.exists():
+        return
+    copied = 0
+    for whl in wheels_subdir.rglob("*.whl"):
+        dest = output_dir / whl.name
+        if not dest.exists():
+            shutil.copy2(whl, dest)
+            copied += 1
+    if copied:
+        print(f"Captured {copied} wheel(s) from pip cache")
+
+
+def normalize_pkg_name(name: str) -> str:
+    """PEP 503 normalization for package name comparison."""
+    return re.sub(r'[-_.]+', '-', name).lower()
+
+
+def _iter_subdirs(path: Path):
+    """Yield immediate subdirectories of path, if path exists."""
+    if path.exists():
+        yield from (d for d in path.iterdir() if d.is_dir())
+
+
+def build_catalog(
+    packages_dir: Path,
+    dependencies_dir: Path,
+    build_tools_dir: Path,
+) -> dict[str, Path]:
+    """Return {pip_install_name: package_dir} across all three source trees.
+
+    - packages/      → pip name is the directory name        (e.g. "numpy")
+    - dependencies/  → pip name is "mpy-dep-{dirname}"       (e.g. "mpy-dep-openblas")
+    - build_tools/   → pip name is "mpy-tool-{dirname}"      (e.g. "mpy-tool-clang")
+    """
+    catalog: dict[str, Path] = {}
+    for d in _iter_subdirs(packages_dir):
+        catalog[d.name] = d
+    for d in _iter_subdirs(dependencies_dir):
+        catalog[f"mpy-dep-{d.name}"] = d
+    for d in _iter_subdirs(build_tools_dir):
+        catalog[f"mpy-tool-{d.name}"] = d
+    return catalog
+
+
+def build_dep_graph(catalog: dict[str, Path]) -> dict[str, set[str]]:
+    """Return {pip_name -> set[pip_name]} covering all direct local dependencies.
+
+    Reads four fields from each index.json:
+      build_requires / dist_requires  – regular pip requirement specifiers
+      dependencies                    – MonolithPy mpy-dep-* packages
+      build_tools                     – MonolithPy mpy-tool-* packages
+    """
+    # Normalized-name → actual pip install name (for fuzzy requirement matching)
+    norm_map: dict[str, str] = {normalize_pkg_name(name): name for name in catalog}
+
+    graph: dict[str, set[str]] = {name: set() for name in catalog}
+
+    for pip_name, pkg_dir in catalog.items():
+        index_path = pkg_dir / "index.json"
+        if not index_path.exists():
+            continue
+        try:
+            with open(index_path) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        # packages/ use scripts[0] format; dependencies/ and build_tools/ use top-level fields
+        scripts = data.get("scripts", [])
+        script = scripts[0] if scripts else {}
+
+        def add_edge(norm_target: str) -> None:
+            if norm_target in norm_map and norm_map[norm_target] != pip_name:
+                graph[pip_name].add(norm_map[norm_target])
+
+        # Regular pip requirements (build_requires / dist_requires)
+        for req in (script.get("build_requires") or data.get("build_requires", [])) + \
+                   (script.get("dist_requires") or data.get("dist_requires", [])):
+            bare = re.split(r'[>=<!;\[\s,]', req.strip())[0]
+            add_edge(normalize_pkg_name(bare))
+
+        # MonolithPy dependency packages  →  "mpy-dep-{name}"
+        for dep in (script.get("dependencies") or data.get("dependencies", [])):
+            add_edge(normalize_pkg_name(f"mpy-dep-{dep}"))
+
+        # MonolithPy build tool packages  →  "mpy-tool-{name}"
+        for tool in (script.get("build_tools") or data.get("build_tools", [])):
+            add_edge(normalize_pkg_name(f"mpy-tool-{tool}"))
+
+    return graph
+
+
+def get_build_files(pkg_dir: Path) -> list[Path]:
+    """Return sorted build files in pkg_dir, excluding test files."""
+    excluded = set()
+    index_path = pkg_dir / "index.json"
+    if index_path.exists():
+        try:
+            with open(index_path) as f:
+                excluded.update(json.load(f).get("tests", []))
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return sorted(
+        f for f in pkg_dir.rglob("*")
+        if f.is_file() and f.name not in excluded
+    )
+
+
+def compute_cache_keys(
+    catalog: dict[str, Path],
+    dep_graph: dict[str, set[str]],
+    platform_suffix: str,
+) -> dict[str, str]:
+    """Compute a deterministic cache key per package.
+
+    Each key incorporates the SHA-256 of all build files in the package
+    directory (excluding tests) plus, recursively, the keys of all
+    transitive dependencies.
+    """
+    import hashlib
+
+    own_hashes: dict[str, str] = {}
+    for pip_name, pkg_dir in catalog.items():
+        h = hashlib.sha256()
+        for f in get_build_files(pkg_dir):
+            h.update(str(f.relative_to(pkg_dir)).encode())
+            h.update(f.read_bytes())
+        own_hashes[pip_name] = h.hexdigest()
+
+    all_sorted = topo_sort(list(catalog.keys()), dep_graph)
+    full_hashes: dict[str, str] = {}
+    for pip_name in all_sorted:
+        h = hashlib.sha256()
+        h.update(own_hashes[pip_name].encode())
+        for dep in sorted(dep_graph.get(pip_name, set())):
+            if dep in full_hashes:
+                h.update(full_hashes[dep].encode())
+        full_hashes[pip_name] = h.hexdigest()
+
+    return {
+        pip_name: f"{platform_suffix}-{pip_name}-{full_hashes[pip_name][:16]}"
+        for pip_name in catalog
+    }
+
+
+def try_restore_from_cache(
+    pkg_name: str,
+    cache_key: str,
+    wheel_cache_dir: Path,
+    built_wheels_dir: Path,
+) -> bool:
+    """If a cached build exists for this exact cache key, copy wheels out
+    and return True.  Otherwise return False."""
+    marker = wheel_cache_dir / f"{cache_key}.marker"
+    if not marker.exists():
+        return False
+    try:
+        whl_names = json.loads(marker.read_text())
+    except (json.JSONDecodeError, OSError):
+        return False
+    if not all((wheel_cache_dir / w).exists() for w in whl_names):
+        return False
+    for w in whl_names:
+        dest = built_wheels_dir / w
+        if not dest.exists():
+            shutil.copy2(wheel_cache_dir / w, dest)
+    return True
+
+
+def save_to_cache(
+    cache_key: str,
+    new_wheels: set[str],
+    wheel_cache_dir: Path,
+    built_wheels_dir: Path,
+):
+    """Persist newly-built wheels and write a marker so future runs can
+    restore them."""
+    wheel_cache_dir.mkdir(parents=True, exist_ok=True)
+    whl_list = sorted(new_wheels)
+    for w in whl_list:
+        src = built_wheels_dir / w
+        if src.exists():
+            shutil.copy2(src, wheel_cache_dir / w)
+    (wheel_cache_dir / f"{cache_key}.marker").write_text(json.dumps(whl_list))
+
+
+def iter_pure_test_packages(root_dir: Path, packages_dir: Path) -> list[tuple[str, str, Path]]:
+    """Return [(pip_name, version_spec, test_path), ...] for pure-test entries.
+
+    A pure-test entry is a directory under `pure_test_packages/` whose contents
+    declare a package that should be pip-installed from PyPI and exercised via a
+    user-provided `test.py`, with no MonolithPy build recipe. The pip name is
+    taken from the directory name; an optional `pin.txt` next to `test.py`
+    contributes a version spec (e.g. `>=2.30`) that gets concatenated to the
+    install requirement.
+
+    If `packages_dir / <name>` exists (i.e. a same-named platform-specific build
+    recipe is present), the pure-test entry is skipped: build recipes take
+    precedence so the same package isn't tested twice on platforms where it's
+    fully built locally. This makes pure_test_packages/ a natural place to drop
+    "missing platform counterparts" for packages whose build recipe only exists
+    on one side.
+
+    Directories without a `test.py` are skipped with a CI warning so a stray
+    placeholder doesn't silently cost a split slot.
+    """
+    base = root_dir / "pure_test_packages"
+    if not base.is_dir():
+        return []
+    out: list[tuple[str, str, Path]] = []
+    for entry in sorted(base.iterdir()):
+        if not entry.is_dir():
+            continue
+        if (packages_dir / entry.name).is_dir():
+            print(f"::notice::pure_test_packages/{entry.name}: superseded by "
+                  f"{packages_dir.name}/{entry.name} build recipe; skipping")
+            continue
+        test_py = entry / "test.py"
+        if not test_py.is_file():
+            print(f"::warning::pure_test_packages/{entry.name}: no test.py, skipping")
+            continue
+        pin_file = entry / "pin.txt"
+        pin = pin_file.read_text().strip() if pin_file.is_file() else ""
+        out.append((entry.name, pin, test_py))
+    return out
+
+
+def run_pure_test_install(
+    monolithpy: Path,
+    requirement: str,
+    built_wheels_dir: Path,
+    find_links_dir: Path | None,
+    pip_cache_dir: Path,
+) -> bool:
+    """Resolve a pip requirement to a wheel, drop the wheel into built_wheels_dir,
+    then install offline from the captured wheel set. Used for pure-test entries
+    so they participate in the wheel pipeline the same way build-recipe packages
+    do — the captured wheels flow through the wheels-<platform>-<split>
+    artifacts and into upload-wheels at the end of the run.
+
+    Two pip invocations on purpose:
+      1) `pip wheel` resolves the requirement against PyPI + round-1 wheels and
+         lands a `.whl` (plus any transitive deps not already in find-links)
+         into built_wheels_dir.
+      2) `pip install --no-index` installs from the local wheel store so the
+         test runs against exactly the wheels we just captured (no surprise
+         re-resolution against PyPI).
+    """
+    pip_cache_dir.mkdir(parents=True, exist_ok=True)
+    common: list[str] = ["--cache-dir", str(pip_cache_dir),
+                         "--find-links", str(built_wheels_dir)]
+    if find_links_dir is not None and find_links_dir.is_dir():
+        common += ["--find-links", str(find_links_dir)]
+
+    env = os.environ.copy()
+    if find_links_dir is not None and find_links_dir.is_dir():
+        # Mirror the round-2 build path so MonolithPy's PackageFinder sees the
+        # round-1 wheel dir too.
+        env["PIP_FIND_LINKS"] = str(find_links_dir)
+
+    wheel_cmd = ([str(monolithpy), "-m", "pip", "wheel", "--verbose",
+                  "-w", str(built_wheels_dir)] + common + [requirement])
+    if subprocess.run(wheel_cmd, env=env).returncode != 0:
+        return False
+
+    install_cmd = ([str(monolithpy), "-m", "pip", "install", "--verbose",
+                    "--no-index"] + common + [requirement])
+    return subprocess.run(install_cmd, env=env).returncode == 0
+
+
+def find_prebuild_candidates(dep_graph: dict[str, set[str]], threshold: int = 2) -> list[str]:
+    """Return packages that appear as a dep of at least `threshold` others, plus all their transitive deps."""
+    ref_count: dict[str, int] = {}
+    for deps in dep_graph.values():
+        for dep in deps:
+            ref_count[dep] = ref_count.get(dep, 0) + 1
+    candidates = {p for p, c in ref_count.items() if c >= threshold}
+    # Expand transitively so deps-of-deps (e.g. flang→miniconda) are also pre-built
+    queue = list(candidates)
+    while queue:
+        pkg = queue.pop()
+        for dep in dep_graph.get(pkg, set()):
+            if dep not in candidates:
+                candidates.add(dep)
+                queue.append(dep)
+    return sorted(candidates)
+
+
+def topo_sort(packages: list[str], dep_graph: dict[str, set[str]]) -> list[str]:
+    """Return packages in topological order (deps before dependents). Kahn's algorithm."""
+    pkg_set = set(packages)
+    in_degree = {p: 0 for p in packages}
+    dependents: dict[str, list[str]] = {p: [] for p in packages}
+    for pkg in packages:
+        for dep in dep_graph.get(pkg, set()):
+            if dep in pkg_set:
+                in_degree[pkg] += 1
+                dependents[dep].append(pkg)
+
+    queue = sorted(p for p, d in in_degree.items() if d == 0)
+    result: list[str] = []
+    while queue:
+        node = queue.pop(0)
+        result.append(node)
+        for neighbor in sorted(dependents[node]):
+            in_degree[neighbor] -= 1
+            if in_degree[neighbor] == 0:
+                queue.append(neighbor)
+                queue.sort()
+
+    seen = set(result)
+    result.extend(p for p in packages if p not in seen)
+    return result
+
+
+def run_build(
+    monolithpy: Path,
+    package_name: str,
+    pip_cache_dir: Path | None = None,
+    find_links_dir: Path | None = None,
+) -> bool:
+    """Attempt to build a package. Returns True on success."""
+    cmd = [str(monolithpy), "-m", "pip", "install", "--verbose"]
+    if pip_cache_dir is not None:
+        pip_cache_dir.mkdir(parents=True, exist_ok=True)
+        cmd += ["--cache-dir", str(pip_cache_dir)]
+    if find_links_dir is not None and find_links_dir.is_dir():
+        cmd += ["--find-links", str(find_links_dir)]
+    cmd += [package_name]
+
+    env = os.environ.copy()
+    if find_links_dir is not None and find_links_dir.is_dir():
+        env["PIP_FIND_LINKS"] = str(find_links_dir)
 
     try:
-        process = subprocess.Popen(
-            [str(monolithpy), "-m", "pip", "install", "--verbose", package_name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,  # Line buffered
-        )
-
-        for line in process.stdout:
-            # Stream output immediately
-            print(line, end='', flush=True)
-
-            # Parse for package info from various pip output patterns:
-            # "Downloading package_name-1.2.3-py3-none-any.whl"
-            # "Using cached package_name-1.2.3-py3-none-any.whl"
-            wheel_match = re.search(r'(?:Downloading|Using cached)\s+(\S+\.whl)', line)
-            if wheel_match:
-                wheel_name = wheel_match.group(1)
-                # Parse wheel filename: name-version-python-abi-platform.whl
-                parts_match = re.match(r'([A-Za-z0-9_][A-Za-z0-9._-]*)-(\d+[A-Za-z0-9._]*)-', wheel_name)
-                if parts_match:
-                    pkg_name = parts_match.group(1).lower().replace('_', '-')
-                    version = parts_match.group(2)
-                    packages[pkg_name].append(version)
-                continue
-
-            # "Downloading package_name-1.2.3.tar.gz"
-            # "Using cached package_name-1.2.3.tar.gz"
-            tarball_match = re.search(r'(?:Downloading|Using cached)\s+([A-Za-z0-9_][A-Za-z0-9._-]*)-(\d+[A-Za-z0-9._]*)\.(?:tar\.gz|zip)', line)
-            if tarball_match:
-                pkg_name = tarball_match.group(1).lower().replace('_', '-')
-                version = tarball_match.group(2)
-                packages[pkg_name].append(version)
-                continue
-
-            # "Successfully installed pkg1-1.0.0 pkg2-2.0.0 ..."
-            if 'Successfully installed' in line:
-                for match in re.finditer(r'([A-Za-z0-9_][A-Za-z0-9._-]*)-(\d+[A-Za-z0-9._]*)', line):
-                    pkg_name = match.group(1).lower().replace('_', '-')
-                    version = match.group(2)
-                    packages[pkg_name].append(version)
-
-        process.wait()
-
-        # Build result dict with max versions
-        result_dict = {}
-        for pkg_name, versions in packages.items():
-            result_dict[pkg_name] = max(versions, key=parse_version)
-
-        return process.returncode == 0, result_dict
+        result = subprocess.run(cmd, env=env)
+        return result.returncode == 0
     except Exception as e:
         print(f"Build error: {e}", file=sys.stderr)
-        return False, {}
+        return False
 
 
 def run_test(monolithpy: Path, test_path: Path) -> bool:
     """Run a test file. Returns True on success."""
     try:
-        result = subprocess.run(
-            [str(monolithpy), str(test_path)],
-        )
-        return result.returncode == 0
+        result = subprocess.run([str(monolithpy), str(test_path)])
     except Exception as e:
         print(f"Test error: {e}", file=sys.stderr)
         return False
+    rc = result.returncode
+    if rc == 0:
+        return True
+    if rc < 0:
+        print(f"Test killed by signal {-rc}", file=sys.stderr)
+    else:
+        print(f"Test exited with code {rc}", file=sys.stderr)
+    return False
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--prebuild", metavar="TIER",
+                        help="Run a pre-build tier: tools, deps, heavy, or 'all' for every tier.")
+    parser.add_argument("--round2", nargs=2, metavar=("INDEX", "TOTAL"),
+                        help="Run round 2 with the given split INDEX out of TOTAL.")
+    parser.add_argument("--round1-wheels", metavar="DIR",
+                        help="Directory containing Round 1 pre-built wheels.")
+    parser.add_argument("--wheel-cache-dir", metavar="DIR",
+                        help="Directory for wheel cache (persisted via actions/cache).")
+    parser.add_argument("--monolithpy-tag", metavar="TAG",
+                        default=os.environ.get("MONOLITHPY_TAG"),
+                        help="MonolithPy Python version tag (e.g. 'mp313', 'mp314'). "
+                             "Defaults to $MONOLITHPY_TAG.")
+    args = parser.parse_args()
+
+    if not args.monolithpy_tag:
+        print("Error: --monolithpy-tag or MONOLITHPY_TAG env var is required "
+              "(e.g. 'mp313', 'mp314').", file=sys.stderr)
+        sys.exit(1)
+    python_version = parse_python_version(args.monolithpy_tag)
+
     root_dir = Path.cwd()
     monolithpy_dir = root_dir / "monolithpy"
 
-    # Determine platform-specific package directory
     if platform.system() == "Windows":
-        packages_dir = root_dir / "packages" / "mp313-windows"
+        platform_suffix = f"{args.monolithpy_tag}-windows"
     elif platform.system() == "Darwin":
-        packages_dir = root_dir / "packages" / "mp313-macos"
+        platform_suffix = f"{args.monolithpy_tag}-macos"
     else:
         print(f"Unsupported platform: {platform.system()}", file=sys.stderr)
         sys.exit(1)
 
-    # Create constraints output directory
-    constraints_dir = root_dir / "constraints"
-    constraints_dir.mkdir(exist_ok=True)
+    packages_dir    = root_dir / "packages"     / platform_suffix
+    dependencies_dir = root_dir / "dependencies" / platform_suffix
+    build_tools_dir  = root_dir / "build_tools"  / platform_suffix
 
-    # Get MonolithPy executable
-    monolithpy = get_monolithpy_executable(monolithpy_dir)
+    built_wheels_dir = root_dir / "built_wheels"
+    built_wheels_dir.mkdir(exist_ok=True)
+    pip_cache_base = root_dir / ".pip-wheel-cache"
+
+    monolithpy = get_monolithpy_executable(monolithpy_dir, python_version)
     print(f"MonolithPy location: {monolithpy}")
     if not monolithpy.exists():
         print(f"::error::MonolithPy executable not found at {monolithpy}", file=sys.stderr)
         sys.exit(1)
 
-    # Keep a pristine copy of MonolithPy
     pristine_dir = root_dir / "monolithpy_pristine"
     shutil.copytree(monolithpy_dir, pristine_dir, dirs_exist_ok=True)
 
-    # Get ensurepip package names to exclude from constraints
-    ensurepip_packages = get_ensurepip_package_names(monolithpy)
-    print(f"Excluding ensurepip packages: {ensurepip_packages}")
-
     work_monolithpy = root_dir / "monolithpy_work"
 
-    # Discover all package directories
-    all_packages = sorted(d.name for d in packages_dir.iterdir() if d.is_dir())
+    # Full catalog across packages/, dependencies/, build_tools/
+    catalog = build_catalog(packages_dir, dependencies_dir, build_tools_dir)
+    dep_graph = build_dep_graph(catalog)
 
-    # Support splitting across parallel jobs via SPLIT_INDEX / SPLIT_TOTAL
-    split_total = int(os.environ.get("SPLIT_TOTAL", "1"))
-    split_index = int(os.environ.get("SPLIT_INDEX", "0"))
-    if split_total > 1:
-        all_packages = [p for i, p in enumerate(all_packages) if i % split_total == split_index]
-        print(f"Split {split_index+1}/{split_total}: building {len(all_packages)} packages: {all_packages}")
+    wheel_cache_dir = Path(args.wheel_cache_dir) if args.wheel_cache_dir else None
+    cache_keys = compute_cache_keys(catalog, dep_graph, platform_suffix) if wheel_cache_dir else {}
+    if cache_keys:
+        print(f"Computed cache keys for {len(cache_keys)} packages")
 
-    for pkg_name in all_packages:
-        pkg_dir = packages_dir / pkg_name
-        print(f"::group::Building {pkg_name}")
+    round1_wheels_dir = Path(args.round1_wheels) if args.round1_wheels else None
 
-        # Create a fresh copy of MonolithPy for this package
+    if args.prebuild:
+        candidates = find_prebuild_candidates(dep_graph, threshold=2)
+        all_prebuild = topo_sort(candidates, dep_graph)
+
+        heavy_set = {"numpy", "scipy"}
+        tier1 = [p for p in all_prebuild if p.startswith("mpy-tool-")]
+        tier1_set = set(tier1)
+        tier2 = [p for p in all_prebuild if p not in tier1_set and p not in heavy_set]
+        tier3 = [p for p in all_prebuild if p in heavy_set]
+        all_tiers = [("tools", tier1), ("deps", tier2), ("heavy", tier3)]
+        all_tiers = [(t, pkgs) for t, pkgs in all_tiers if pkgs]
+
+        if args.prebuild == "all":
+            tiers = all_tiers
+        else:
+            tiers = [(t, pkgs) for t, pkgs in all_tiers if t == args.prebuild]
+            if not tiers:
+                print(f"Unknown tier '{args.prebuild}'; available: {[t for t, _ in all_tiers]}")
+                sys.exit(1)
+
+        print(f"Pre-build: {sum(len(p) for _, p in tiers)} packages across {len(tiers)} tiers")
+        for tier_label, tier_packages in tiers:
+            print(f"  {tier_label}: {tier_packages}")
+    else:
+        all_packages = sorted(d.name for d in _iter_subdirs(packages_dir))
+        pure_test_entries = iter_pure_test_packages(root_dir, packages_dir)
+        my_pure_tests: list[tuple[str, str, Path]] = []
+        if args.round2:
+            split_index, split_total = int(args.round2[0]), int(args.round2[1])
+            # Combined index space across builds and pure-tests so the split
+            # math distributes both evenly; otherwise a large pure-test set
+            # would all land on split 0.
+            combined = ([("build", name) for name in all_packages] +
+                        [("pure",  name) for name, _, _ in pure_test_entries])
+            my = [item for i, item in enumerate(combined) if i % split_total == split_index]
+            all_packages = [name for kind, name in my if kind == "build"]
+            pure_in_split = {name for kind, name in my if kind == "pure"}
+            my_pure_tests = [(n, p, t) for (n, p, t) in pure_test_entries if n in pure_in_split]
+            print(f"Round 2, split {split_index+1}/{split_total}: {len(all_packages)} build "
+                  f"package(s) + {len(my_pure_tests)} pure-test(s)")
+            if all_packages:
+                print(f"  builds: {all_packages}")
+            if my_pure_tests:
+                print(f"  pure tests: {[n for n,_,_ in my_pure_tests]}")
+        else:
+            my_pure_tests = pure_test_entries
+        if round1_wheels_dir:
+            print(f"Using Round 1 pre-built wheels from: {round1_wheels_dir}")
+        tiers = [("all", all_packages)]
+
+    for tier_label, tier_packages in tiers:
+        if args.prebuild:
+            print(f"::group::=== Tier: {tier_label} ({len(tier_packages)} packages) ===")
+
+        # Reset once per tier, carry forward within so tools/deps accumulate.
         if work_monolithpy.exists():
             rmtree_force(work_monolithpy)
         shutil.copytree(pristine_dir, work_monolithpy)
 
-        # Update monolithpy to point to working copy
-        monolithpy = get_monolithpy_executable(work_monolithpy)
+        for pkg_name in tier_packages:
+            pkg_dir = catalog[pkg_name]
+            print(f"::group::Building {pkg_name}")
 
-        run_rebuild(monolithpy)
-
-        clear_pip_cache(monolithpy)
-
-        print(f"Building {pkg_name}...")
-        success, installed_packages = run_build(monolithpy, pkg_name)
-        if not success:
-            print(f"::error::Build failed for {pkg_name}")
-            print("::endgroup::")
-            sys.exit(1)
-
-        print(f"Build successful for {pkg_name}")
-
-        # Generate constraint file from parsed pip output
-        write_constraint_file(pkg_name, installed_packages, constraints_dir, ensurepip_packages)
-
-        # Check for and run tests
-        tests = get_tests_from_index(pkg_dir / "index.json")
-        for test_file in tests:
-            test_path = pkg_dir / test_file
-            if test_path.exists():
-                print(f"Running test: {test_file}")
-                if not run_test(monolithpy, test_path):
-                    print(f"::error::Test failed for {pkg_name}/{test_file}")
+            cache_key = cache_keys.get(pkg_name)
+            if cache_key and wheel_cache_dir:
+                if try_restore_from_cache(pkg_name, cache_key, wheel_cache_dir, built_wheels_dir):
+                    print(f"Cache HIT for {pkg_name} (key: {cache_key})")
                     print("::endgroup::")
-                    sys.exit(1)
-                print(f"Test passed for {pkg_name}/{test_file}")
+                    continue
+                print(f"Cache MISS for {pkg_name} (key: {cache_key})")
 
-        print("::endgroup::")
+            monolithpy = get_monolithpy_executable(work_monolithpy, python_version)
+            run_rebuild(monolithpy)
+
+            pip_cache_dir = pip_cache_base
+            find_links_dir = built_wheels_dir if args.prebuild else round1_wheels_dir
+
+            pre_build_wheels = {w.name for w in built_wheels_dir.glob("*.whl")}
+
+            print(f"Building {pkg_name}...")
+            success = run_build(
+                monolithpy, pkg_name,
+                pip_cache_dir=pip_cache_dir,
+                find_links_dir=find_links_dir,
+            )
+            if not success:
+                print(f"::error::Build failed for {pkg_name}")
+                print("::endgroup::")
+                sys.exit(1)
+
+            print(f"Build successful for {pkg_name}")
+            collect_built_wheels(pip_cache_dir, built_wheels_dir)
+
+            if cache_key and wheel_cache_dir:
+                new_wheels = {w.name for w in built_wheels_dir.glob("*.whl")} - pre_build_wheels
+                if new_wheels:
+                    save_to_cache(cache_key, new_wheels, wheel_cache_dir, built_wheels_dir)
+                    print(f"Cached {len(new_wheels)} wheel(s) for {pkg_name}")
+
+            tests = get_tests_from_index(pkg_dir / "index.json")
+            for test_file in tests:
+                test_path = pkg_dir / test_file
+                if test_path.exists():
+                    print(f"Running test: {test_file}")
+                    if not run_test(monolithpy, test_path):
+                        print(f"::error::Test failed for {pkg_name}/{test_file}")
+                        print("::endgroup::")
+                        sys.exit(1)
+                    print(f"Test passed for {pkg_name}/{test_file}")
+
+            print("::endgroup::")
+
+        if args.prebuild:
+            collect_built_wheels(pip_cache_base, built_wheels_dir)
+            print(f"Tier {tier_label} complete.")
+            print("::endgroup::")
+
+    # Pure-test pass: capture a wheel for each entry into built_wheels/ (so it
+    # rides along with the other Round 2 outputs through wheels-<platform>-<split>
+    # artifacts) and then install it offline so test.py runs against exactly
+    # that wheel. Pure-tests bypass the wheel-cache plumbing — their input is
+    # PyPI, not a local recipe, so per-recipe cache keys don't apply.
+    if not args.prebuild and my_pure_tests:
+        monolithpy = get_monolithpy_executable(work_monolithpy, python_version)
+        run_rebuild(monolithpy)
+        for name, pin, test_path in my_pure_tests:
+            requirement = name + pin  # pin already includes the operator (e.g. ">=2.30")
+            print(f"::group::Pure test: {name} ({requirement!r})")
+            if not run_pure_test_install(monolithpy, requirement,
+                                         built_wheels_dir=built_wheels_dir,
+                                         find_links_dir=round1_wheels_dir,
+                                         pip_cache_dir=pip_cache_base):
+                print(f"::error::pip wheel/install failed for pure test {name}")
+                print("::endgroup::")
+                sys.exit(1)
+            print(f"Running test: pure_test_packages/{name}/test.py")
+            if not run_test(monolithpy, test_path):
+                print(f"::error::Pure test failed for {name}")
+                print("::endgroup::")
+                sys.exit(1)
+            print(f"Pure test passed: {name}")
+            print("::endgroup::")
 
 
 if __name__ == "__main__":
     main()
-

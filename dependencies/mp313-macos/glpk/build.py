@@ -2,20 +2,17 @@ import __mp__
 from typing import *
 
 import os
-import shutil
-import glob
+from wheel.wheelfile import WheelFile
 
 
-def run(temp_dir: str):
-    __mp__.download_extract("https://github.com/Mizux/GLPK/archive/refs/tags/5.0.zip", temp_dir)
-
-    src_dir = glob.glob(os.path.join(temp_dir, "GLPK*"))[0]
+def run(wheel_directory):
+    src_dir = os.getcwd()
     os.chdir(src_dir)
 
     __mp__.run_with_output("patch", "--binary", "-p1", "-i",
                               os.path.join(os.path.dirname(__file__), "glpk.patch"))
 
-    install_dir = os.path.join(temp_dir, "install")
+    install_dir = os.path.join(src_dir, "glpk_install")
     os.mkdir(install_dir)
 
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
@@ -25,5 +22,10 @@ def run(temp_dir: str):
     __mp__.run_build_tool_exe("ninja", "ninja")
     __mp__.run_build_tool_exe("ninja", "ninja", "install")
 
-    __mp__.install_dep_libs("glpk", os.path.join(install_dir, "lib", "*.a"))
-    __mp__.install_dep_include("glpk", os.path.join(install_dir, "include", "glpk.h"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_glpk", "5.0"))
+    with WheelFile(result_wheel, 'w') as w:
+        __mp__.add_wheel_manifest(w, "mpy-dep-glpk", "5.0")
+        __mp__.add_wheel_dep_libs(w, "glpk", os.path.join(install_dir, "lib", "*.a"))
+        __mp__.add_wheel_dep_include(w, "glpk", os.path.join(install_dir, "include", "glpk.h"))
+
+    return result_wheel

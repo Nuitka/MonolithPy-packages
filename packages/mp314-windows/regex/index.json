@@ -1,0 +1,23 @@
+{
+  "tests": ["test.py"],
+  "scripts": [
+    {
+      "metadata": {
+        "Version": "*"
+      },
+      "build_tools": [
+        "patch"
+      ],
+      "dependencies": [],
+      "files": [
+        "build.py",
+        "regex-static.patch"
+      ],
+      "build_requires": [
+        "setuptools",
+        "build"
+      ],
+      "build_script": "build.py"
+    }
+  ]
+}
