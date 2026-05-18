@@ -1,5 +1,9 @@
 {
   "version": "1.2.12",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
   "files": [
     "build.py"
   ],
