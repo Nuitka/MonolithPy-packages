@@ -15,8 +15,8 @@ def run(wheel_directory):
 
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
     os.environ["CFLAGS"] = sysconfig.get_config_var("CFLAGS")
-    print("bash", os.path.join(src_dir, "configure"), "--disable-shared", "--with-zlib-prefix=" + __mp__.find_dep_root("zlib"))
-    __mp__.run_with_output("bash", os.path.join(src_dir, "configure"), "--disable-shared", "--with-zlib-prefix=" + __mp__.find_dep_root("zlib"), "--prefix=" + prefix_dir)
+    print("bash", os.path.join(src_dir, "configure"), "--disable-shared", "--with-zlib-prefix=" + __mp__.find_dep_root("base"))
+    __mp__.run_with_output("bash", os.path.join(src_dir, "configure"), "--disable-shared", "--with-zlib-prefix=" + __mp__.find_dep_root("base"), "--prefix=" + prefix_dir)
     __mp__.run_with_output("sed", "-i", '', 's/#if PNG_ZLIB_VERNUM != 0 && PNG_ZLIB_VERNUM != ZLIB_VERNUM/#if 0/g', os.path.join(src_dir, "pngpriv.h"))
     __mp__.run_with_output("make")
     __mp__.run_with_output("make", "install")

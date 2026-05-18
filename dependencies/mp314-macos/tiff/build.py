@@ -17,7 +17,7 @@ def run(wheel_directory):
     __mp__.run_build_tool_exe("cmake", "cmake", "-G", "Ninja",
                               "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=OFF",
                               "-Djbig=OFF", "-Dzstd=OFF",
-                              "-DZLIB_ROOT=" + __mp__.find_dep_root("zlib"),
+                              "-DZLIB_ROOT=" + __mp__.find_dep_root("base"),
                               src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja")
 

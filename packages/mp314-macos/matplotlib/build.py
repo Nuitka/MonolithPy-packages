@@ -26,10 +26,11 @@ def run(wheel_directory):
         f.write(content)
 
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.13"
-    os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("freetype")
+    os.environ["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("base")
     os.environ["INCLUDE"] = sysconfig.get_config_var("INCLUDEPY")
     os.environ["CFLAGS"] = "-I" + sysconfig.get_config_var("INCLUDEPY")
     os.environ["CXXFLAGS"] = "-I" + sysconfig.get_config_var("INCLUDEPY")
+    os.environ["PKG_CONFIG"] = "/disabled"
     os.environ["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"])
 
