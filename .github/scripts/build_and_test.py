@@ -8,6 +8,8 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 # Unbuffered output for CI environments
@@ -203,16 +205,48 @@ def get_build_files(pkg_dir: Path) -> list[Path]:
     )
 
 
+_PYPI_VERSION_CACHE: dict[str, str | None] = {}
+
+
+def get_latest_pypi_version(pip_name: str) -> str | None:
+    """Return the latest released version of `pip_name` from PyPI, or None on
+    failure. Failures (404, network, parse) are cached as None for the rest of
+    the process so we don't retry the same dead lookup many times."""
+    if pip_name in _PYPI_VERSION_CACHE:
+        return _PYPI_VERSION_CACHE[pip_name]
+    url = f"https://pypi.org/pypi/{pip_name}/json"
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "MonolithPy-packages-cache/1.0"}
+    )
+    version: str | None
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.load(resp)
+        version = data.get("info", {}).get("version") or None
+    except (urllib.error.URLError, OSError, json.JSONDecodeError, ValueError):
+        version = None
+    _PYPI_VERSION_CACHE[pip_name] = version
+    return version
+
+
 def compute_cache_keys(
     catalog: dict[str, Path],
     dep_graph: dict[str, set[str]],
     platform_suffix: str,
+    packages_dir: Path,
 ) -> dict[str, str]:
     """Compute a deterministic cache key per package.
 
     Each key incorporates the SHA-256 of all build files in the package
     directory (excluding tests) plus, recursively, the keys of all
     transitive dependencies.
+
+    Entries that live directly under packages/ (real PyPI names) also fold in
+    the current PyPI release version, so the cache invalidates when upstream
+    cuts a new release even if our recipe didn't change. Lookup failures fold
+    in a stable "unknown" sentinel rather than the current timestamp, so a
+    transient PyPI outage produces a consistent miss-then-cache rather than a
+    cache that churns on every run.
     """
     import hashlib
 
@@ -222,6 +256,14 @@ def compute_cache_keys(
         for f in get_build_files(pkg_dir):
             h.update(str(f.relative_to(pkg_dir)).encode())
             h.update(f.read_bytes())
+        if pkg_dir.parent == packages_dir:
+            version = get_latest_pypi_version(pip_name)
+            h.update(b"\x00pypi-version:")
+            h.update((version or "unknown").encode())
+            if version:
+                print(f"PyPI {pip_name}: {version}")
+            else:
+                print(f"PyPI {pip_name}: lookup failed; using 'unknown'")
         own_hashes[pip_name] = h.hexdigest()
 
     all_sorted = topo_sort(list(catalog.keys()), dep_graph)
@@ -512,7 +554,7 @@ def main():
     dep_graph = build_dep_graph(catalog)
 
     wheel_cache_dir = Path(args.wheel_cache_dir) if args.wheel_cache_dir else None
-    cache_keys = compute_cache_keys(catalog, dep_graph, platform_suffix) if wheel_cache_dir else {}
+    cache_keys = compute_cache_keys(catalog, dep_graph, platform_suffix, packages_dir) if wheel_cache_dir else {}
     if cache_keys:
         print(f"Computed cache keys for {len(cache_keys)} packages")
 
