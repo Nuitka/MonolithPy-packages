@@ -2,6 +2,10 @@ name: mp314 Build and Test
 
 on:
   workflow_dispatch:
+  schedule:
+    # Weekly run at 01:00 UTC every Saturday so we pick up newly-released
+    # PyPI versions of upstream packages even when nothing in the repo changed.
+    - cron: '0 1 * * 6'
 
 env:
   MONOLITHPY_TAG: mp314
