@@ -1,0 +1,86 @@
+name: Fetch MonolithPy from latest release
+description: >
+  Download and extract a platform artifact for the latest MonolithPy release
+  of a given version line (default 3.14) from GitHub Releases, instead of
+  pulling the ephemeral CI build artifact. Release assets are permanent,
+  admin-approved, and shipped with a SHA256SUMS the bytes are verified against.
+
+inputs:
+  asset:
+    description: Base artifact name without extension, e.g. MonolithPy314_windows_x64.
+    required: true
+  dest:
+    description: Directory to extract the artifact into.
+    required: false
+    default: monolithpy
+  version:
+    description: Version line to match against release tags (e.g. "3.14").
+    required: false
+    default: "3.14"
+  repo:
+    description: Repository that publishes the MonolithPy releases.
+    required: false
+    default: Nuitka/MonolithPy
+
+runs:
+  using: composite
+  steps:
+    - name: Fetch latest release artifact
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        ASSET: ${{ inputs.asset }}
+        DEST: ${{ inputs.dest }}
+        VERSION: ${{ inputs.version }}
+        REPO: ${{ inputs.repo }}
+      run: |
+        set -euo pipefail
+        # python3 on POSIX; on Windows "python3" can hit the Store stub, so use python.
+        if [ "${RUNNER_OS:-}" = "Windows" ]; then PY=python; else PY=python3; fi
+
+        # Newest non-draft release whose tag is on the requested version line.
+        # The regex pins the exact version (3.14 matches, 3.140 / 3.15 do not).
+        ver_re="${VERSION//./\\.}"
+        tag=$(gh release list -R "$REPO" -L 200 \
+                --json tagName,isDraft,createdAt \
+                --jq '[.[] | select(.isDraft == false)] | sort_by(.createdAt) | reverse | .[].tagName' \
+              | grep -E "(^|[^0-9])${ver_re}([^0-9]|$)" | head -n1 || true)
+        tag=${tag//\"/}
+        if [ -z "$tag" ]; then
+          echo "::error::No non-draft $VERSION release found in $REPO."
+          exit 1
+        fi
+        echo "Using $REPO release: $tag"
+
+        rm -rf _mp_dl && mkdir -p _mp_dl "$DEST"
+        gh release download "$tag" -R "$REPO" \
+          --pattern "${ASSET}.*" --pattern "SHA256SUMS" --dir _mp_dl
+
+        file=$(ls _mp_dl/"${ASSET}".* 2>/dev/null | head -n1 || true)
+        if [ -z "$file" ]; then
+          echo "::error::Release $tag has no asset matching ${ASSET}.*"
+          exit 1
+        fi
+
+        # Verify the downloaded bytes against the release's SHA256SUMS.
+        base=$(basename "$file")
+        expected=$(awk -v f="$base" '$2 == f {print $1}' _mp_dl/SHA256SUMS)
+        if [ -z "$expected" ]; then
+          echo "::error::No checksum for $base in SHA256SUMS."
+          exit 1
+        fi
+        actual=$("$PY" -c "import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$file")
+        if [ "$expected" != "$actual" ]; then
+          echo "::error::Checksum mismatch for $base: expected $expected, got $actual."
+          exit 1
+        fi
+        echo "Verified $base against SHA256SUMS."
+
+        # Extract: tarballs on macOS/Linux (preserves the +x bit), zip on Windows.
+        case "$file" in
+          *.tar.gz) tar -xzf "$file" -C "$DEST" ;;
+          *.zip)    "$PY" -c "import shutil,sys;shutil.unpack_archive(sys.argv[1],sys.argv[2])" "$file" "$DEST" ;;
+          *)        echo "::error::Unsupported asset type: $file"; exit 1 ;;
+        esac
+        rm -rf _mp_dl
+        echo "Extracted $base into $DEST/"

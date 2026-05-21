@@ -27,15 +27,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get MonolithPy artifact
-        uses: dawidd6/action-download-artifact@v6
+      - name: Get MonolithPy from latest 3.14 release
+        uses: ./.github/actions/fetch-monolithpy
         with:
-          repo: Nuitka/MonolithPy
-          workflow: main.yml
-          workflow_conclusion: success
-          branch: 3.14
-          name: MonolithPy314_windows_x64
-          path: monolithpy
+          asset: MonolithPy314_windows_x64
+          dest: monolithpy
 
       - name: Set MONOLITHPY_PACKAGE_URL
         shell: pwsh
@@ -84,15 +80,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get MonolithPy artifact
-        uses: dawidd6/action-download-artifact@v6
+      - name: Get MonolithPy from latest 3.14 release
+        uses: ./.github/actions/fetch-monolithpy
         with:
-          repo: Nuitka/MonolithPy
-          workflow: main.yml
-          workflow_conclusion: success
-          branch: 3.14
-          name: MonolithPy314_windows_x64
-          path: monolithpy
+          asset: MonolithPy314_windows_x64
+          dest: monolithpy
 
       - name: Download tool wheels
         uses: actions/download-artifact@v4
@@ -149,15 +141,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get MonolithPy artifact
-        uses: dawidd6/action-download-artifact@v6
+      - name: Get MonolithPy from latest 3.14 release
+        uses: ./.github/actions/fetch-monolithpy
         with:
-          repo: Nuitka/MonolithPy
-          workflow: main.yml
-          workflow_conclusion: success
-          branch: 3.14
-          name: MonolithPy314_windows_x64
-          path: monolithpy
+          asset: MonolithPy314_windows_x64
+          dest: monolithpy
 
       - name: Download dep wheels
         uses: actions/download-artifact@v4
@@ -223,15 +211,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get MonolithPy artifact
-        uses: dawidd6/action-download-artifact@v6
+      - name: Get MonolithPy from latest 3.14 release
+        uses: ./.github/actions/fetch-monolithpy
         with:
-          repo: Nuitka/MonolithPy
-          workflow: main.yml
-          workflow_conclusion: success
-          branch: 3.14
-          name: ${{ matrix.mp_artifact }}
-          path: monolithpy
+          asset: ${{ matrix.mp_artifact }}
+          dest: monolithpy
 
       - name: Uninstall homebrew
         run: |
@@ -296,15 +280,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get MonolithPy artifact
-        uses: dawidd6/action-download-artifact@v6
+      - name: Get MonolithPy from latest 3.14 release
+        uses: ./.github/actions/fetch-monolithpy
         with:
-          repo: Nuitka/MonolithPy
-          workflow: main.yml
-          workflow_conclusion: success
-          branch: 3.14
-          name: ${{ matrix.mp_artifact }}
-          path: monolithpy
+          asset: ${{ matrix.mp_artifact }}
+          dest: monolithpy
 
       - name: Download tool wheels
         uses: actions/download-artifact@v4
@@ -377,15 +357,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get MonolithPy artifact
-        uses: dawidd6/action-download-artifact@v6
+      - name: Get MonolithPy from latest 3.14 release
+        uses: ./.github/actions/fetch-monolithpy
         with:
-          repo: Nuitka/MonolithPy
-          workflow: main.yml
-          workflow_conclusion: success
-          branch: 3.14
-          name: ${{ matrix.mp_artifact }}
-          path: monolithpy
+          asset: ${{ matrix.mp_artifact }}
+          dest: monolithpy
 
       - name: Download dep wheels
         uses: actions/download-artifact@v4
@@ -458,15 +434,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get MonolithPy artifact
-        uses: dawidd6/action-download-artifact@v6
+      - name: Get MonolithPy from latest 3.14 release
+        uses: ./.github/actions/fetch-monolithpy
         with:
-          repo: Nuitka/MonolithPy
-          workflow: main.yml
-          workflow_conclusion: success
-          branch: 3.14
-          name: MonolithPy314_windows_x64
-          path: monolithpy
+          asset: MonolithPy314_windows_x64
+          dest: monolithpy
 
       - name: Download Round 1 wheels
         uses: actions/download-artifact@v4
@@ -537,15 +509,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get MonolithPy artifact
-        uses: dawidd6/action-download-artifact@v6
+      - name: Get MonolithPy from latest 3.14 release
+        uses: ./.github/actions/fetch-monolithpy
         with:
-          repo: Nuitka/MonolithPy
-          workflow: main.yml
-          workflow_conclusion: success
-          branch: 3.14
-          name: ${{ matrix.mp_artifact }}
-          path: monolithpy
+          asset: ${{ matrix.mp_artifact }}
+          dest: monolithpy
 
       - name: Download Round 1 wheels
         uses: actions/download-artifact@v4
@@ -614,15 +582,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get MonolithPy artifact
-        uses: dawidd6/action-download-artifact@v6
+      - name: Get MonolithPy from latest 3.14 release
+        uses: ./.github/actions/fetch-monolithpy
         with:
-          repo: Nuitka/MonolithPy
-          workflow: main.yml
-          workflow_conclusion: success
-          branch: 3.14
-          name: MonolithPy314_windows_x64
-          path: monolithpy
+          asset: MonolithPy314_windows_x64
+          dest: monolithpy
 
       - name: Download wheels from S3
         shell: bash
@@ -666,15 +630,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get MonolithPy artifact
-        uses: dawidd6/action-download-artifact@v6
+      - name: Get MonolithPy from latest 3.14 release
+        uses: ./.github/actions/fetch-monolithpy
         with:
-          repo: Nuitka/MonolithPy
-          workflow: main.yml
-          workflow_conclusion: success
-          branch: 3.14
-          name: ${{ matrix.mp_artifact }}
-          path: monolithpy
+          asset: ${{ matrix.mp_artifact }}
+          dest: monolithpy
 
       - name: Download wheels from S3
         shell: bash
