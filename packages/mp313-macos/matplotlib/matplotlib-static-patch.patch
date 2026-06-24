@@ -1,8 +1,7 @@
 diff --git a/extern/agg24-svn/meson.build b/extern/agg24-svn/meson.build
-index a1c0884..83c9793 100644
 --- a/extern/agg24-svn/meson.build
 +++ b/extern/agg24-svn/meson.build
-@@ -14,6 +14,8 @@ agg_lib = static_library('agg',
+@@ -14,6 +14,8 @@
    'src/agg_vpgen_segmentator.cpp',
    include_directories : agg_incdir,
    gnu_symbol_visibility: 'inlineshidden',
@@ -12,19 +11,18 @@ index a1c0884..83c9793 100644
  
  agg_dep = declare_dependency(
 diff --git a/extern/meson.build b/extern/meson.build
-index 5463183..18178d1 100644
 --- a/extern/meson.build
 +++ b/extern/meson.build
-@@ -7,7 +7,7 @@ subdir('agg24-svn')
+@@ -7,7 +7,7 @@
  # For FreeType>=2.4, there is a conversion table in docs/VERSIONS.txt in the
  # FreeType source tree.
  if get_option('system-freetype')
 -  freetype_dep = dependency('freetype2', version: '>=9.11.3')
 +  freetype_dep = dependency('freetype', version: '>=0.0.0')
  else
-   # This is the version of FreeType to use when building a local version. It
-   # must match the value in `lib/matplotlib.__init__.py`. Also update the docs
-@@ -29,5 +29,6 @@ if get_option('system-qhull')
+   freetype_proj = subproject(
+     'freetype2',
+@@ -77,5 +77,6 @@
    endif
  else
    qhull_proj = subproject('qhull')
@@ -32,10 +30,9 @@ index 5463183..18178d1 100644
    qhull_dep = qhull_proj.get_variable('qhull_dep')
  endif
 diff --git a/pyproject.toml b/pyproject.toml
-index 832d763..38dd216 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
-@@ -76,7 +76,7 @@ requires = [
+@@ -164,7 +164,7 @@
  ]
  
  [tool.meson-python.args]
@@ -45,10 +42,9 @@ index 832d763..38dd216 100644
  [tool.setuptools_scm]
  version_scheme = "release-branch-semver"
 diff --git a/src/_enums.h b/src/_enums.h
-index 18f3d9a..1dd9682 100644
 --- a/src/_enums.h
 +++ b/src/_enums.h
-@@ -52,21 +52,6 @@ namespace p11x {
+@@ -52,21 +52,6 @@
  // Immediately converting the args to a vector outside of the lambda avoids
  // name collisions.
  #define P11X_DECLARE_ENUM(py_name, py_base_cls, ...) \
@@ -70,10 +66,12 @@ index 18f3d9a..1dd9682 100644
    namespace pybind11::detail { \
      template<> struct type_caster<P11X_ENUM_TYPE(__VA_ARGS__)> { \
        using type = P11X_ENUM_TYPE(__VA_ARGS__); \
-@@ -92,4 +77,18 @@ namespace p11x {
+@@ -90,6 +75,20 @@
+         return cls(std::underlying_type_t<type>(obj)).inc_ref(); \
+       } \
      }; \
-   }
- 
++  }
++
 +#define P11X_INIT_ENUM(py_name, py_base_cls, ...) \
 +  { \
 +      [](auto args) { \
@@ -86,11 +84,10 @@ index 18f3d9a..1dd9682 100644
 +        p11x::enums[py_name] = pybind11::cast(std::pair{py_base_cls, pairs}); \
 +        return 0; \
 +      } (std::vector{std::pair __VA_ARGS__}); \
-+  }
-+
+   }
+ 
  #endif /* MPL_ENUMS_H */
 diff --git a/src/_qhull_wrapper.cpp b/src/_qhull_wrapper.cpp
-index da623a8..cb12aa0 100644
 --- a/src/_qhull_wrapper.cpp
 +++ b/src/_qhull_wrapper.cpp
 @@ -5,6 +5,7 @@
@@ -101,7 +98,7 @@ index da623a8..cb12aa0 100644
  #include <pybind11/pybind11.h>
  #include <pybind11/numpy.h>
  
-@@ -121,7 +122,7 @@ public:
+@@ -125,7 +126,7 @@
                           "Qhull could not free all allocated memory", 1);
          }
  
@@ -110,7 +107,7 @@ index da623a8..cb12aa0 100644
              fclose(error_file);
          }
      }
-@@ -179,7 +180,7 @@ delaunay_impl(py::ssize_t npoints, const double* x, const double* y,
+@@ -183,7 +184,7 @@
      }
      else {
          /* qhull errors written to stderr. */
@@ -120,10 +117,9 @@ index da623a8..cb12aa0 100644
  
      /* Perform Delaunay triangulation. */
 diff --git a/src/_tkagg.cpp b/src/_tkagg.cpp
-index 874f6af..bfeda56 100644
 --- a/src/_tkagg.cpp
 +++ b/src/_tkagg.cpp
-@@ -247,103 +247,24 @@ mpl_tk_enable_dpi_awareness(py::object UNUSED_ON_NON_WINDOWS(frame_handle_obj),
+@@ -247,103 +247,24 @@
  
  // Functions to fill global Tcl/Tk function pointers by dynamic loading.
  
@@ -146,9 +142,18 @@ index 874f6af..bfeda56 100644
 -    }
 -    return (TCL_SETVAR || TCL_SETVAR2) && TK_FIND_PHOTO && TK_PHOTO_PUT_BLOCK;
 -}
--
++extern "C" const char *	Tcl_SetVar2(Tcl_Interp *interp, const char *part1,
++				const char *part2, const char *newValue,
++				int flags);
++extern "C" Tk_PhotoHandle	Tk_FindPhoto(Tcl_Interp *interp,
++				const char *imageName);
++extern "C" int		Tk_PhotoPutBlock(Tcl_Interp *interp,
++				Tk_PhotoHandle handle,
++				Tk_PhotoImageBlock *blockPtr, int x, int y,
++				int width, int height, int compRule);
+ 
 -#ifdef WIN32_DLL
--
+ 
 -/* On Windows, we can't load the tkinter module to get the Tcl/Tk symbols,
 - * because Windows does not load symbols into the library name-space of
 - * importing modules. So, knowing that tkinter has already been imported by
@@ -156,9 +161,9 @@ index 874f6af..bfeda56 100644
 - * names.
 - */
 -
--static void
--load_tkinter_funcs()
--{
+ static void
+ load_tkinter_funcs()
+ {
 -    HANDLE process = GetCurrentProcess();  // Pseudo-handle, doesn't need closing.
 -    DWORD size;
 -    if (!EnumProcessModules(process, NULL, 0, &size)) {
@@ -176,17 +181,11 @@ index 874f6af..bfeda56 100644
 -            return;
 -        }
 -    }
--}
-+extern "C" const char *	Tcl_SetVar2(Tcl_Interp *interp, const char *part1,
-+				const char *part2, const char *newValue,
-+				int flags);
-+extern "C" Tk_PhotoHandle	Tk_FindPhoto(Tcl_Interp *interp,
-+				const char *imageName);
-+extern "C" int		Tk_PhotoPutBlock(Tcl_Interp *interp,
-+				Tk_PhotoHandle handle,
-+				Tk_PhotoImageBlock *blockPtr, int x, int y,
-+				int width, int height, int compRule);
- 
++    TCL_SETVAR2 = Tcl_SetVar2;
++    TK_FIND_PHOTO = Tk_FindPhoto;
++    TK_PHOTO_PUT_BLOCK = Tk_PhotoPutBlock;
+ }
+-
 -#else  // not Windows
 -
 -/*
@@ -194,14 +193,14 @@ index 874f6af..bfeda56 100644
 - * uses these symbols, and the symbols are therefore visible in the tkinter
 - * dynamic library (module).
 - */
- 
- static void
- load_tkinter_funcs()
- {
+-
+-static void
+-load_tkinter_funcs()
+-{
 -    // Load tkinter global funcs from tkinter compiled module.
 -
 -    // Try loading from the main program namespace first.
--    auto main_program = dlopen(NULL, RTLD_LAZY);
+-    auto main_program = dlopen(nullptr, RTLD_LAZY);
 -    auto success = load_tcl_tk(main_program);
 -    // We don't need to keep a reference open as the main program always exists.
 -    if (dlclose(main_program)) {
@@ -231,19 +230,15 @@ index 874f6af..bfeda56 100644
 -    if (dlclose(tkinter_lib)) {
 -        throw std::runtime_error(dlerror());
 -    }
-+    TCL_SETVAR2 = Tcl_SetVar2;
-+    TK_FIND_PHOTO = Tk_FindPhoto;
-+    TK_PHOTO_PUT_BLOCK = Tk_PhotoPutBlock;
- }
+-}
 -#endif // end not Windows
  
  PYBIND11_MODULE(_tkagg, m, py::mod_gil_not_used())
  {
 diff --git a/src/ft2font_wrapper.cpp b/src/ft2font_wrapper.cpp
-index 9b54721..5f44fe8 100644
 --- a/src/ft2font_wrapper.cpp
 +++ b/src/ft2font_wrapper.cpp
-@@ -1650,6 +1650,77 @@ ft2font__getattr__(std::string name) {
+@@ -1648,6 +1648,77 @@
  
  PYBIND11_MODULE(ft2font, m, py::mod_gil_not_used())
  {
@@ -322,10 +317,9 @@ index 9b54721..5f44fe8 100644
          throw std::runtime_error("Could not initialize the freetype2 library");
      }
 diff --git a/src/meson.build b/src/meson.build
-index a7018f0..4aa04ed 100644
 --- a/src/meson.build
 +++ b/src/meson.build
-@@ -17,11 +17,11 @@ dl = dependency('dl', required: false)
+@@ -17,11 +17,11 @@
  
  # With Meson >= 1.2.0, use cpp_winlibs instead of manually searching.
  if ['cygwin', 'windows'].contains(host_machine.system())
@@ -343,10 +337,9 @@ index a7018f0..4aa04ed 100644
    comctl32 = []
    ole32 = []
 diff --git a/subprojects/packagefiles/qhull-8.0.2/meson.build b/subprojects/packagefiles/qhull-8.0.2/meson.build
-index 7a27b47..304b454 100644
 --- a/subprojects/packagefiles/qhull-8.0.2/meson.build
 +++ b/subprojects/packagefiles/qhull-8.0.2/meson.build
-@@ -6,6 +6,9 @@ project('qhull', 'c',
+@@ -6,6 +6,9 @@
    ],
    meson_version: '>=1.1.0')
  
@@ -356,7 +349,7 @@ index 7a27b47..304b454 100644
  qhull_inc = include_directories('src')
  qhull_lib = static_library('qhull_r',
    'src/libqhull_r/geom2_r.c',
-@@ -26,6 +29,8 @@ qhull_lib = static_library('qhull_r',
+@@ -26,6 +29,8 @@
    'src/libqhull_r/userprintf_r.c',
    'src/libqhull_r/user_r.c',
    gnu_symbol_visibility: 'inlineshidden',
