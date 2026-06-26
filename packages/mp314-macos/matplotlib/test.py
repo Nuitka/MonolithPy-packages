@@ -113,7 +113,7 @@ def test_contour():
 
 def test_colormap():
     """Test colormap functionality (C-backed)."""
-    cmap = cm.get_cmap('viridis')
+    cmap = plt.get_cmap('viridis')
     assert cmap is not None
     
     # Get color at specific value

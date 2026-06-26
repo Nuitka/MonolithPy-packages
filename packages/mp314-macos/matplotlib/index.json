@@ -10,7 +10,7 @@
         "ninja",
         "clang"
       ],
-      "dependencies": [],
+      "dependencies": ["libraqm"],
       "files": [
         "build.py",
         "matplotlib-static-patch.patch"

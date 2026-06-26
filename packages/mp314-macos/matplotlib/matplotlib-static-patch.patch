@@ -22,13 +22,41 @@ diff --git a/extern/meson.build b/extern/meson.build
  else
    freetype_proj = subproject(
      'freetype2',
-@@ -77,5 +77,6 @@
+@@ -27,7 +27,15 @@
+ endif
+ 
+ if get_option('system-libraqm')
+-  libraqm_dep = dependency('raqm', version: '>=0.10.4')
++  libraqm_root = get_option('libraqm-root')
++  assert(libraqm_root != '', 'libraqm-root must be set when system-libraqm=True')
++  libraqm_dep = declare_dependency(
++    compile_args: ['-I' + libraqm_root + '/include'],
++    link_args: [
++      libraqm_root + '/lib/libraqm.a',
++      libraqm_root + '/lib/libsheenbidi.a',
++    ],
++  )
+ else
+   subproject('harfbuzz',
+     default_options: [
+@@ -77,5 +85,6 @@
    endif
  else
    qhull_proj = subproject('qhull')
 +  qhull_lib = qhull_proj.get_variable('qhull_lib')
    qhull_dep = qhull_proj.get_variable('qhull_dep')
  endif
+diff --git a/meson.options b/meson.options
+--- a/meson.options
++++ b/meson.options
+@@ -9,5 +9,7 @@
+        description: 'Build against system version of FreeType')
+ option('system-libraqm', type: 'boolean', value: false,
+        description: 'Build against system version of libraqm')
++option('libraqm-root', type: 'string', value: '',
++       description: 'Path to mpy-dep-libraqm install root (used when system-libraqm=true)')
+ option('system-qhull', type: 'boolean', value: false,
+        description: 'Build against system version of Qhull')
 diff --git a/pyproject.toml b/pyproject.toml
 --- a/pyproject.toml
 +++ b/pyproject.toml
@@ -238,7 +266,7 @@ diff --git a/src/_tkagg.cpp b/src/_tkagg.cpp
 diff --git a/src/ft2font_wrapper.cpp b/src/ft2font_wrapper.cpp
 --- a/src/ft2font_wrapper.cpp
 +++ b/src/ft2font_wrapper.cpp
-@@ -1648,6 +1648,77 @@
+@@ -1648,6 +1648,79 @@
  
  PYBIND11_MODULE(ft2font, m, py::mod_gil_not_used())
  {
@@ -265,14 +293,10 @@ diff --git a/src/ft2font_wrapper.cpp b/src/ft2font_wrapper.cpp
 +        {"CID_KEYED", FaceFlags::CID_KEYED},
 +        {"TRICKY", FaceFlags::TRICKY},
 +        {"COLOR", FaceFlags::COLOR},
-+        // backcompat: ft 2.9.0.
-+        // {"VARIATION", FaceFlags::VARIATION},
-+        // backcompat: ft 2.12.0.
-+        // {"SVG", FaceFlags::SVG},
-+        // backcompat: ft 2.12.0.
-+        // {"SBIX", FaceFlags::SBIX},
-+        // backcompat: ft 2.12.0.
-+        // {"SBIX_OVERLAY", FaceFlags::SBIX_OVERLAY},
++        {"VARIATION", FaceFlags::VARIATION},
++        {"SVG", FaceFlags::SVG},
++        {"SBIX", FaceFlags::SBIX},
++        {"SBIX_OVERLAY", FaceFlags::SBIX_OVERLAY},
 +    );
 +    P11X_INIT_ENUM(
 +        "LoadFlags", "Flag",
@@ -292,12 +316,9 @@ diff --git a/src/ft2font_wrapper.cpp b/src/ft2font_wrapper.cpp
 +        {"LINEAR_DESIGN", LoadFlags::LINEAR_DESIGN},
 +        {"NO_AUTOHINT", LoadFlags::NO_AUTOHINT},
 +        {"COLOR", LoadFlags::COLOR},
-+        // backcompat: ft 2.6.1.
 +        {"COMPUTE_METRICS", LoadFlags::COMPUTE_METRICS},
-+        // backcompat: ft 2.7.1.
-+        // {"BITMAP_METRICS_ONLY", LoadFlags::BITMAP_METRICS_ONLY},
-+        // backcompat: ft 2.13.1.
-+        // {"NO_SVG", LoadFlags::NO_SVG},
++        {"BITMAP_METRICS_ONLY", LoadFlags::BITMAP_METRICS_ONLY},
++        {"NO_SVG", LoadFlags::NO_SVG},
 +        // These must be unique, but the others can be OR'd together; I don't know if
 +        // there's any way to really enforce that.
 +        {"TARGET_NORMAL", LoadFlags::TARGET_NORMAL},
@@ -305,6 +326,15 @@ diff --git a/src/ft2font_wrapper.cpp b/src/ft2font_wrapper.cpp
 +        {"TARGET_MONO", LoadFlags::TARGET_MONO},
 +        {"TARGET_LCD", LoadFlags::TARGET_LCD},
 +        {"TARGET_LCD_V", LoadFlags::TARGET_LCD_V},
++    );
++    P11X_INIT_ENUM(
++        "RenderMode", "Enum",
++        {"NORMAL", FT_RENDER_MODE_NORMAL},
++        {"LIGHT", FT_RENDER_MODE_LIGHT},
++        {"MONO", FT_RENDER_MODE_MONO},
++        {"LCD", FT_RENDER_MODE_LCD},
++        {"LCD_V", FT_RENDER_MODE_LCD_V},
++        {"SDF", FT_RENDER_MODE_SDF},
 +    );
 +    P11X_INIT_ENUM(
 +        "StyleFlags", "Flag",

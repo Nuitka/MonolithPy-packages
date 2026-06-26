@@ -34,11 +34,16 @@ def run(wheel_directory):
     os.environ["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + os.environ["PATH"])
 
+    libraqm_root = __mp__.find_dep_root("libraqm")
+
     job_args = []
     if "MP_JOBS" in os.environ:
         job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
     __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
-                           "-Csetup-args=-Dsystem-freetype=True", *job_args)
+                           "-Csetup-args=-Dsystem-freetype=True",
+                           "-Csetup-args=-Dsystem-libraqm=True",
+                           "-Csetup-args=-Dlibraqm-root=" + libraqm_root,
+                           *job_args)
 
     wheel_location = glob.glob("matplotlib-*.whl")[0]
 
