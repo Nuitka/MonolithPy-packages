@@ -3,6 +3,40 @@
   "scripts": [
     {
       "metadata": {
+        "Version": "3.10.*"
+      },
+      "build_tools": [
+        "cmake",
+        "ninja",
+        "clang"
+      ],
+      "dependencies": [],
+      "files": [
+        "3.10.0/build.py",
+        "3.10.0/matplotlib-static-patch.patch"
+      ],
+      "build_requires": [
+        "meson-python>=0.13.1",
+        "pybind11>=2.13.2,!=2.13.3",
+        "setuptools_scm<10,>=7",
+        "build",
+        "setuptools>=64"
+      ],
+      "dist_requires": [
+        "contourpy>=1.0.1",
+        "cycler>=0.10",
+        "fonttools>=4.22.0",
+        "kiwisolver>=1.3.1",
+        "numpy>=1.25",
+        "packaging>=20.0",
+        "pillow>=9",
+        "pyparsing>=3",
+        "python-dateutil>=2.7"
+      ],
+      "build_script": "build.py"
+    },
+    {
+      "metadata": {
         "Version": "*"
       },
       "build_tools": [
@@ -10,10 +44,12 @@
         "ninja",
         "clang"
       ],
-      "dependencies": ["libraqm"],
+      "dependencies": [
+        "raqm"
+      ],
       "files": [
-        "build.py",
-        "matplotlib-static-patch.patch"
+        "3.11.0/build.py",
+        "3.11.0/matplotlib-static-patch.patch"
       ],
       "build_requires": [
         "meson-python>=0.13.1",

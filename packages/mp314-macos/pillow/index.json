@@ -7,7 +7,8 @@
       },
       "build_tools": [],
       "dependencies": [
-        "jpeg"
+        "jpeg",
+        "raqm"
       ],
       "files": [
         "build.py"

@@ -21,12 +21,17 @@ def run(wheel_directory):
     env["ZLIB_ROOT"] = __mp__.find_dep_root("zlib")
     env["FREETYPE_ROOT"] = __mp__.find_dep_root("freetype")
     env["HARFBUZZ_ROOT"] = __mp__.find_dep_root("harfbuzz")
+    # Use the shared mpy-dep-raqm (SheenBidi-based) instead of pillow's
+    # vendored raqm. On Windows the vendored raqm's symbols collide with
+    # matplotlib's mpy-dep-raqm at the interpreter relink; sharing one raqm
+    # avoids the clash (and follows the repo's no-bundled-subprojects rule).
+    env["RAQM_ROOT"] = __mp__.find_dep_root("raqm")
 
     __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
                            "-Cjpeg=enable",
                            "-Ctiff=disable", "-Czlib=enable",
                            "-Cfreetype=enable", "-Charfbuzz=enable",
-                           "-Craqm=vendor", "-Cfribidi=vendor", env=env)
+                           "-Craqm=enable", env=env)
 
     wheel_location = glob.glob("pillow-*.whl")[0]
     wheel_name = os.path.basename(wheel_location)

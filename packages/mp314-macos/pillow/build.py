@@ -18,12 +18,15 @@ def run(wheel_directory):
     env["ZLIB_ROOT"] = __mp__.find_dep_root("base")
     env["FREETYPE_ROOT"] = __mp__.find_dep_root("base")
     env["HARFBUZZ_ROOT"] = __mp__.find_dep_root("base")
+    # Use the shared mpy-dep-raqm (SheenBidi-based) instead of pillow's
+    # vendored raqm, so pillow and matplotlib build against one raqm source.
+    env["RAQM_ROOT"] = __mp__.find_dep_root("raqm")
 
     __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
                            "-Cjpeg=enable",
                            "-Ctiff=disable", "-Czlib=enable",
                            "-Cfreetype=enable", "-Charfbuzz=enable",
-                           "-Craqm=vendor", "-Cfribidi=vendor",
+                           "-Craqm=enable",
                            "-Clcms=disable", "-Cwebp=disable",
                            "-Cjpeg2000=disable", "-Cimagequant=disable",
                            "-Cxcb=disable", env=env)

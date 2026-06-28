@@ -1,0 +1,15 @@
+{
+  "version": "1.11.1",
+  "build_tools": [],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "1.11.1",
+      "link": "https://pip-mpy.ohrtech.net/dummy/empty/mpy_tool_meson-1.11.1.zip"
+    }
+  ],
+  "build_script": "build.py"
+
+}

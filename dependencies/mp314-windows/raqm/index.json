@@ -3,9 +3,13 @@
   "build_tools": [
     "cmake",
     "ninja",
-    "clang"
+    "meson"
   ],
-  "dependencies": [],
+  "dependencies": [
+    "freetype",
+    "harfbuzz",
+    "zlib"
+  ],
   "files": [
     "build.py"
   ],

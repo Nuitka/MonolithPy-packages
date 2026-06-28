@@ -11,7 +11,8 @@
       "dependencies": [
         "jpeg",
         "freetype",
-        "harfbuzz"
+        "harfbuzz",
+        "raqm"
       ],
       "files": [
         "build.py",
