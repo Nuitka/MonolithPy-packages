@@ -28,7 +28,7 @@ def run(wheel_directory):
         job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
     __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation",
                "-Csetup-args=-Dprefer_static=True", "-Csetup-args=-Dblas=openblas",
-               "-Csetup-args=-Dlapack=openblas", "-Csetup-args=-Dbuildtype=debug",
+               "-Csetup-args=-Dlapack=openblas",
                "-Csetup-args=-Dfortran_link_args=-static-libgcc -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib",
                "-Cbuild-dir=build",
                *job_args)
