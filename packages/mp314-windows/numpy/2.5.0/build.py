@@ -31,7 +31,25 @@ def run(wheel_directory):
     env["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + env["PATH"]
     env["LIB"] = env["LIB"] + os.pathsep + __mp__.find_dep_libs("openblas")
     env["INCLUDE"] = env["INCLUDE"] + os.pathsep + __mp__.find_dep_include("openblas")
-    config_args = ["-Csetup-args=-Dblas=openblas", "-Csetup-args=-Dlapack=openblas"]
+    # Build with clang-cl: MSVC miscompiles numpy's float-predicate SIMD kernel's
+    # 0-d/scalar broadcast path (isfinite/isnan/isinf wrong on scalars -> arange
+    # "cannot compute length"); clang-cl (LLVM, like macOS) compiles it correctly.
+    env["CC"] = __mp__.find_build_tool_exe("clang", "clang-cl.exe")
+    env["CXX"] = env["CC"]
+    env["CC_LD"] = "lld-link"
+    env["CXX_LD"] = "lld-link"
+    env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("clang", "lld-link.exe"))
+                   + os.pathsep + env["PATH"])
+    # meson's run-time config checks link python314.lib's patched /MT CRT (mp_open
+    # in mp_embed.lib + nuitka_embed_* in mp_embed_data.lib); MSVC auto-links them,
+    # clang-cl doesn't -> link them + /FORCE:UNRESOLVED past POSIX-only refs.
+    _libs = os.path.join(sysconfig.get_config_var("base"), "libs")
+    _embed = " ".join(os.path.join(_libs, l).replace("\\", "/")
+                      for l in ("mp_embed.lib", "mp_embed_data.lib"))
+    env["LDFLAGS"] = (env.get("LDFLAGS", "") + " " + _embed
+                      + " Shlwapi.lib /FORCE:UNRESOLVED").strip()
+    config_args = ["-Csetup-args=-Dblas=openblas", "-Csetup-args=-Dlapack=openblas",
+                   "-Csetup-args=-Db_lto=false"]
     if "MP_JOBS" in env:
         config_args += ["-Ccompile-args=-j" + env["MP_JOBS"]]
     __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".", *config_args, env=env)
