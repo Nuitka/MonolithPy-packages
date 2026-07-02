@@ -25,6 +25,18 @@ def run(wheel_directory):
     with open("pyproject.toml", "w") as f:
         f.write(pyproject)
 
+    # clang-cl defines _MSC_VER, so MurmurHash3.h's pre-stdint typedef block
+    # redefines uint32_t as 'unsigned long', clashing with stdint.h's
+    # 'unsigned int' (typedef redefinition with different types). Gate the
+    # manual typedefs on the MSVC era that actually lacked stdint.h (< 1600);
+    # clang-cl and modern MSVC then fall through to '#include <stdint.h>'.
+    _mmh = os.path.join("sklearn", "utils", "src", "MurmurHash3.h")
+    with open(_mmh, "r") as f:
+        _mmh_src = f.read()
+    with open(_mmh, "w") as f:
+        f.write(_mmh_src.replace("#if defined(_MSC_VER)",
+                                 "#if defined(_MSC_VER) && (_MSC_VER < 1600)", 1))
+
     os.environ["CC"] = __mp__.find_build_tool_exe("clang", "clang-cl.exe")
     os.environ["CC_LD"] = "lld-link"
     os.environ["CXX"] = __mp__.find_build_tool_exe("clang", "clang-cl.exe")
