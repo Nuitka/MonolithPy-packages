@@ -28,12 +28,20 @@ def run(temp_dir: str):
 
     os.environ["PATH"] = os.path.dirname(__np__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + os.environ[
         "PATH"]
-    __np__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
-                              "-DCMAKE_BUILD_TYPE=Release",
-                              "-DCMAKE_INSTALL_PREFIX=" + ft_install_dir,
-                              "-DZLIB_ROOT=" + __np__.find_dep_root("zlib"),
-                              "-DWITH_HarfBuzz=OFF", "-DWITH_BZip2=OFF",
-                              "-DWITH_PNG=OFF", ft_src_dir)
+    __np__.run_build_tool_exe(
+        "cmake",
+        "cmake.exe",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=Release",
+        f'-DCMAKE_INSTALL_PREFIX={ft_install_dir}',
+        "-DZLIB_ROOT=" + __np__.find_dep_root("zlib"),
+        "-DWITH_HarfBuzz=OFF",
+        "-DWITH_BZip2=OFF",
+        "-DWITH_PNG=OFF",
+        ft_src_dir,
+    )
+
     __np__.run_build_tool_exe("ninja", "ninja.exe")
 
     __np__.run_build_tool_exe("ninja", "ninja.exe", "install")
@@ -52,16 +60,25 @@ def run(temp_dir: str):
     install_dir = os.path.join(temp_dir, "install")
     os.mkdir(install_dir)
 
-    __np__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
-                              "-DCMAKE_BUILD_TYPE=Release",
-                              "-DCMAKE_INSTALL_PREFIX=" + install_dir,
-                              "-DCMAKE_PREFIX_PATH=" + ft_install_dir,
-                              "-DHB_HAVE_FREETYPE=ON", "-DHB_BUILD_TESTS=OFF",
-                              "-DHB_BUILD_UTILS=OFF", "-DHB_BUILD_SUBSET=OFF",
-                              "-DHB_HAVE_INTROSPECTION=OFF", "-DHB_HAVE_CORETEXT=OFF",
-                              f"-DFREETYPE_INCLUDE_DIR_freetype2={ft_install_dir}/include/freetype2",
-                              f"-DFREETYPE_INCLUDE_DIR_ft2build={ft_install_dir}/include/freetype2",
-                              src_dir)
+    __np__.run_build_tool_exe(
+        "cmake",
+        "cmake.exe",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=Release",
+        f'-DCMAKE_INSTALL_PREFIX={install_dir}',
+        f'-DCMAKE_PREFIX_PATH={ft_install_dir}',
+        "-DHB_HAVE_FREETYPE=ON",
+        "-DHB_BUILD_TESTS=OFF",
+        "-DHB_BUILD_UTILS=OFF",
+        "-DHB_BUILD_SUBSET=OFF",
+        "-DHB_HAVE_INTROSPECTION=OFF",
+        "-DHB_HAVE_CORETEXT=OFF",
+        f"-DFREETYPE_INCLUDE_DIR_freetype2={ft_install_dir}/include/freetype2",
+        f"-DFREETYPE_INCLUDE_DIR_ft2build={ft_install_dir}/include/freetype2",
+        src_dir,
+    )
+
     __np__.run_build_tool_exe("ninja", "ninja.exe")
 
     __np__.run_build_tool_exe("ninja", "ninja.exe", "install")

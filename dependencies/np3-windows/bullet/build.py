@@ -21,12 +21,20 @@ def run(temp_dir: str):
     os.mkdir(install_dir)
 
     os.environ["PATH"] = os.path.dirname(__np__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + os.environ["PATH"]
-    __np__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
-                              "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_CPU_DEMOS=OFF",
-                              "-DBUILD_OPENGL3_DEMOS=OFF", "-DBUILD_UNIT_TESTS=OFF",
-                              "-DINSTALL_LIBS=ON",
-                              "-DCMAKE_INSTALL_PREFIX=" + install_dir,
-                              src_dir)
+    __np__.run_build_tool_exe(
+        "cmake",
+        "cmake.exe",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DBUILD_CPU_DEMOS=OFF",
+        "-DBUILD_OPENGL3_DEMOS=OFF",
+        "-DBUILD_UNIT_TESTS=OFF",
+        "-DINSTALL_LIBS=ON",
+        f'-DCMAKE_INSTALL_PREFIX={install_dir}',
+        src_dir,
+    )
+
     __np__.run_build_tool_exe("ninja", "ninja.exe")
     __np__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
