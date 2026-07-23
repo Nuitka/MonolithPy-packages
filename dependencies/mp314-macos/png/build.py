@@ -21,9 +21,9 @@ def run(wheel_directory):
     __mp__.run_with_output("make")
     __mp__.run_with_output("make", "install")
 
-    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_png", "1.6.37"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_png", "1.6.50"))
     with WheelFile(result_wheel, 'w') as w:
-        __mp__.add_wheel_manifest(w, "mpy-dep-png", "1.6.37")
+        __mp__.add_wheel_manifest(w, "mpy-dep-png", "1.6.50")
         __mp__.add_wheel_dep_libs(w, "png", os.path.join(prefix_dir, "lib", "*"))
         __mp__.add_wheel_dep_include(w, "png", os.path.join(prefix_dir, "include", "*.h"),
                                      base_dir=os.path.join(prefix_dir, "include"))

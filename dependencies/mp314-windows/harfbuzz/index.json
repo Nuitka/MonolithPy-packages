@@ -1,5 +1,5 @@
 {
-  "version": "10.2.0",
+  "version": "14.2.1",
   "build_tools": [
     "cmake",
     "ninja"
@@ -12,8 +12,8 @@
   ],
   "sources": [
     {
-      "version": "10.2.0",
-      "link": "https://github.com/harfbuzz/harfbuzz/archive/refs/tags/10.2.0.zip"
+      "version": "14.2.1",
+      "link": "https://github.com/harfbuzz/harfbuzz/archive/refs/tags/14.2.1.zip"
     }
   ],
   "build_script": "build.py"

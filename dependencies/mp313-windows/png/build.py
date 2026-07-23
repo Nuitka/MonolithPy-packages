@@ -29,9 +29,9 @@ def run(wheel_directory):
 
     shutil.copy(os.path.join(build_dir, "libpng16_static.lib"), os.path.join(build_dir, "libpng16.lib"))
 
-    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_png", "1.6.37"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_png", "1.6.50"))
     with WheelFile(result_wheel, 'w') as w:
-        __mp__.add_wheel_manifest(w, "mpy-dep-png", "1.6.37")
+        __mp__.add_wheel_manifest(w, "mpy-dep-png", "1.6.50")
         __mp__.add_wheel_dep_libs(w, "png", os.path.join(build_dir, "*.lib"))
         __mp__.add_wheel_dep_include(w, "png", os.path.join(src_dir, "*.h"),
                                      base_dir=os.path.join(src_dir, "include"))

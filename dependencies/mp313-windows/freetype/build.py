@@ -36,9 +36,9 @@ def run(wheel_directory):
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
     __mp__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
-    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_freetype", "2.13.3"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_freetype", "2.14.3"))
     with WheelFile(result_wheel, 'w') as w:
-        __mp__.add_wheel_manifest(w, "mpy-dep-freetype", "2.13.3")
+        __mp__.add_wheel_manifest(w, "mpy-dep-freetype", "2.14.3")
         __mp__.add_wheel_dep_libs(w, "freetype", os.path.join(install_dir, "lib", "freetype.lib"))
         __mp__.add_wheel_dep_libs(w, "freetype", os.path.join(install_dir, "lib", "cmake"),
                                   base_dir=os.path.join(install_dir, "lib"))

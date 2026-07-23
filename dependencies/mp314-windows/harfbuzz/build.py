@@ -15,7 +15,7 @@ def run(wheel_directory):
     # We will build freetype first here and then base off that, but we will also have a separate freetype package.
     ft_dir = tempfile.mkdtemp()
 
-    __mp__.download_extract("http://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.gz", ft_dir)
+    __mp__.download_extract("http://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.14.3.tar.gz", ft_dir)
 
     __mp__.setup_compiler_env()
 
@@ -69,9 +69,9 @@ def run(wheel_directory):
 
     __mp__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
-    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_harfbuzz", "10.2.0"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_harfbuzz", "14.2.1"))
     with WheelFile(result_wheel, 'w') as w:
-        __mp__.add_wheel_manifest(w, "mpy-dep-harfbuzz", "10.2.0")
+        __mp__.add_wheel_manifest(w, "mpy-dep-harfbuzz", "14.2.1")
         __mp__.add_wheel_dep_libs(w, "harfbuzz", os.path.join(install_dir, "lib", "*.lib"))
         __mp__.add_wheel_dep_include(w, "harfbuzz", os.path.join(install_dir, "include", "harfbuzz", "*.h"))
 
