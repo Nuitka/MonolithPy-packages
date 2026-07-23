@@ -25,8 +25,8 @@
       "build_tools": ["ninja", "patch", "clang"],
       "dependencies": ["openblas"],
       "files": [
-        "2.5.0/build.py",
-        "2.5.0/numpy-static-patch.patch"
+        "2.5.1/build.py",
+        "2.5.1/numpy-static-patch.patch"
       ],
       "build_requires": [
         "meson-python>=0.18.0",
