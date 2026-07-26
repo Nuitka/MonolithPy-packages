@@ -1,19 +1,17 @@
-diff --git a/src/puccinialin/_target.py b/src/puccinialin/_target.py
-index 8a49763..caef37e 100644
 --- a/src/puccinialin/_target.py
 +++ b/src/puccinialin/_target.py
-@@ -52,7 +52,7 @@ def get_triple(file: typing.IO) -> str:
-     shared library of native modules, which should match the binaries that we build on the rust side. For other
-     platforms, we may need to query additional fields."""
-     soabi = sysconfig.get_config_var("SOABI")
--    if soabi:
-+    if soabi and "-" in soabi:
+@@ -62,7 +62,7 @@
+         else:
+             sysconfig_platform = sysconfig.get_platform()
+             print(f"Python reports platform: {sysconfig_platform}", file=file)
+-    elif soabi:
++    elif soabi and "-" in soabi:
          print(f"Python reports SOABI: {soabi}", file=file)
          if soabi.count("-") == 1:
              _python, sysconfig_platform = soabi.split("-", maxsplit=2)
-@@ -80,8 +80,18 @@ def get_triple(file: typing.IO) -> str:
-             print(f"Unrecognized linux platform {sysconfig_platform}", file=file)
-             sys.exit(1)
+@@ -92,8 +92,18 @@
+         if arch == "i386":
+             arch = "i686"
          target = f"{arch}-unknown-{linux}-{libc}"
 +    # Other Linux
 +    elif "linux" in sysconfig_platform:
