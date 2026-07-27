@@ -96,6 +96,24 @@ def copy_object(s3, bucket: str, src_key: str, dst_key: str) -> None:
     )
 
 
+def _put_log_without_cas(s3, extra: dict, reason: str) -> None:
+    """Write the promotion log without the IfMatch compare-and-swap.
+
+    Used when conditional PutObject is unavailable — either the installed
+    botocore predates the IfMatch parameter, or the S3-compatible endpoint
+    doesn't implement conditional writes. The append is the final audit step
+    after every wheel has already been server-side-copied, so it must not fail
+    the promotion; dropping CAS only loses protection against the (manual,
+    serial) case of two promotions racing on PROMOTIONS.jsonl.
+    """
+    extra.pop("IfMatch", None)
+    print(
+        f"::warning::{reason}; appending PROMOTIONS.jsonl "
+        f"without compare-and-swap"
+    )
+    s3.put_object(**extra)
+
+
 def append_promotion_log(
     s3, bucket: str, entry: dict, *, max_attempts: int = 5
 ) -> None:
@@ -128,22 +146,23 @@ def append_promotion_log(
             return
         except ParamValidationError:
             # Installed botocore predates S3 conditional PutObject (the IfMatch
-            # parameter, ~botocore 1.35.60). The compare-and-swap is only there
-            # to guard against concurrent promotions; a manual, serial promote
-            # that has already server-side-copied every wheel must not be lost
-            # just because the audit-log append can't do CAS. Fall back to an
-            # unconditional write.
-            extra.pop("IfMatch", None)
-            print(
-                "::warning::botocore too old for conditional PutObject (IfMatch); "
-                "appending PROMOTIONS.jsonl without compare-and-swap"
+            # parameter, ~botocore 1.35.60) — the CAS is rejected client-side.
+            _put_log_without_cas(
+                s3, extra, "botocore too old for conditional PutObject (IfMatch)"
             )
-            s3.put_object(**extra)
             return
         except ClientError as e:
             code = e.response.get("Error", {}).get("Code", "")
             if code in ("PreconditionFailed", "412") and attempt < max_attempts - 1:
                 continue
+            if code in ("NotImplemented", "501") and "IfMatch" in extra:
+                # The S3-compatible endpoint doesn't implement conditional
+                # PutObject (it rejects the If-Match header server-side).
+                _put_log_without_cas(
+                    s3, extra,
+                    "endpoint does not implement conditional PutObject (IfMatch)",
+                )
+                return
             raise
     raise SystemExit("::error::Failed to append PROMOTIONS.jsonl after retries")
 
