@@ -43,6 +43,10 @@ def run(wheel_directory):
                            "-Csetup-args=-Dsystem-freetype=True",
                            "-Csetup-args=-Dsystem-libraqm=True",
                            "-Csetup-args=-Draqm-root=" + raqm_root,
+                           # matplotlib's meson sets default_options b_lto=true; disable it
+                           # on macOS so the static libs ship native objects, not LLVM
+                           # bitcode the host's Apple ld/libLTO can't parse when relinking.
+                           "-Csetup-args=-Db_lto=false",
                            *job_args)
 
     wheel_location = glob.glob("matplotlib-*.whl")[0]

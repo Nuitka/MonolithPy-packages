@@ -38,7 +38,11 @@ def run(wheel_directory):
     if "MP_JOBS" in os.environ:
         job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
     __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
-                           "-Csetup-args=-Dsystem-freetype=True", *job_args)
+                           "-Csetup-args=-Dsystem-freetype=True",
+                           # matplotlib's meson sets default_options b_lto=true; disable it
+                           # on macOS so the static libs ship native objects, not LLVM
+                           # bitcode the host's Apple ld/libLTO can't parse when relinking.
+                           "-Csetup-args=-Db_lto=false", *job_args)
 
     wheel_location = glob.glob("matplotlib-*.whl")[0]
 
