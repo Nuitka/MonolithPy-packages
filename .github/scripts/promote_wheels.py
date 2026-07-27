@@ -15,7 +15,7 @@ import sys
 
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ParamValidationError
 
 
 def make_s3_client():
@@ -124,6 +124,20 @@ def append_promotion_log(
         if etag:
             extra["IfMatch"] = etag
         try:
+            s3.put_object(**extra)
+            return
+        except ParamValidationError:
+            # Installed botocore predates S3 conditional PutObject (the IfMatch
+            # parameter, ~botocore 1.35.60). The compare-and-swap is only there
+            # to guard against concurrent promotions; a manual, serial promote
+            # that has already server-side-copied every wheel must not be lost
+            # just because the audit-log append can't do CAS. Fall back to an
+            # unconditional write.
+            extra.pop("IfMatch", None)
+            print(
+                "::warning::botocore too old for conditional PutObject (IfMatch); "
+                "appending PROMOTIONS.jsonl without compare-and-swap"
+            )
             s3.put_object(**extra)
             return
         except ClientError as e:
