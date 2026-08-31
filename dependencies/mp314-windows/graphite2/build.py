@@ -4,6 +4,7 @@ from typing import *
 import os
 import re
 import glob
+import sysconfig
 from wheel.wheelfile import WheelFile
 
 
@@ -43,15 +44,21 @@ def run(wheel_directory):
     os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + os.environ[
         "PATH"]
 
-    # CMAKE_MSVC_RUNTIME_LIBRARY + CMP0091 NEW force /MT explicitly: graphite2's
-    # cmake_minimum_required carries extra args, so the auto_patch /MD->/MT
-    # rewrite may not fire on its top CMakeLists -- pin the static CRT directly.
+    # graphite2's CMakeLists has no `cmake_minimum_required(VERSION x)` line
+    # (it opens with project()), so __mp__.auto_patch_build's CMakeLists rewrite
+    # never fires on it -- yet patch_all_source still prepends `#include
+    # "mp_embed.h"` to every source. Supply what that rewrite normally would:
+    #   * -I<INCLUDEPY> so the prepended mp_embed.h is found (else C1083), and
+    #   * CMAKE_MSVC_RUNTIME_LIBRARY + CMP0091 NEW to pin the static CRT (/MT).
+    inc = sysconfig.get_config_var("INCLUDEPY").replace("\\", "/")
     __mp__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
                               "-DCMAKE_BUILD_TYPE=Release",
                               "-DCMAKE_INSTALL_PREFIX=" + install_dir,
                               "-DBUILD_SHARED_LIBS=OFF",
                               "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW",
                               "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded",
+                              "-DCMAKE_C_FLAGS=-I" + inc,
+                              "-DCMAKE_CXX_FLAGS=-I" + inc,
                               "-DGRAPHITE2_COMPARE_RENDERER=OFF",
                               "-DGRAPHITE2_NTRACING=ON",
                               src_dir)
