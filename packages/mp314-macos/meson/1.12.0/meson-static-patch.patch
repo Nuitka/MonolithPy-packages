@@ -130,7 +130,7 @@ index 1ffc34f..9c60237 100644
  
      @typed_pos_args('shared_library', str, varargs=SOURCES_VARARGS)
 diff --git a/mesonbuild/modules/python.py b/mesonbuild/modules/python.py
-index 697382d..ce57bb3 100644
+index 697382d..c81b59e 100644
 --- a/mesonbuild/modules/python.py
 +++ b/mesonbuild/modules/python.py
 @@ -9,7 +9,7 @@ import typing as T
@@ -142,8 +142,12 @@ index 697382d..ce57bb3 100644
  from ..dependencies import NotFoundDependency
  from ..dependencies.detect import get_dep_identifier, find_external_dependency
  from ..dependencies.python import BasicPythonExternalProgram, python_factory, _PythonDependencyBase
-@@ -250,7 +250,7 @@ class PythonInstallation(ProgramHolder['PythonExternalProgram']):
+@@ -248,9 +248,11 @@ class PythonInstallation(ProgramHolder['PythonExternalProgram']):
+                 (self.is_pypy or mesonlib.version_compare(self.version, '>=3.9')):
+             target_kwargs['gnu_symbol_visibility'] = 'inlineshidden'
  
++        target_kwargs.setdefault('pic', None)
++        target_kwargs.setdefault('prelink', False)
          return self.interpreter.build_target(
              self.current_node, T.cast('T.Tuple[str, SourcesVarargsType]', args),
 -            target_kwargs, SharedModule)
@@ -152,7 +156,7 @@ index 697382d..ce57bb3 100644
      def _convert_api_version_to_py_version_hex(self, api_version: str, detected_version: str) -> str:
          python_api_version_format = re.compile(r'[0-9]\.[0-9]{1,2}')
 diff --git a/mesonbuild/modules/python3.py b/mesonbuild/modules/python3.py
-index 24e12e7..4997936 100644
+index 24e12e7..4f33a2b 100644
 --- a/mesonbuild/modules/python3.py
 +++ b/mesonbuild/modules/python3.py
 @@ -10,7 +10,7 @@ from .. import mesonlib
@@ -164,12 +168,14 @@ index 24e12e7..4997936 100644
  )
  from ..interpreter.type_checking import SHARED_MOD_KWS
  from ..interpreterbase import typed_kwargs, typed_pos_args, noPosargs, noKwargs
-@@ -53,10 +53,10 @@ class Python3Module(ExtensionModule):
+@@ -53,10 +53,12 @@ class Python3Module(ExtensionModule):
          else:
              suffix = None
          kwargs['name_prefix'] = ''
 -        kwargs['name_suffix'] = suffix
 +        kwargs['name_suffix'] = None
++        kwargs.setdefault('pic', None)
++        kwargs.setdefault('prelink', False)
          m = self.interpreter.build_target(
 -            state.current_node, T.cast('T.Tuple[str, SourcesVarargsType]', args), kwargs, SharedModule)
 -        assert isinstance(m, SharedModule), 'for mypy'
