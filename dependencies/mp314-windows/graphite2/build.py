@@ -4,7 +4,6 @@ from typing import *
 import os
 import re
 import glob
-import sysconfig
 from wheel.wheelfile import WheelFile
 
 
@@ -18,13 +17,18 @@ def run(wheel_directory):
 
     __mp__.setup_compiler_env()
 
+    # Deliberately NO patch_all_source(): it prepends `#include <mp_embed.h>` to
+    # every source for the VFS shim, but graphite2 does no file I/O (harfbuzz
+    # feeds it in-memory font data; the file-opening gr2fonttest CLI is stripped
+    # below), so it needs no VFS -- and mp_embed.h pulls in a Windows header that
+    # #defines VARARGS, colliding with graphite2's `enum {VARARGS, MAX_NAME_LEN}`
+    # (graphite2 only guards that for __MINGW32__, not clang-cl). Build it plain,
+    # exactly like the depLibs graphite2.
     __mp__.auto_patch_build(src_dir)
-    __mp__.patch_all_source(src_dir)
 
     # graphite2's default build also compiles tests/doc/gr2fonttest, whose
-    # install rules reference binaries we do not build (and which would drag the
-    # mp_embed link-injection into throwaway executables). Drop them; we only
-    # want the static graphite2 library.
+    # install rules reference binaries we do not build. Drop them; we only want
+    # the static graphite2 library.
     cml = os.path.join(src_dir, "CMakeLists.txt")
     with open(cml) as f:
         lines = f.readlines()
@@ -44,21 +48,16 @@ def run(wheel_directory):
     os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + os.environ[
         "PATH"]
 
-    # graphite2's CMakeLists has no `cmake_minimum_required(VERSION x)` line
-    # (it opens with project()), so __mp__.auto_patch_build's CMakeLists rewrite
-    # never fires on it -- yet patch_all_source still prepends `#include
-    # "mp_embed.h"` to every source. Supply what that rewrite normally would:
-    #   * -I<INCLUDEPY> so the prepended mp_embed.h is found (else C1083), and
-    #   * CMAKE_MSVC_RUNTIME_LIBRARY + CMP0091 NEW to pin the static CRT (/MT).
-    inc = sysconfig.get_config_var("INCLUDEPY").replace("\\", "/")
+    # graphite2's CMakeLists has no `cmake_minimum_required(VERSION x)` line (it
+    # opens with project()), so auto_patch_build's /MD->/MT rewrite may not fire
+    # -- pin the static CRT (/MT) explicitly via CMAKE_MSVC_RUNTIME_LIBRARY +
+    # CMP0091 NEW so this graphite2 matches the /MT of the rest of the bundle.
     __mp__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
                               "-DCMAKE_BUILD_TYPE=Release",
                               "-DCMAKE_INSTALL_PREFIX=" + install_dir,
                               "-DBUILD_SHARED_LIBS=OFF",
                               "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW",
                               "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded",
-                              "-DCMAKE_C_FLAGS=-I" + inc,
-                              "-DCMAKE_CXX_FLAGS=-I" + inc,
                               "-DGRAPHITE2_COMPARE_RENDERER=OFF",
                               "-DGRAPHITE2_NTRACING=ON",
                               src_dir)
