@@ -69,6 +69,10 @@ def run(wheel_directory):
     with WheelFile(result_wheel, 'w') as w:
         __mp__.add_wheel_manifest(w, "mpy-dep-graphite2", "1.3.14")
         __mp__.add_wheel_dep_libs(w, "graphite2", os.path.join(install_dir, "lib", "*.lib"))
-        __mp__.add_wheel_dep_include(w, "graphite2", os.path.join(install_dir, "include", "graphite2", "*.h"))
+        # base_dir preserves the graphite2/ subdir (headers are #included as
+        # <graphite2/Font.h>): without it add_wheel_dep_include flattens to
+        # include/Font.h, and harfbuzz's find_path(graphite2/Font.h) then fails.
+        __mp__.add_wheel_dep_include(w, "graphite2", os.path.join(install_dir, "include", "graphite2", "*.h"),
+                                     base_dir=os.path.join(install_dir, "include"))
 
     return result_wheel
