@@ -7,7 +7,8 @@
     "flang"
   ],
   "dependencies": [
-    "flang-rt"
+    "flang-rt",
+    "clang-rt"
   ],
   "files": [
     "build.py",

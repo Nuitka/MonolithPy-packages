@@ -55,12 +55,24 @@ def run(wheel_directory):
     install_dir = os.path.join(src_dir, "install")
     os.mkdir(install_dir)
 
+    # Build WITH graphite2 so this harfbuzz matches the depLibs harfbuzz
+    # configuration (XeTeX needs Graphite; the two must be interchangeable
+    # against the same static Qt). graphite2 is a build dependency, installed
+    # under its dependency_libs root; add it to CMAKE_PREFIX_PATH so harfbuzz's
+    # find_path/find_library locate graphite2/Font.h + graphite2.lib.
+    # GRAPHITE2_STATIC: graphite2's headers mark gr_* as __declspec(dllimport)
+    # unless this is defined, so hb-graphite2.cc would otherwise emit __imp_gr_*
+    # refs that do not resolve against the static graphite2.lib.
+    graphite2_root = __mp__.find_dep_root("graphite2")
     __mp__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
                               "-DCMAKE_BUILD_TYPE=Release",
                               "-DCMAKE_INSTALL_PREFIX=" + install_dir,
-                              "-DCMAKE_PREFIX_PATH=" + ft_install_dir,
+                              "-DCMAKE_PREFIX_PATH=" + ft_install_dir + ";" + graphite2_root,
                               "-DHB_HAVE_FREETYPE=ON", "-DHB_BUILD_TESTS=OFF",
                               "-DHB_BUILD_UTILS=OFF", "-DHB_BUILD_SUBSET=OFF",
+                              "-DHB_HAVE_GRAPHITE2=ON",
+                              "-DCMAKE_C_FLAGS=-DGRAPHITE2_STATIC",
+                              "-DCMAKE_CXX_FLAGS=-DGRAPHITE2_STATIC",
                               "-DHB_HAVE_INTROSPECTION=OFF", "-DHB_HAVE_CORETEXT=OFF",
                               f"-DFREETYPE_INCLUDE_DIR_freetype2={ft_install_dir}/include/freetype2",
                               f"-DFREETYPE_INCLUDE_DIR_ft2build={ft_install_dir}/include/freetype2",

@@ -1,0 +1,17 @@
+{
+  "version": "1.3.14",
+  "build_tools": [
+    "cmake",
+    "ninja"
+  ],
+  "files": [
+    "build.py"
+  ],
+  "sources": [
+    {
+      "version": "1.3.14",
+      "link": "https://github.com/silnrsi/graphite/releases/download/1.3.14/graphite2-1.3.14.tgz"
+    }
+  ],
+  "build_script": "build.py"
+}

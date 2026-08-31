@@ -9,7 +9,7 @@
         "clang",
         "patch"
       ],
-      "dependencies": ["openmp"],
+      "dependencies": ["openmp", "clang-rt"],
       "files": [
         "build.py",
         "scikit_learn-static-patch.patch"

@@ -5,7 +5,8 @@
     "ninja"
   ],
   "dependencies": [
-    "zlib"
+    "zlib",
+    "graphite2"
   ],
   "files": [
     "build.py"
