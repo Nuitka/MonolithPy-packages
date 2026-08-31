@@ -1,3 +1,5 @@
+diff --git a/mesonbuild/backend/ninjabackend.py b/mesonbuild/backend/ninjabackend.py
+index 0a52d87..051563b 100644
 --- a/mesonbuild/backend/ninjabackend.py
 +++ b/mesonbuild/backend/ninjabackend.py
 @@ -4,6 +4,7 @@
@@ -8,7 +10,7 @@
  from collections import defaultdict, OrderedDict
  from dataclasses import dataclass
  from enum import Enum, unique
-@@ -1197,6 +1198,25 @@
+@@ -1197,6 +1198,25 @@ class NinjaBackend(backends.Backend):
          linker, stdlib_args = self.determine_linker_and_stdlib_args(target)
          elem = self.generate_link(target, outname, final_obj_list, linker, pch_objects, stdlib_args=stdlib_args)
          self.add_build(elem)
@@ -34,7 +36,7 @@
          #In AIX, we archive shared libraries. If the instance is a shared library, we add a command to archive the shared library
          #object and create the build element.
          if isinstance(target, build.SharedLibrary) and self.environment.machines[target.for_machine].is_aix():
-@@ -1474,6 +1494,11 @@
+@@ -1474,6 +1494,11 @@ class NinjaBackend(backends.Backend):
          self.add_rule_comment(NinjaComment('Rules for linking.'))
          self.generate_static_link_rules()
          self.generate_dynamic_link_rules()
@@ -46,7 +48,7 @@
          self.add_rule_comment(NinjaComment('Other rules'))
  
          # Ninja errors out if you have deps = gcc but no depfile, so we must
-@@ -4219,6 +4244,8 @@
+@@ -4219,6 +4244,8 @@ https://gcc.gnu.org/bugzilla/show_bug.cgi?id=47485'''))
                          linker, stdlib_args = t.get_clink_dynamic_linker_and_stdlibs()
                          t.get_outputs()[0] = linker.get_archive_name(t.get_outputs()[0])
                  targetlist.append(os.path.join(self.get_target_dir(t), t.get_outputs()[0]))
@@ -55,9 +57,11 @@
  
                  # Add an import library if shared library in OS/2 for build all
                  if isinstance(t, build.SharedLibrary):
+diff --git a/mesonbuild/build.py b/mesonbuild/build.py
+index dc49018..7d153f1 100644
 --- a/mesonbuild/build.py
 +++ b/mesonbuild/build.py
-@@ -2434,7 +2434,8 @@
+@@ -2434,7 +2434,8 @@ class StaticLibrary(BuildTarget, LinkableTarget):
                      suffix = 'rlib'
                  elif self.rust_crate_type == 'staticlib':
                      suffix = 'a'
@@ -67,7 +71,7 @@
                  suffix = 'lib'
              else:
                  suffix = 'a'
-@@ -2537,6 +2538,8 @@
+@@ -2537,6 +2538,8 @@ class SharedLibrary(BuildTarget, LinkableTarget):
              compilers: CompilerDict,
              build_project: BuildProject,
              kwargs: SharedLibraryKeywordArguments):
@@ -76,9 +80,11 @@
          super().__init__(name, subdir, orig_for_machine, sources, structured_sources, objects,
                           environment, compilers, build_project, kwargs)
          # Max length 2, first element is compatibility_version, second is current_version
+diff --git a/mesonbuild/cmake/toolchain.py b/mesonbuild/cmake/toolchain.py
+index eb3db35..806c7b6 100644
 --- a/mesonbuild/cmake/toolchain.py
 +++ b/mesonbuild/cmake/toolchain.py
-@@ -191,6 +191,8 @@
+@@ -191,6 +191,8 @@ class CMakeToolchain:
                  defaults['CMAKE_MSVC_DEBUG_INFORMATION_FORMAT'] = ['EditAndContinue']
  
          for lang, comp_obj in self.compilers.items():
@@ -87,7 +93,7 @@
              language = language_map.get(lang)
  
              if not language:
-@@ -232,7 +234,7 @@
+@@ -232,7 +234,7 @@ class CMakeToolchain:
          # Generate the CMakeLists.txt
          mlog.debug('CMake Toolchain: Calling CMake once to generate the compiler state')
          languages = list(self.compilers.keys())
@@ -96,9 +102,11 @@
          cmake_content = dedent(f'''
              cmake_minimum_required(VERSION 3.10)
              project(CompInfo {' '.join(lang_ids)})
+diff --git a/mesonbuild/dependencies/python.py b/mesonbuild/dependencies/python.py
+index 3b02bad..89cbffa 100644
 --- a/mesonbuild/dependencies/python.py
 +++ b/mesonbuild/dependencies/python.py
-@@ -369,7 +369,7 @@
+@@ -369,7 +369,7 @@ class _PythonDependencyBase(_Base):
              verdot = self.variables.get('py_version_short')
              imp_lower = self.variables.get('implementation_lower', 'python')
              if self.static:
@@ -107,9 +115,11 @@
              else:
                  if limited_api:
                      vernum = vernum[0]
+diff --git a/mesonbuild/interpreter/interpreter.py b/mesonbuild/interpreter/interpreter.py
+index 1ffc34f..9c60237 100644
 --- a/mesonbuild/interpreter/interpreter.py
 +++ b/mesonbuild/interpreter/interpreter.py
-@@ -1997,6 +1997,9 @@
+@@ -1997,6 +1997,9 @@ class Interpreter(InterpreterBase, HoldableObject):
      def func_static_lib(self, node: mparser.BaseNode,
                          args: T.Tuple[str, SourcesVarargsType],
                          kwargs: kwtypes.StaticLibrary) -> build.StaticLibrary:
@@ -119,9 +129,11 @@
          return self.build_target(node, args, kwargs, build.StaticLibrary)
  
      @typed_pos_args('shared_library', str, varargs=SOURCES_VARARGS)
+diff --git a/mesonbuild/modules/python.py b/mesonbuild/modules/python.py
+index 697382d..ce57bb3 100644
 --- a/mesonbuild/modules/python.py
 +++ b/mesonbuild/modules/python.py
-@@ -9,7 +9,7 @@
+@@ -9,7 +9,7 @@ import typing as T
  from . import ExtensionModule, ModuleInfo
  from .. import mesonlib
  from .. import mlog
@@ -130,7 +142,7 @@
  from ..dependencies import NotFoundDependency
  from ..dependencies.detect import get_dep_identifier, find_external_dependency
  from ..dependencies.python import BasicPythonExternalProgram, python_factory, _PythonDependencyBase
-@@ -250,7 +250,7 @@
+@@ -250,7 +250,7 @@ class PythonInstallation(ProgramHolder['PythonExternalProgram']):
  
          return self.interpreter.build_target(
              self.current_node, T.cast('T.Tuple[str, SourcesVarargsType]', args),
@@ -139,9 +151,11 @@
  
      def _convert_api_version_to_py_version_hex(self, api_version: str, detected_version: str) -> str:
          python_api_version_format = re.compile(r'[0-9]\.[0-9]{1,2}')
+diff --git a/mesonbuild/modules/python3.py b/mesonbuild/modules/python3.py
+index 24e12e7..2274130 100644
 --- a/mesonbuild/modules/python3.py
 +++ b/mesonbuild/modules/python3.py
-@@ -10,7 +10,7 @@
+@@ -10,7 +10,7 @@ from .. import mesonlib
  from . import ExtensionModule, ModuleInfo
  from ..build import (
      BuildTarget, CustomTarget, CustomTargetIndex, ExtractedObjects,
@@ -150,7 +164,7 @@
  )
  from ..interpreter.type_checking import SHARED_MOD_KWS
  from ..interpreterbase import typed_kwargs, typed_pos_args, noPosargs, noKwargs
-@@ -55,8 +55,8 @@
+@@ -55,8 +55,8 @@ class Python3Module(ExtensionModule):
          kwargs['name_prefix'] = ''
          kwargs['name_suffix'] = suffix
          m = self.interpreter.build_target(
