@@ -132,11 +132,11 @@
       ],
       "build_requires": [
         "setuptools",
-        "meson-python",
+        "meson-python>=0.15.0,<0.22.0",
         "pyproject-metadata",
-        "Cython>=3.0.8",
-        "pybind11>=2.13.2",
-        "pythran>=0.14.0",
+        "Cython>=3.2.0,<3.3.0",
+        "pybind11>=2.13.2,<3.1.0",
+        "pythran>=0.18.1,<0.20.0",
         "build"
       ],
       "dist_requires": [
