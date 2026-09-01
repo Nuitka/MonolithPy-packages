@@ -75,6 +75,18 @@ def run(wheel_directory):
         __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\ft2font{ext_suffix}"), "_matplotlib_ft2font", [".*fflush.*"])
         __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\backends\\_backend_agg{ext_suffix}"), "_matplotlib__backend_agg", [".*fflush.*"])
         __mp__.rename_symbols_in_file(os.path.join(tmpdir, f"matplotlib\\backends\\_tkagg{ext_suffix}"), "_matplotlib__tkagg", [".*fflush.*"])
+        # Fully isolate matplotlib's remaining symbols (it is a pybind11 stack:
+        # _tri/_path/_image/_qhull/ft2font/_backend_agg/...). Previously only the
+        # VFS fflush shim was renamed, leaving matplotlib's C++/pybind11 and
+        # duplicate class symbols (e.g. the XY::XY defined in both _tri and _path)
+        # un-isolated, so they collide with other extensions under the monolithic
+        # interpreter's /FORCE:MULTIPLE relink -- corrupting whichever definition
+        # the runner's linker happens to pick and crashing an unrelated C++
+        # extension's init (scipy HiGHS _core) in the sklearn shard. Matches
+        # contourpy/scipy/sklearn. fflush symbols are protected so the VFS renames
+        # above are preserved.
+        __mp__.analyze_and_rename_library_symbols(tmpdir, "matplotlib",
+                                                  protected_symbol_patterns=[".*fflush.*"])
         with WheelFile(wheel_location, 'w') as wf:
             for filename in wheel_files:
                 wf.write(os.path.join(tmpdir, filename), filename)
