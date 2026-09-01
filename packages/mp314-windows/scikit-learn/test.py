@@ -3,43 +3,16 @@ Basic sanity tests for scikit-learn package.
 Tests C-backed functionality without extra dependencies.
 """
 
-# --- TEMP DIAGNOSTIC (relink crash 0xC0000005 on the hosted runner) ---
-# faulthandler on Windows dumps a Python traceback on a fatal access
-# violation, so the CI log shows exactly which import / C-backed call the
-# miscompiled interpreter faults in. The _step() markers are flushed before
-# every operation so the last line printed pinpoints the fault even if the
-# process dies without unwinding. Remove once the relink miscompile is fixed.
-import faulthandler
-import sys
-faulthandler.enable(all_threads=True)
-
-
-def _step(msg):
-    print("STEP:", msg, flush=True)
-    sys.stderr.flush()
-
-
-_step("import numpy")
 import numpy as np
-_step("import sklearn.datasets")
 from sklearn import datasets
-_step("import sklearn.model_selection.train_test_split")
 from sklearn.model_selection import train_test_split
-_step("import sklearn.preprocessing.StandardScaler")
 from sklearn.preprocessing import StandardScaler
-_step("import sklearn.linear_model")
 from sklearn.linear_model import LogisticRegression, LinearRegression
-_step("import sklearn.tree")
 from sklearn.tree import DecisionTreeClassifier
-_step("import sklearn.ensemble.RandomForestClassifier")
 from sklearn.ensemble import RandomForestClassifier
-_step("import sklearn.cluster.KMeans")
 from sklearn.cluster import KMeans
-_step("import sklearn.decomposition.PCA")
 from sklearn.decomposition import PCA
-_step("import sklearn.metrics")
 from sklearn.metrics import accuracy_score, mean_squared_error
-_step("all imports OK")
 
 
 def test_datasets():
@@ -165,26 +138,14 @@ def test_pca():
 
 
 if __name__ == "__main__":
-    # Each _step() marks the next C-backed entry point; the last STEP line in
-    # the CI log before the process dies is the call the miscompiled interpreter
-    # faulted in. (TEMP DIAGNOSTIC — see the faulthandler note at the top.)
-    _step("test_datasets (numpy-backed dataset load)")
     test_datasets()
-    _step("test_preprocessing (StandardScaler / sparsefuncs)")
     test_preprocessing()
-    _step("test_train_test_split")
     test_train_test_split()
-    _step("test_logistic_regression (liblinear)")
     test_logistic_regression()
-    _step("test_linear_regression (BLAS/LAPACK)")
     test_linear_regression()
-    _step("test_decision_tree (sklearn.tree C)")
     test_decision_tree()
-    _step("test_random_forest (OpenMP)")
     test_random_forest()
-    _step("test_kmeans (OpenMP prange)")
     test_kmeans()
-    _step("test_pca (LAPACK)")
     test_pca()
     print("All scikit-learn tests passed!")
 
