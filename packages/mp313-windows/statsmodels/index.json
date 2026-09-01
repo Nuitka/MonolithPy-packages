@@ -6,7 +6,10 @@
         "Version": "*"
       },
       "build_tools": [
-        "patch"
+        "patch",
+        "cmake",
+        "ninja",
+        "clang"
       ],
       "dependencies": [],
       "files": [
