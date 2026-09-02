@@ -20,26 +20,30 @@ def _step(msg):
     sys.stderr.flush()
 
 
-# --- TEMP: write a full-memory minidump on the access violation ---------------
-# faulthandler gives only the Python stack; to get the faulting C module +
-# instruction + native call stack in HiGHS _core's init we install a top-level
-# SEH filter that writes a .dmp. It lands in built_wheels/ (relative to the
-# test CWD = repo root), which the CI job uploads with if:always(), so the dump
-# comes back as the wheels-windows-<shard> artifact. Remove with the rest of
-# this diagnostic once the relink crash is fixed.
-def _install_minidump_handler():
+# --- TEMP: SEH filter that prints the native fault details on the access -------
+# violation and also tries to write a minidump. faulthandler gives only the
+# Python stack; this prints the exact faulting module+offset, access type and
+# fault address straight to the CI log (artifact-independent), which is what we
+# need to root-cause HiGHS _core's init crash. The .dmp (if it writes) lands in
+# built_wheels/, uploaded by the job's if:always() step. Remove once fixed.
+def _install_crash_handler():
     if sys.platform != "win32":
         return
     try:
         import ctypes
         from ctypes import wintypes
 
-        dump_dir = os.path.join(os.getcwd(), "built_wheels")
-        try:
-            os.makedirs(dump_dir, exist_ok=True)
-        except Exception:
-            dump_dir = os.getcwd()
-        dump_path = os.path.join(dump_dir, "sklearn_highs_crash.dmp")
+        class EXCEPTION_RECORD(ctypes.Structure):
+            _fields_ = [("ExceptionCode", wintypes.DWORD),
+                        ("ExceptionFlags", wintypes.DWORD),
+                        ("ExceptionRecord", ctypes.c_void_p),
+                        ("ExceptionAddress", ctypes.c_void_p),
+                        ("NumberParameters", wintypes.DWORD),
+                        ("ExceptionInformation", ctypes.c_ulonglong * 15)]
+
+        class EXCEPTION_POINTERS(ctypes.Structure):
+            _fields_ = [("ExceptionRecord", ctypes.POINTER(EXCEPTION_RECORD)),
+                        ("ContextRecord", ctypes.c_void_p)]
 
         class MINIDUMP_EXCEPTION_INFORMATION(ctypes.Structure):
             _fields_ = [("ThreadId", wintypes.DWORD),
@@ -49,6 +53,8 @@ def _install_minidump_handler():
         kernel32 = ctypes.windll.kernel32
         dbghelp = ctypes.windll.dbghelp
         kernel32.GetCurrentProcess.restype = ctypes.c_void_p
+        kernel32.GetModuleHandleExW.argtypes = [wintypes.DWORD, ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p)]
+        kernel32.GetModuleFileNameW.argtypes = [ctypes.c_void_p, wintypes.LPWSTR, wintypes.DWORD]
         kernel32.CreateFileW.restype = ctypes.c_void_p
         kernel32.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
                                          ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p]
@@ -56,48 +62,71 @@ def _install_minidump_handler():
         dbghelp.MiniDumpWriteDump.argtypes = [ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p,
                                               wintypes.DWORD, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
 
-        LPTOP = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p)
-        prev = ctypes.c_void_p(0)
+        dump_dir = os.path.join(os.getcwd(), "built_wheels")
+        try:
+            os.makedirs(dump_dir, exist_ok=True)
+        except Exception:
+            dump_dir = os.getcwd()
+        dump_path = os.path.join(dump_dir, "sklearn_highs_crash.dmp")
+
+        def _emit(msg):
+            sys.stderr.write(msg + "\n"); sys.stderr.flush()
+            try:
+                sys.stdout.write(msg + "\n"); sys.stdout.flush()
+            except Exception:
+                pass
 
         def _filter(exc_ptrs):
             try:
-                GENERIC_WRITE = 0x40000000
-                CREATE_ALWAYS = 2
-                FILE_ATTRIBUTE_NORMAL = 0x80
-                MiniDumpWithFullMemory = 0x00000002
-                h = kernel32.CreateFileW(dump_path, GENERIC_WRITE, 0, None,
-                                         CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, None)
-                if h and h != ctypes.c_void_p(-1).value:
+                ep = ctypes.cast(exc_ptrs, ctypes.POINTER(EXCEPTION_POINTERS)).contents
+                er = ep.ExceptionRecord.contents
+                code = er.ExceptionCode & 0xFFFFFFFF
+                addr = er.ExceptionAddress or 0
+                acc = er.ExceptionInformation[0] if er.NumberParameters >= 2 else -1
+                fault = er.ExceptionInformation[1] if er.NumberParameters >= 2 else 0
+                acc_s = {0: "read", 1: "write", 8: "execute"}.get(acc, str(acc))
+                _emit("[crash] code=0x%08X exception_addr=0x%016X access=%s fault_addr=0x%016X"
+                      % (code, addr, acc_s, fault))
+                # resolve exception_addr -> module + offset
+                hmod = ctypes.c_void_p(0)
+                if kernel32.GetModuleHandleExW(0x00000004, ctypes.c_void_p(addr), ctypes.byref(hmod)) and hmod.value:
+                    name = ctypes.create_unicode_buffer(1024)
+                    kernel32.GetModuleFileNameW(hmod, name, 1024)
+                    _emit("[crash] faulting module: %s + 0x%X (base 0x%016X)"
+                          % (name.value, addr - hmod.value, hmod.value))
+                # try minidump: full memory, then normal
+                for dtype, dname in ((0x00000002, "FullMemory"), (0x00000000, "Normal")):
+                    h = kernel32.CreateFileW(dump_path, 0x40000000, 0, None, 2, 0x80, None)
+                    if not h or h == ctypes.c_void_p(-1).value:
+                        _emit("[minidump] CreateFileW failed err=%d" % kernel32.GetLastError()); break
                     mdei = MINIDUMP_EXCEPTION_INFORMATION()
                     mdei.ThreadId = kernel32.GetCurrentThreadId()
                     mdei.ExceptionPointers = exc_ptrs
                     mdei.ClientPointers = False
                     ok = dbghelp.MiniDumpWriteDump(kernel32.GetCurrentProcess(),
                                                    kernel32.GetCurrentProcessId(), h,
-                                                   MiniDumpWithFullMemory,
-                                                   ctypes.byref(mdei), None, None)
+                                                   dtype, ctypes.byref(mdei), None, None)
+                    err = kernel32.GetLastError()
                     kernel32.CloseHandle(ctypes.c_void_p(h))
-                    sys.stderr.write("[minidump] wrote %s ok=%s\n" % (dump_path, bool(ok)))
-                    sys.stderr.flush()
+                    _emit("[minidump] %s ok=%s err=%d -> %s" % (dname, bool(ok), err, dump_path))
+                    if ok:
+                        break
             except Exception as e:
-                sys.stderr.write("[minidump] handler error: %r\n" % (e,))
-                sys.stderr.flush()
+                _emit("[crash] handler error: %r" % (e,))
             return 1  # EXCEPTION_EXECUTE_HANDLER
 
+        LPTOP = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p)
         cb = LPTOP(_filter)
         kernel32.SetUnhandledExceptionFilter.restype = ctypes.c_void_p
         kernel32.SetUnhandledExceptionFilter.argtypes = [ctypes.c_void_p]
         kernel32.SetUnhandledExceptionFilter(ctypes.cast(cb, ctypes.c_void_p))
-        # keep the callback alive for the life of the process
-        globals()["_minidump_cb"] = cb
-        sys.stderr.write("[minidump] handler installed -> %s\n" % dump_path)
-        sys.stderr.flush()
+        globals()["_crash_cb"] = cb  # keep alive
+        sys.stderr.write("[crash] handler installed\n"); sys.stderr.flush()
     except Exception as e:
-        sys.stderr.write("[minidump] install failed: %r\n" % (e,))
-        sys.stderr.flush()
+        sys.stderr.write("[crash] install failed: %r\n" % (e,)); sys.stderr.flush()
 
 
-_install_minidump_handler()
+_install_crash_handler()
 
 
 _step("import numpy")
