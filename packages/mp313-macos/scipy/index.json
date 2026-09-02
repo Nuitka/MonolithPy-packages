@@ -40,7 +40,7 @@
         "meson-python",
         "pyproject-metadata",
         "Cython>=3.0.8",
-        "pybind11>=2.13.2",
+        "pybind11==3.0.4",
         "pythran>=0.14.0",
         "build"
       ],
@@ -64,7 +64,7 @@
         "meson-python",
         "pyproject-metadata",
         "Cython>=3.0.8",
-        "pybind11>=2.13.2",
+        "pybind11==3.0.4",
         "pythran>=0.14.0",
         "build"
       ],

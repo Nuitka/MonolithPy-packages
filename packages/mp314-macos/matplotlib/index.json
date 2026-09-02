@@ -17,7 +17,7 @@
       ],
       "build_requires": [
         "meson-python>=0.13.1",
-        "pybind11>=2.13.2,!=2.13.3",
+        "pybind11==3.0.4",
         "setuptools_scm<10,>=7",
         "build",
         "setuptools>=64"
@@ -53,7 +53,7 @@
       ],
       "build_requires": [
         "meson-python>=0.13.1",
-        "pybind11>=2.13.2,!=2.13.3",
+        "pybind11==3.0.4",
         "setuptools_scm<10,>=7",
         "build",
         "setuptools>=64"
