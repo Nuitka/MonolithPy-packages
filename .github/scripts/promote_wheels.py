@@ -12,10 +12,28 @@ import datetime
 import json
 import os
 import sys
+import time
 
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError, ParamValidationError
+from botocore.exceptions import (
+    ClientError,
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ParamValidationError,
+    ReadTimeoutError,
+)
+
+# Transport-level blips (endpoint returned a malformed/aborted response, or a
+# timeout). These are transient and safe to retry — distinct from a ClientError,
+# which carries a real S3 error code we must honour.
+_TRANSIENT_EXC = (
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
 
 
 def make_s3_client():
@@ -119,51 +137,70 @@ def append_promotion_log(
 ) -> None:
     key = "main/PROMOTIONS.jsonl"
     new_line = json.dumps(entry, sort_keys=True) + "\n"
+    last_transient: Exception | None = None
     for attempt in range(max_attempts):
         try:
-            resp = s3.get_object(Bucket=bucket, Key=key)
-            existing = resp["Body"].read()
-            etag = resp["ETag"]
-        except ClientError as e:
-            code = e.response.get("Error", {}).get("Code", "")
-            if code in ("NoSuchKey", "404"):
-                existing = b""
-                etag = None
-            else:
-                raise
+            try:
+                resp = s3.get_object(Bucket=bucket, Key=key)
+                existing = resp["Body"].read()
+                etag = resp["ETag"]
+            except ClientError as e:
+                code = e.response.get("Error", {}).get("Code", "")
+                if code in ("NoSuchKey", "404"):
+                    existing = b""
+                    etag = None
+                else:
+                    raise
 
-        body = existing + new_line.encode("utf-8")
-        extra = {
-            "Bucket": bucket,
-            "Key": key,
-            "Body": body,
-            "ContentType": "application/x-ndjson",
-        }
-        if etag:
-            extra["IfMatch"] = etag
-        try:
-            s3.put_object(**extra)
-            return
-        except ParamValidationError:
-            # Installed botocore predates S3 conditional PutObject (the IfMatch
-            # parameter, ~botocore 1.35.60) — the CAS is rejected client-side.
-            _put_log_without_cas(
-                s3, extra, "botocore too old for conditional PutObject (IfMatch)"
-            )
-            return
-        except ClientError as e:
-            code = e.response.get("Error", {}).get("Code", "")
-            if code in ("PreconditionFailed", "412") and attempt < max_attempts - 1:
-                continue
-            if code in ("NotImplemented", "501") and "IfMatch" in extra:
-                # The S3-compatible endpoint doesn't implement conditional
-                # PutObject (it rejects the If-Match header server-side).
+            body = existing + new_line.encode("utf-8")
+            extra = {
+                "Bucket": bucket,
+                "Key": key,
+                "Body": body,
+                "ContentType": "application/x-ndjson",
+            }
+            if etag:
+                extra["IfMatch"] = etag
+            try:
+                s3.put_object(**extra)
+                return
+            except ParamValidationError:
+                # Installed botocore predates S3 conditional PutObject (the IfMatch
+                # parameter, ~botocore 1.35.60) — the CAS is rejected client-side.
                 _put_log_without_cas(
-                    s3, extra,
-                    "endpoint does not implement conditional PutObject (IfMatch)",
+                    s3, extra, "botocore too old for conditional PutObject (IfMatch)"
                 )
                 return
-            raise
+            except ClientError as e:
+                code = e.response.get("Error", {}).get("Code", "")
+                if code in ("PreconditionFailed", "412") and attempt < max_attempts - 1:
+                    continue
+                if code in ("NotImplemented", "501") and "IfMatch" in extra:
+                    # The S3-compatible endpoint doesn't implement conditional
+                    # PutObject (it rejects the If-Match header server-side).
+                    _put_log_without_cas(
+                        s3, extra,
+                        "endpoint does not implement conditional PutObject (IfMatch)",
+                    )
+                    return
+                raise
+        except _TRANSIENT_EXC as e:
+            # A transport-level blip (e.g. the endpoint aborted the connection or
+            # returned a malformed response) on the get/put. Every wheel has
+            # already been server-side-copied to main/ by the time we get here, so
+            # this final audit-log step must never fail the promotion. Retry with
+            # backoff; if it still won't land, warn and move on.
+            last_transient = e
+            if attempt < max_attempts - 1:
+                time.sleep(min(2 ** attempt, 15))
+            continue
+    if last_transient is not None:
+        print(
+            f"::warning::Could not append PROMOTIONS.jsonl after {max_attempts} "
+            f"attempt(s) ({last_transient!r}); wheels are already promoted to "
+            f"main/, leaving the audit entry unwritten"
+        )
+        return
     raise SystemExit("::error::Failed to append PROMOTIONS.jsonl after retries")
 
 
