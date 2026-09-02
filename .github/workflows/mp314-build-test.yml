@@ -461,8 +461,42 @@ jobs:
             ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-2025-vs2026-heavy-${{ hashFiles('packages/mp314-windows/**', 'dependencies/mp314-windows/**', 'build_tools/mp314-windows/**') }}
             ${{ env.MONOLITHPY_TAG }}-wheel-cache-windows-2025-vs2026-
 
+      # DIAGNOSTIC: make the monolithic relink emit symbols (a .pdb via /DEBUG
+      # and a .map via /MAP) so the runner-only crash at python.exe+<off> can be
+      # symbolized locally. The release relink emits neither; patch the copy the
+      # build will use (build_and_test.py copies monolithpy/ -> monolithpy_work/).
+      # Remove with the rest of the diagnostics once the relink crash is fixed.
+      - name: Patch relink to emit symbols (DIAGNOSTIC)
+        shell: pwsh
+        run: |
+          $p = "monolithpy/Lib/rebuildpython.py"
+          $s = Get-Content -Raw $p
+          $old = '"/LTCG", "/NODEFAULTLIB:python3.lib", "/FORCE:MULTIPLE"]'
+          $new = '"/LTCG", "/NODEFAULTLIB:python3.lib", "/FORCE:MULTIPLE", "/DEBUG", "/MAP"]'
+          if ($s.Contains($old)) {
+            $s = $s.Replace($old, $new)
+            Set-Content -Path $p -Value $s -NoNewline
+            Write-Host "Patched relink flags for /DEBUG /MAP"
+          } else {
+            Write-Host "::warning::relink flag pattern not found in rebuildpython.py"
+          }
+
       - name: Build and test packages (Round 2)
         run: python .github/scripts/build_and_test.py --round2 ${{ matrix.split_index }} 10 --round1-wheels round1-wheels --wheel-cache-dir wheel-cache
+
+      # DIAGNOSTIC: on a shard failure, upload the ENTIRE relinked interpreter
+      # workspace -- the (possibly-crashing) monolithpy_work/python.exe plus every
+      # installed library (.lib/.pyd/site-packages) -- so the exact runner-built
+      # binary can be pulled and debugged locally under cdb. Remove once the
+      # scikit-learn relink crash is understood.
+      - name: Upload full interpreter workspace on failure (DIAGNOSTIC)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monolithpy-work-windows-${{ matrix.split_index }}
+          path: monolithpy_work/
+          if-no-files-found: ignore
+          retention-days: 5
 
       - name: Save wheel cache
         uses: ./.github/actions/s3-wheel-cache/save
