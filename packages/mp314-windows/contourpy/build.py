@@ -16,7 +16,8 @@ def run(wheel_directory):
     config_args = []
     if "MP_JOBS" in env:
         config_args += ["-Ccompile-args=-j" + env["MP_JOBS"]]
-    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".", *config_args)
+    __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
+               "-Csetup-args=-Db_lto=false", *config_args)
 
     wheel_location = glob.glob("contourpy-*.whl")[0]
 

@@ -11,12 +11,93 @@ Tests C-backed functionality without extra dependencies.
 # process dies without unwinding. Remove once the relink miscompile is fixed.
 import faulthandler
 import sys
+import os
 faulthandler.enable(all_threads=True)
 
 
 def _step(msg):
     print("STEP:", msg, flush=True)
     sys.stderr.flush()
+
+
+# --- TEMP: write a full-memory minidump on the access violation ---------------
+# faulthandler gives only the Python stack; to get the faulting C module +
+# instruction + native call stack in HiGHS _core's init we install a top-level
+# SEH filter that writes a .dmp. It lands in built_wheels/ (relative to the
+# test CWD = repo root), which the CI job uploads with if:always(), so the dump
+# comes back as the wheels-windows-<shard> artifact. Remove with the rest of
+# this diagnostic once the relink crash is fixed.
+def _install_minidump_handler():
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        dump_dir = os.path.join(os.getcwd(), "built_wheels")
+        try:
+            os.makedirs(dump_dir, exist_ok=True)
+        except Exception:
+            dump_dir = os.getcwd()
+        dump_path = os.path.join(dump_dir, "sklearn_highs_crash.dmp")
+
+        class MINIDUMP_EXCEPTION_INFORMATION(ctypes.Structure):
+            _fields_ = [("ThreadId", wintypes.DWORD),
+                        ("ExceptionPointers", ctypes.c_void_p),
+                        ("ClientPointers", wintypes.BOOL)]
+
+        kernel32 = ctypes.windll.kernel32
+        dbghelp = ctypes.windll.dbghelp
+        kernel32.GetCurrentProcess.restype = ctypes.c_void_p
+        kernel32.CreateFileW.restype = ctypes.c_void_p
+        kernel32.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                         ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p]
+        dbghelp.MiniDumpWriteDump.restype = wintypes.BOOL
+        dbghelp.MiniDumpWriteDump.argtypes = [ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p,
+                                              wintypes.DWORD, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+
+        LPTOP = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p)
+        prev = ctypes.c_void_p(0)
+
+        def _filter(exc_ptrs):
+            try:
+                GENERIC_WRITE = 0x40000000
+                CREATE_ALWAYS = 2
+                FILE_ATTRIBUTE_NORMAL = 0x80
+                MiniDumpWithFullMemory = 0x00000002
+                h = kernel32.CreateFileW(dump_path, GENERIC_WRITE, 0, None,
+                                         CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, None)
+                if h and h != ctypes.c_void_p(-1).value:
+                    mdei = MINIDUMP_EXCEPTION_INFORMATION()
+                    mdei.ThreadId = kernel32.GetCurrentThreadId()
+                    mdei.ExceptionPointers = exc_ptrs
+                    mdei.ClientPointers = False
+                    ok = dbghelp.MiniDumpWriteDump(kernel32.GetCurrentProcess(),
+                                                   kernel32.GetCurrentProcessId(), h,
+                                                   MiniDumpWithFullMemory,
+                                                   ctypes.byref(mdei), None, None)
+                    kernel32.CloseHandle(ctypes.c_void_p(h))
+                    sys.stderr.write("[minidump] wrote %s ok=%s\n" % (dump_path, bool(ok)))
+                    sys.stderr.flush()
+            except Exception as e:
+                sys.stderr.write("[minidump] handler error: %r\n" % (e,))
+                sys.stderr.flush()
+            return 1  # EXCEPTION_EXECUTE_HANDLER
+
+        cb = LPTOP(_filter)
+        kernel32.SetUnhandledExceptionFilter.restype = ctypes.c_void_p
+        kernel32.SetUnhandledExceptionFilter.argtypes = [ctypes.c_void_p]
+        kernel32.SetUnhandledExceptionFilter(ctypes.cast(cb, ctypes.c_void_p))
+        # keep the callback alive for the life of the process
+        globals()["_minidump_cb"] = cb
+        sys.stderr.write("[minidump] handler installed -> %s\n" % dump_path)
+        sys.stderr.flush()
+    except Exception as e:
+        sys.stderr.write("[minidump] install failed: %r\n" % (e,))
+        sys.stderr.flush()
+
+
+_install_minidump_handler()
 
 
 _step("import numpy")

@@ -110,7 +110,8 @@ sys.exit(result.returncode)
         job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
     try:
         __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-Ccompile-args=-j6",
-                   "-Csetup-args=-Dprefer_static=True", "-Csetup-args=-Db_vscrt=mt", *job_args)
+                   "-Csetup-args=-Dprefer_static=True", "-Csetup-args=-Db_vscrt=mt",
+                   "-Csetup-args=-Db_lto=false", *job_args)
     finally:
         _meson_log = os.path.join(_meson_wrap_dir, "meson-log.txt")
         if os.path.exists(_meson_log):

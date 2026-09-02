@@ -120,7 +120,7 @@ sys.exit(result.returncode)
         job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
     try:
         __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation",
-                   "-Csetup-args=-Db_vscrt=mt", *job_args)
+                   "-Csetup-args=-Db_vscrt=mt", "-Csetup-args=-Db_lto=false", *job_args)
     finally:
         os.chdir(_src_dir)
         _subprocess.run(["cmd", "/c", "rmdir", _short_src], check=False)
