@@ -13,12 +13,23 @@ diff --git a/extern/agg24-svn/meson.build b/extern/agg24-svn/meson.build
 diff --git a/extern/meson.build b/extern/meson.build
 --- a/extern/meson.build
 +++ b/extern/meson.build
-@@ -7,7 +7,7 @@
+@@ -7,7 +7,18 @@
  # For FreeType>=2.4, there is a conversion table in docs/VERSIONS.txt in the
  # FreeType source tree.
  if get_option('system-freetype')
 -  freetype_dep = dependency('freetype2', version: '>=9.11.3')
-+  freetype_dep = dependency('freetype', version: '>=0.0.0')
++  # MonolithPy: pin the mpy-dep-freetype (2.14.3) for BOTH headers and lib so
++  # ft2font's compiled freetype matches the copy the embed links (a 2.13.3-vs-
++  # 2.14.3 skew corrupts the heap in set_text). freetype.lib needs only zlib.
++  freetype_root = get_option('freetype-root')
++  assert(freetype_root != '', 'freetype-root must be set when system-freetype=True')
++  zlib_root = get_option('zlib-root')
++  assert(zlib_root != '', 'zlib-root must be set when system-freetype=True')
++  freetype_dep = declare_dependency(
++    compile_args: ['-I' + freetype_root + '/include'],
++    link_args: [freetype_root + '/lib/freetype.lib',
++                zlib_root + '/lib/zlib.lib'],
++  )
  else
    freetype_proj = subproject(
      'freetype2',
@@ -49,12 +60,16 @@ diff --git a/extern/meson.build b/extern/meson.build
 diff --git a/meson.options b/meson.options
 --- a/meson.options
 +++ b/meson.options
-@@ -9,5 +9,7 @@
+@@ -9,5 +9,11 @@
         description: 'Build against system version of FreeType')
  option('system-libraqm', type: 'boolean', value: false,
         description: 'Build against system version of libraqm')
 +option('raqm-root', type: 'string', value: '',
 +       description: 'Path to mpy-dep-raqm install root (used when system-libraqm=true)')
++option('freetype-root', type: 'string', value: '',
++       description: 'Path to mpy-dep-freetype install root (used when system-freetype=true)')
++option('zlib-root', type: 'string', value: '',
++       description: 'Path to mpy-dep-zlib install root (used when system-freetype=true)')
  option('system-qhull', type: 'boolean', value: false,
         description: 'Build against system version of Qhull')
 diff --git a/pyproject.toml b/pyproject.toml

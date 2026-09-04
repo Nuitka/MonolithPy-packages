@@ -31,6 +31,12 @@ def run(wheel_directory):
     os.environ["INCLUDE"] = os.environ["INCLUDE"] + os.pathsep + sysconfig.get_config_var("INCLUDEPY")
 
     raqm_root = __mp__.find_dep_root("raqm")
+    # Pin freetype (+ its only external dep, zlib) to the mpy-dep copies so
+    # ft2font compiles against the SAME freetype the embed links (2.14.3). meson's
+    # dependency('freetype') was picking a stray 2.13.3 on CI -> header/lib skew ->
+    # heap corruption in set_text at render time.
+    freetype_root = __mp__.find_dep_root("freetype")
+    zlib_root = __mp__.find_dep_root("zlib")
 
     os.environ["PATH"] = (
         os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake.exe")) + os.pathsep +
@@ -54,6 +60,8 @@ def run(wheel_directory):
         job_args += ["-Ccompile-args=-j" + os.environ["MP_JOBS"]]
     __mp__.run_with_output(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
                            "-Csetup-args=-Dsystem-freetype=True",
+                           "-Csetup-args=-Dfreetype-root=" + freetype_root,
+                           "-Csetup-args=-Dzlib-root=" + zlib_root,
                            "-Csetup-args=-Dsystem-libraqm=True",
                            "-Csetup-args=-Draqm-root=" + raqm_root,
                            *job_args)
