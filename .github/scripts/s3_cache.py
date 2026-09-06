@@ -19,10 +19,12 @@ import tarfile
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import s3_retry  # noqa: E402
+
 
 def s3_client():
     import boto3
-    from botocore.config import Config
     endpoint = os.environ["S3_CACHE_ENDPOINT"]
     region = os.environ["S3_CACHE_REGION"]
     access_key = os.environ["S3_CACHE_ACCESS_KEY_ID"]
@@ -33,7 +35,7 @@ def s3_client():
         region_name=region,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
-        config=Config(retries={"max_attempts": 10, "mode": "adaptive"}),
+        config=s3_retry.client_config(),
     )
 
 
@@ -44,7 +46,9 @@ def object_key(key: str) -> str:
 def head_exists(s3, bucket: str, key: str) -> bool:
     from botocore.exceptions import ClientError
     try:
-        s3.head_object(Bucket=bucket, Key=key)
+        # 404 is a fatal (non-transient) ClientError, so it comes straight
+        # back here; only real service errors are retried.
+        s3_retry.retry(lambda: s3.head_object(Bucket=bucket, Key=key), what=f"head {key}")
         return True
     except ClientError as e:
         if e.response.get("Error", {}).get("Code", "") in ("404", "NoSuchKey", "NotFound"):
@@ -54,15 +58,18 @@ def head_exists(s3, bucket: str, key: str) -> bool:
 
 def find_best_match(s3, bucket: str, prefix: str) -> str | None:
     """Return the most-recently-modified object whose key starts with prefix."""
-    paginator = s3.get_paginator("list_objects_v2")
-    best_key = None
-    best_modified = None
-    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-        for obj in page.get("Contents", []) or []:
-            if best_modified is None or obj["LastModified"] > best_modified:
-                best_modified = obj["LastModified"]
-                best_key = obj["Key"]
-    return best_key
+    def scan():
+        paginator = s3.get_paginator("list_objects_v2")
+        best_key = None
+        best_modified = None
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents", []) or []:
+                if best_modified is None or obj["LastModified"] > best_modified:
+                    best_modified = obj["LastModified"]
+                    best_key = obj["Key"]
+        return best_key
+
+    return s3_retry.retry(scan, what=f"list {prefix}")
 
 
 def download_and_extract(s3, bucket: str, key: str, path: Path) -> None:
@@ -70,8 +77,7 @@ def download_and_extract(s3, bucket: str, key: str, path: Path) -> None:
     with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp:
         tmp_path = tmp.name
     try:
-        s3.download_file(bucket, key, tmp_path)
-        size = os.path.getsize(tmp_path)
+        size = s3_retry.download_file(s3, bucket, key, tmp_path)  # retried + size-verified
         print(f"Downloaded {key} ({size:,} bytes)")
         with tarfile.open(tmp_path, "r:gz") as tf:
             tf.extractall(str(path))
@@ -94,12 +100,8 @@ def compress_and_upload(s3, bucket: str, key: str, path: Path) -> None:
             tf.add(str(path), arcname=".")
         size = os.path.getsize(tmp_path)
         print(f"Packed {path} -> {tmp_path} ({size:,} bytes)")
-        s3.upload_file(
-            tmp_path,
-            bucket,
-            key,
-            ExtraArgs={"ContentType": "application/gzip"},
-        )
+        s3_retry.upload_file(s3, bucket, key, tmp_path,
+                             extra_args={"ContentType": "application/gzip"})  # retried + size-verified
         print(f"Uploaded {key}")
     finally:
         try:

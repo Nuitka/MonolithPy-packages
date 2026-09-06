@@ -18,10 +18,12 @@ import tarfile
 import zstandard
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import s3_retry  # noqa: E402
+
 
 def s3_client():
     import boto3
-    from botocore.config import Config
     endpoint = os.environ["S3_CACHE_ENDPOINT"]
     region = os.environ["S3_CACHE_REGION"]
     access_key = os.environ["S3_CACHE_ACCESS_KEY_ID"]
@@ -32,7 +34,7 @@ def s3_client():
         region_name=region,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
-        config=Config(retries={"max_attempts": 5, "mode": "standard"}),
+        config=s3_retry.client_config(),
     )
 
 
@@ -49,11 +51,15 @@ def main() -> int:
     s3 = s3_client()
 
     print(f"Listing s3://{bucket}/{prefix} ...")
-    paginator = s3.get_paginator("list_objects_v2")
-    keys = []
-    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-        for obj in page.get("Contents", []):
-            keys.append(obj["Key"])
+    def list_keys():
+        paginator = s3.get_paginator("list_objects_v2")
+        found = []
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                found.append(obj["Key"])
+        return found
+
+    keys = s3_retry.retry(list_keys, what=f"list {prefix}")
 
     if not keys:
         print(f"::error::No wheel snapshots found under s3://{bucket}/{prefix}",
@@ -66,8 +72,7 @@ def main() -> int:
     for key in keys:
         name = key.rsplit("/", 1)[-1]
         print(f"  downloading {name} ...")
-        resp = s3.get_object(Bucket=bucket, Key=key)
-        body = resp["Body"].read()
+        body = s3_retry.get_bytes(s3, bucket, key)  # retried + length-verified
         print(f"    {len(body)} bytes")
 
         dctx = zstandard.ZstdDecompressor()
@@ -85,6 +90,8 @@ def main() -> int:
 
     whl_count = len(list(args.output.glob("*.whl")))
     print(f"\nTotal: {whl_count} wheel(s) in {args.output}")
+    if s3_retry.retry_count():
+        print(f"::warning::S3 was flaky: {s3_retry.retry_count()} operation(s) had to be retried")
     return 0
 
 

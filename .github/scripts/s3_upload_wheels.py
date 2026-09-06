@@ -11,13 +11,16 @@ import io
 import os
 import sys
 import tarfile
+import tempfile
 import zstandard
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import s3_retry  # noqa: E402
 
 
 def s3_client():
     import boto3
-    from botocore.config import Config
     endpoint = os.environ["S3_CACHE_ENDPOINT"]
     region = os.environ["S3_CACHE_REGION"]
     access_key = os.environ["S3_CACHE_ACCESS_KEY_ID"]
@@ -28,7 +31,7 @@ def s3_client():
         region_name=region,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
-        config=Config(retries={"max_attempts": 5, "mode": "standard"}),
+        config=s3_retry.client_config(),
     )
 
 
@@ -58,13 +61,25 @@ def main() -> int:
     bucket = os.environ["S3_CACHE_BUCKET"]
     key = f"wheel-snapshots/{args.run_id}/{args.arch}/{args.name}.tar.zst"
     s3 = s3_client()
-    s3.put_object(
-        Bucket=bucket,
-        Key=key,
-        Body=body,
-    )
+    # Spool to disk and go through the retried, size-verified multipart path:
+    # snapshots reach GBs and B2 is flaky, so a single put_object of the whole
+    # body would redo everything on any hiccup (see s3_retry.py).
+    with tempfile.NamedTemporaryFile(suffix=".tar.zst", delete=False) as tmp:
+        tmp.write(body)
+        tmp_path = tmp.name
+    del body
+    try:
+        size = s3_retry.upload_file(s3, bucket, key, tmp_path,
+                                    extra_args={"ContentType": "application/zstd"})
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
     print(f"Uploaded {len(whls)} wheel(s) to s3://{bucket}/{key} "
-          f"({len(body)} bytes)")
+          f"({size} bytes)")
+    if s3_retry.retry_count():
+        print(f"::warning::S3 was flaky: {s3_retry.retry_count()} operation(s) had to be retried")
     return 0
 
 

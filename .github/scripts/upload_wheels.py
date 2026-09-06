@@ -20,7 +20,9 @@ import zipfile
 from pathlib import Path
 
 import boto3
-from botocore.config import Config
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import s3_retry  # noqa: E402
 
 
 _WHEEL_NAME_RE = re.compile(
@@ -97,27 +99,22 @@ def make_s3_client():
         region_name=region,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
-        config=Config(retries={"max_attempts": 10, "mode": "adaptive"}),
+        config=s3_retry.client_config(),
     )
 
 
 def upload_wheel(s3, bucket: str, key: str, path: Path) -> None:
-    s3.upload_file(
-        str(path),
-        bucket,
-        key,
-        ExtraArgs={"ContentType": "application/octet-stream"},
+    # Retried + size-verified: B2 is flaky and a truncated wheel must never be
+    # reported as uploaded (see s3_retry.py).
+    size = s3_retry.upload_file(
+        s3, bucket, key, path,
+        extra_args={"ContentType": "application/octet-stream"},
     )
-    print(f"  uploaded {key} ({path.stat().st_size} bytes)")
+    print(f"  uploaded {key} ({size} bytes)")
 
 
 def upload_metadata(s3, bucket: str, key: str, data: bytes) -> str:
-    s3.put_object(
-        Bucket=bucket,
-        Key=key,
-        Body=data,
-        ContentType="text/plain; charset=utf-8",
-    )
+    s3_retry.put_bytes(s3, bucket, key, data, content_type="text/plain; charset=utf-8")
     digest = hashlib.sha256(data).hexdigest()
     print(f"  uploaded {key} ({len(data)} bytes, sha256={digest[:12]}...)")
     return digest
@@ -125,12 +122,7 @@ def upload_metadata(s3, bucket: str, key: str, data: bytes) -> str:
 
 def upload_manifest(s3, bucket: str, key: str, manifest: dict) -> None:
     body = json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
-    s3.put_object(
-        Bucket=bucket,
-        Key=key,
-        Body=body,
-        ContentType="application/json",
-    )
+    s3_retry.put_bytes(s3, bucket, key, body, content_type="application/json")
     print(f"  uploaded {key} ({len(body)} bytes)")
 
 
@@ -200,9 +192,29 @@ def main() -> int:
         }
 
     print("\nUploading wheels + PEP 658 metadata sidecars...")
+    # Every wheel gets its full retry budget; one wheel giving up must not
+    # abort the others mid-flight, so collect failures and report them all.
+    failures: list[tuple[str, BaseException]] = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        for norm, info in executor.map(upload_one_wheel, wheels.items()):
+        futures = {executor.submit(upload_one_wheel, item): item[0] for item in wheels.items()}
+        for fut in concurrent.futures.as_completed(futures):
+            filename = futures[fut]
+            try:
+                norm, info = fut.result()
+            except Exception as exc:  # noqa: BLE001 - reported below
+                failures.append((filename, exc))
+                print(f"  FAILED {filename}: {type(exc).__name__}: {str(exc)[:300]}", flush=True)
+                continue
             per_package.setdefault(norm, []).append(info)
+
+    if s3_retry.retry_count():
+        print(f"\n::warning::S3 was flaky: {s3_retry.retry_count()} operation(s) had to be retried")
+    if failures:
+        print(f"\n::error::{len(failures)} of {len(wheels)} wheel upload(s) failed after retries; "
+              f"MANIFEST.json NOT written, {prefix}/ is incomplete", file=sys.stderr)
+        for filename, exc in sorted(failures, key=lambda f: f[0]):
+            print(f"::error::  {filename}: {type(exc).__name__}: {str(exc)[:300]}", file=sys.stderr)
+        return 1
 
     manifest = {
         "schema_version": 1,
