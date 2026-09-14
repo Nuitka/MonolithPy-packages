@@ -1,7 +1,7 @@
-diff --git a/src/pip/_vendor/pyproject_hooks/_in_process/_in_process.py b/src/pip/_vendor/pyproject_hooks/_in_process/_in_process.py
+diff --git a/src/pyproject_hooks/_in_process/_in_process.py b/src/pyproject_hooks/_in_process/_in_process.py
 index d689bab..205672d 100644
---- a/src/pip/_vendor/pyproject_hooks/_in_process/_in_process.py
-+++ b/src/pip/_vendor/pyproject_hooks/_in_process/_in_process.py
+--- a/src/pyproject_hooks/_in_process/_in_process.py
++++ b/src/pyproject_hooks/_in_process/_in_process.py
 @@ -63,8 +63,8 @@ def _build_backend():
  
      if backend_path:

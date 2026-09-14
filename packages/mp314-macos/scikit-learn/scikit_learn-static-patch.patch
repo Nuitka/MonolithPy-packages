@@ -1,13 +1,18 @@
 diff --git a/pyproject.toml b/pyproject.toml
+index 741b76f..51acf6d 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
-@@ -101,8 +101,8 @@
+@@ -47,12 +47,12 @@ tracker = "https://github.com/scikit-learn/scikit-learn/issues"
+ build-backend = "mesonpy"
+ # Minimum requirements for the build system to execute.
  requires = [
--    "meson-python>=0.17.1,<0.20.0",
--    "cython>=3.1.2,<3.3.0",
--    "numpy>=2,<2.5.0",
--    "scipy>=1.10.0,<1.18.0",
+-    "meson-python>=0.17.1,<0.22.0",
 +    "meson-python>=0.17.1",
+     # TODO: once https://github.com/cython/cython/issues/7846 is fixed and in a Cython release
+     # change to "cython>[fixed-version]" or "cython>=3.1.2,!=3.2.6,!=3.2.7,!=3.2.8,!=3.2.9"
+-    "cython>=3.1.2,<3.2.6",
+-    "numpy>=2,<2.6.0",
+-    "scipy>=1.10.0,<1.19.0",
 +    "cython>=3.1.2",
 +    "numpy>=2",
 +    "scipy>=1.10.0",
@@ -15,9 +20,10 @@ diff --git a/pyproject.toml b/pyproject.toml
  
  [tool.pytest.ini_options]
 diff --git a/sklearn/svm/src/liblinear/linear.cpp b/sklearn/svm/src/liblinear/linear.cpp
+index f2336a0..f1df5b7 100644
 --- a/sklearn/svm/src/liblinear/linear.cpp
 +++ b/sklearn/svm/src/liblinear/linear.cpp
-@@ -43,6 +43,13 @@
+@@ -48,6 +48,13 @@
  #include <random>
  #include "../newrand/newrand.h"
  
@@ -32,9 +38,10 @@ diff --git a/sklearn/svm/src/liblinear/linear.cpp b/sklearn/svm/src/liblinear/li
  template <class T> static inline void swap(T& x, T& y) { T t=x; x=y; y=t; }
  #ifndef min
 diff --git a/sklearn/svm/src/newrand/newrand.h b/sklearn/svm/src/newrand/newrand.h
+index e01bea9..0a35100 100644
 --- a/sklearn/svm/src/newrand/newrand.h
 +++ b/sklearn/svm/src/newrand/newrand.h
-@@ -18,12 +18,10 @@
+@@ -18,12 +18,10 @@ extern "C" {
  // used in LibSVM / LibLinear, to ensure the same behaviour on windows-linux,
  // with increased speed
  // - (1) Init a `mt_rand` object
