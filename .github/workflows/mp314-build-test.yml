@@ -610,6 +610,9 @@ jobs:
           $packageUrl = "file:///$($pwd.Path -replace '\\','/')"
           echo "MONOLITHPY_PACKAGE_URL=$packageUrl" >> $env:GITHUB_ENV
 
+      - name: Verify static-linkage hygiene (/MT, no dynamic modules)
+        run: python .github/scripts/verify_artifacts.py --wheels all-wheels
+
       - name: Run final test
         run: python .github/scripts/final_test.py --monolithpy monolithpy --wheels all-wheels
 
@@ -663,6 +666,9 @@ jobs:
         run: |
           chmod +x monolithpy/* 2>/dev/null || true
           find monolithpy -type f -name "python*" -exec chmod +x {} \; 2>/dev/null || true
+
+      - name: Verify static-linkage hygiene (min macOS < 13, no dynamic modules)
+        run: arch -${{ matrix.arch }} python3 .github/scripts/verify_artifacts.py --wheels all-wheels --max-macos-major 13
 
       - name: Run final test
         run: arch -${{ matrix.arch }} python3 .github/scripts/final_test.py --monolithpy monolithpy --wheels all-wheels
