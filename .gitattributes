@@ -1,1 +1,5 @@
 *.patch           binary
+
+# Shell scripts must stay LF: they run on the macOS/Linux CI runners, where a
+# CRLF would make the shell fail ("\r: command not found").
+*.sh              text eol=lf
