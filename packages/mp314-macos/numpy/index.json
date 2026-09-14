@@ -1,12 +1,22 @@
 {
-  "tests": ["test.py"],
+  "tests": [
+    "test.py"
+  ],
   "scripts": [
     {
       "metadata": {
         "Version": "2.4.*"
       },
-      "build_tools": ["cmake", "ninja", "gcc", "clang"],
-      "dependencies": ["openblas", "gcc-rt"],
+      "build_tools": [
+        "cmake",
+        "ninja",
+        "gcc",
+        "clang"
+      ],
+      "dependencies": [
+        "openblas",
+        "gcc-rt"
+      ],
       "files": [
         "2.4.6/build.py",
         "2.4.6/numpy-static-patch.patch"
@@ -22,11 +32,19 @@
       "metadata": {
         "Version": "*"
       },
-      "build_tools": ["cmake", "ninja", "gcc", "clang"],
-      "dependencies": ["openblas", "gcc-rt"],
+      "build_tools": [
+        "cmake",
+        "ninja",
+        "gcc",
+        "clang"
+      ],
+      "dependencies": [
+        "openblas",
+        "gcc-rt"
+      ],
       "files": [
-        "2.5.1/build.py",
-        "2.5.1/numpy-static-patch.patch"
+        "2.5.3/build.py",
+        "2.5.3/numpy-static-patch.patch"
       ],
       "build_requires": [
         "meson-python>=0.18.0",
