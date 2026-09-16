@@ -1,17 +1,8 @@
 <#
 verify-static-windows.ps1 -Paths dir1[,dir2,...]
-
-Assert that the Windows build artifacts are fully static (/MT).
-
-MonolithPy packages ship as relocatable .obj / .lib that are linked into the
-monolithic interpreter; there are no dynamic modules in a shipped wheel (that
-"no .dll/.pyd present" rule is enforced by verify_artifacts.py). This script
-covers the other half: every object / static lib must request the STATIC CRT
-(LIBCMT / LIBCPMT). A /DEFAULTLIB directive naming the dynamic CRT (MSVCRT /
-MSVCPRT and their debug variants) means the object was compiled /MD -- a single
-/MD object poisons the whole /MT link (CRT conflict, LNK4098) and is a failure.
-
-Locates dumpbin on PATH, else via vswhere (no active MSVC environment required).
+Fail if any .obj/.lib requests the dynamic CRT (/DEFAULTLIB:MSVCRT/MSVCPRT => /MD);
+one /MD object poisons the whole /MT link (LNK4098). (The no-.dll/.pyd-present rule
+is in verify_artifacts.py.) dumpbin from PATH, else vswhere.
 #>
 [CmdletBinding()]
 param([Parameter(Mandatory = $true)][string[]]$Paths)

@@ -1,24 +1,13 @@
 #!/usr/bin/env python3
-"""Gate the built MonolithPy wheels for static-linkage hygiene.
+"""Gate built MonolithPy wheels for static-linkage hygiene.
 
-MonolithPy is a static monolith: every package and dependency ships as
-relocatable objects / static libraries (.obj/.lib on Windows, .o/.a on macOS)
-that are linked into a single interpreter at install time. Two invariants must
-hold for the *shipped* wheels (build-tool wheels, mpy-tool-*, are excluded --
-clang/cmake/gcc/ninja run on the build host and are never linked in):
-
-  1. No dynamic modules. A shipped wheel must contain no .dll/.pyd (Windows) and
-     no .dylib/.so/.bundle (macOS). A dynamic module means something built a
-     shared object instead of static input for the monolith.
-
-  2. Full /MT (Windows) and low macOS minimum. Every .obj/.lib must use the
-     static CRT (LIBCMT, not MSVCRT); every Mach-O .o/.a slice must target a
-     macOS minimum below the threshold (default 13) rather than inheriting the
-     build runner's OS.
-
-The /MT and min-macOS content checks are delegated to the proven dumpbin/otool
-scripts in ci/; this script owns wheel selection, the no-dynamic-modules check,
-and orchestration. It exits non-zero on any violation so it can gate uploads.
+Packages/deps ship as relocatable objects/static libs linked into one interpreter
+at install; build-tool wheels (mpy-tool-*) are excluded. Two invariants for the
+shipped wheels:
+  1. No dynamic modules: no .dll/.pyd (Windows) or .dylib/.so/.bundle (macOS).
+  2. Full /MT (.obj/.lib use LIBCMT) on Windows; macOS Mach-O minos < threshold.
+The /MT and min-macOS checks are delegated to ci/ (dumpbin/otool); this owns wheel
+selection and the no-dynamic-modules check. Non-zero exit gates uploads.
 
 Usage: verify_artifacts.py --wheels DIR [--max-macos-major 13]
 """

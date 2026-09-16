@@ -1,21 +1,10 @@
 #!/bin/sh
 # verify-min-macos.sh MAX_MAJOR DIR...
-#
-# Assert that every Mach-O slice under the given paths -- objects (.o), static
-# archive members (.a), shared objects (.so/.dylib/.bundle) and executables --
-# declares a macOS minimum version whose MAJOR is strictly LESS than MAX_MAJOR.
-#
-# MonolithPy packages are compiled to relocatable .o / .a and linked into the
-# monolithic interpreter at install time, so a package object that inherited the
-# (high) build runner's OS as its deployment target would silently raise the
-# minimum macOS of everything it is linked into. This gate catches that at the
-# per-object level, where the leak actually is, before it is baked into a binary
-# whose own LC_BUILD_VERSION the linker rewrites to the interpreter's target.
-#
-# The min version is read from LC_BUILD_VERSION (minos) and, for very old
-# targets, the legacy LC_VERSION_MIN_MACOSX (version). All arches of a universal
-# file are inspected in a single `otool -arch all -l` pass; non-macOS platform
-# load commands (iOS, catalyst, simulators) are ignored.
+# Fail if any Mach-O slice under DIR... (objects, .a members, .so/.dylib/.bundle,
+# executables) targets macOS major >= MAX_MAJOR. Checked per-object because the
+# final link rewrites a binary's own LC_BUILD_VERSION, so a stale object's minos
+# only shows at this level. Reads LC_BUILD_VERSION minos + legacy
+# LC_VERSION_MIN_MACOSX, all arches via `otool -arch all -l`.
 set -eu
 
 if [ "$#" -lt 2 ]; then

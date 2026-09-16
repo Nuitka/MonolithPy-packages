@@ -13,19 +13,14 @@ def run(wheel_directory):
     # It seems that miniconda is the only way to get prebuilt binaries for flang on windows :(
     # Revisit this when LLVM finally decides to publish windows binaries for flang.
     #
-    # The whole MonolithPy embed is static /MT. We must ship only /MT (static-CRT) libs or a
-    # consumer that links the embed pulls in the dynamic CRT (vcruntime/msvcp*), which the
-    # buildMonolithPyEmbed /MT gate rejects. conda-forge's flang packaging makes this fiddly:
-    #   * flang_rt.runtime.static.lib -> from flang-rt_win-64 22.1.0 (already /MT, matches the
-    #     flang 22.1.0 compiler in build_tools). It imports 12 Fortran::decimal symbols and zero
-    #     Fortran::evaluate symbols, so it needs FortranDecimal but NOT FortranEvaluate.
-    #   * FortranDecimal.static.lib   -> from flang 20.1.8, the last release to ship a /MT (.static)
-    #     variant (flang 21+ ships only a /MD FortranDecimal.lib). Its exported decimal symbols are
-    #     an exact superset of the 12 the v22 runtime imports, so it is an ABI-clean drop-in.
-    #   * FortranEvaluate.lib         -> dropped. It is a huge compile-time frontend library, /MD-only
-    #     in every flang version, and the runtime never references it.
-    # flang-rt_win-64 22.1.0 requires flang ==22.1.0, so it cannot share a prefix with flang 20.1.8
-    # even under --no-deps (the solver still enforces the constraint); use two separate prefixes.
+    # The embed is static /MT, so every shipped lib must be /MT. conda-forge's flang:
+    #   * flang_rt.runtime.static.lib <- flang-rt_win-64 22.1.0 (/MT). Imports 12
+    #     Fortran::decimal symbols, zero Fortran::evaluate.
+    #   * FortranDecimal.static.lib   <- flang 20.1.8, the last /MT (.static) release
+    #     (21+ ship only /MD); its decimal exports cover the 12 above.
+    #   * FortranEvaluate.lib         -> dropped; the runtime never references it.
+    # flang-rt_win-64 22.1.0 requires flang==22.1.0, so it can't share a prefix with
+    # flang 20.1.8 (the solver enforces it even under --no-deps) -> two prefixes.
     runtime_dir = tempfile.mkdtemp()
     __mp__.run_build_tool_exe("miniconda", "conda.exe", "create", "--prefix=" + runtime_dir,
                               "-y", "--no-deps", "flang-rt_win-64=22.1.0")
