@@ -29,13 +29,22 @@ def run(wheel_directory):
     env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep +
                    os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja")) + os.pathsep + env.get("PATH", ""))
     env["FC"] = __mp__.find_build_tool_exe("gcc", "gfortran-nuitka")
-    env["LIB"] = os.pathsep + __mp__.find_dep_libs("openblas")
-    env["INCLUDE"] = os.pathsep + __mp__.find_dep_include("openblas")
+    # numpy's meson finds OpenBLAS by linking against it, and clang searches
+    # LIBRARY_PATH and CPATH (LIB and INCLUDE are MSVC's). Its CMake lookup
+    # rejects numpy's "cblas" module, and pkg-config is disabled below.
+    env["LIBRARY_PATH"] = os.pathsep.join(filter(None, [__mp__.find_dep_libs("openblas"), env.get("LIBRARY_PATH")]))
+    env["CPATH"] = os.pathsep.join(filter(None, [__mp__.find_dep_include("openblas"), env.get("CPATH")]))
+    # OpenBLAS's LAPACK is gfortran-compiled, so meson's LAPACK probe only links
+    # with the gfortran runtime; the interpreter relink already links gcc-rt.
+    env["LDFLAGS"] = " ".join(filter(None, [env.get("LDFLAGS"), "-L" + __mp__.find_dep_libs("gcc-rt"),
+                                            "-lgfortran", "-lquadmath", "-lgcc"]))
     env["CMAKE_PREFIX_PATH"] = __mp__.find_dep_root("openblas")
     env["FFLAGS"] = "-static-libgcc"
     env["PKG_CONFIG"] = "/disabled"
     __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".",
-               "-Csetup-args=-Dblas=openblas", "-Csetup-args=-Dlapack=openblas", env=env)
+               "-Csetup-args=-Dblas=openblas", "-Csetup-args=-Dlapack=openblas",
+               # Fail instead of falling back to numpy's unoptimized routines.
+               "-Csetup-args=-Dallow-noblas=false", env=env)
 
     wheel_location = glob.glob("numpy-*.whl")[0]
 

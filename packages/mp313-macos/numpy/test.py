@@ -55,6 +55,13 @@ def test_linear_algebra():
     assert len(eigenvalues) == 2
 
 
+def test_blas_lapack_linked():
+    """BLAS and LAPACK are OpenBLAS, not numpy's unoptimized fallback routines."""
+    deps = np.show_config(mode="dicts")["Build Dependencies"]
+    assert deps["blas"].get("found"), deps["blas"]
+    assert deps["lapack"].get("found"), deps["lapack"]
+
+
 def test_fft():
     """Test FFT functions (C-backed)."""
     x = np.array([1, 2, 3, 4])
@@ -122,6 +129,7 @@ if __name__ == "__main__":
     test_array_creation()
     test_array_operations()
     test_linear_algebra()
+    test_blas_lapack_linked()
     test_fft()
     test_random()
     test_sorting()
