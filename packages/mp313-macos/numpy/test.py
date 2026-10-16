@@ -62,6 +62,14 @@ def test_blas_lapack_linked():
     assert deps["lapack"].get("found"), deps["lapack"]
 
 
+def test_complex_lu_raises_no_fp_exceptions():
+    """OpenBLAS before 0.3.34, built by Clang, divides by zero on a real pivot
+    in zgetf2_k (OpenMathLib/OpenBLAS#5818)."""
+    x = np.array([[1, 0.5], [0.5, 1]], dtype=np.complex128)
+    with np.errstate(all="raise"):
+        assert np.linalg.det(x) == 0.75
+
+
 def test_fft():
     """Test FFT functions (C-backed)."""
     x = np.array([1, 2, 3, 4])
@@ -130,6 +138,7 @@ if __name__ == "__main__":
     test_array_operations()
     test_linear_algebra()
     test_blas_lapack_linked()
+    test_complex_lu_raises_no_fp_exceptions()
     test_fft()
     test_random()
     test_sorting()
