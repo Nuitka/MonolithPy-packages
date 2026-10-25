@@ -1,44 +1,17 @@
-diff --git a/pandas/_libs/include/pandas/portable.h b/pandas/_libs/include/pandas/portable.h
-index 5a5b39e..b83d58f 100644
 --- a/pandas/_libs/include/pandas/portable.h
 +++ b/pandas/_libs/include/pandas/portable.h
-@@ -40,45 +40,150 @@ The full license is in the LICENSE file, distributed with this software.
+@@ -40,139 +40,195 @@
  #  ifndef ENABLE_INTSAFE_SIGNED_FUNCTIONS
  #    define ENABLE_INTSAFE_SIGNED_FUNCTIONS
  #  endif
 -#  include <intsafe.h>
--#  define checked_add(a, b, res)                                               \
--    _Generic((res),                                                            \
--        int *: IntAdd,                                                         \
--        unsigned int *: UIntAdd,                                               \
--        long *: LongAdd,                                                       \
--        unsigned long *: ULongAdd,                                             \
--        long long *: LongLongAdd,                                              \
--        unsigned long long *: ULongLongAdd,                                    \
--        short *: ShortAdd,                                                     \
--        unsigned short *: UShortAdd)(a, b, res)
--
--#  define checked_sub(a, b, res)                                               \
--    _Generic((res),                                                            \
--        int *: IntSub,                                                         \
--        unsigned int *: UIntSub,                                               \
--        long *: LongSub,                                                       \
--        unsigned long *: ULongSub,                                             \
--        long long *: LongLongSub,                                              \
--        unsigned long long *: ULongLongSub,                                    \
--        short *: ShortSub,                                                     \
--        unsigned short *: UShortSub)(a, b, res)
--
--#  define checked_mul(a, b, res)                                               \
--    _Generic((res),                                                            \
--        int *: IntMult,                                                        \
--        unsigned int *: UIntMult,                                              \
--        long *: LongMult,                                                      \
--        unsigned long *: ULongMult,                                            \
--        long long *: LongLongMult,                                             \
--        unsigned long long *: ULongLongMult,                                   \
--        short *: ShortMult,                                                    \
--        unsigned short *: UShortMult)(a, b, res)
+-#  ifdef __cplusplus
+-// _Generic (below) is C-only. C++ TUs get inline overloads instead; only the
+-// overload whose result-pointer type matches exactly is viable, so overload
+-// resolution reproduces the _Generic dispatch, including the argument
+-// conversions implied by the selected intsafe prototype.
+-static inline HRESULT pd_checked_add(short a, short b, short *res) {
+-  return ShortAdd(a, b, res);
 +#include <limits.h>
 +
 +// Unfortunately we have to implement overflow-safe arithmetic ourselves
@@ -54,7 +27,10 @@ index 5a5b39e..b83d58f 100644
 +  if (a >= 0 && b >= 0 && *res < 0) return 1;  // positive overflow
 +  if (a < 0 && b < 0 && *res >= 0) return 1;   // negative overflow
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_add(unsigned short a, unsigned short b,
+-                                     unsigned short *res) {
+-  return UShortAdd(a, b, res);
 +
 +static inline int checked_sub_int64(long long a, long long b, long long *res) {
 +  unsigned long long ua = (unsigned long long)a;
@@ -66,7 +42,9 @@ index 5a5b39e..b83d58f 100644
 +  if (a >= 0 && b < 0 && *res < 0) return 1;   // positive overflow
 +  if (a < 0 && b >= 0 && *res >= 0) return 1;  // negative overflow
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_add(int a, int b, int *res) {
+-  return IntAdd(a, b, res);
 +
 +static inline int checked_mul_int64(long long a, long long b, long long *res) {
 +  // Use 128-bit multiplication if available, otherwise check bounds
@@ -92,92 +70,225 @@ index 5a5b39e..b83d58f 100644
 +
 +  *res = a * b;
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_add(unsigned int a, unsigned int b,
+-                                     unsigned int *res) {
+-  return UIntAdd(a, b, res);
 +
 +static inline int checked_add_int32(long a, long b, long *res) {
 +  long long result = (long long)a + (long long)b;
 +  if (result > LONG_MAX || result < LONG_MIN) return 1;
 +  *res = (long)result;
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_add(long a, long b, long *res) {
+-  return LongAdd(a, b, res);
 +
 +static inline int checked_sub_int32(long a, long b, long *res) {
 +  long long result = (long long)a - (long long)b;
 +  if (result > LONG_MAX || result < LONG_MIN) return 1;
 +  *res = (long)result;
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_add(unsigned long a, unsigned long b,
+-                                     unsigned long *res) {
+-  return ULongAdd(a, b, res);
 +
 +static inline int checked_mul_int32(long a, long b, long *res) {
 +  long long result = (long long)a * (long long)b;
 +  if (result > LONG_MAX || result < LONG_MIN) return 1;
 +  *res = (long)result;
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_add(long long a, long long b, long long *res) {
+-  return LongLongAdd(a, b, res);
 +
 +static inline int checked_add_int(int a, int b, int *res) {
 +  long long result = (long long)a + (long long)b;
 +  if (result > INT_MAX || result < INT_MIN) return 1;
 +  *res = (int)result;
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_add(unsigned long long a, unsigned long long b,
+-                                     unsigned long long *res) {
+-  return ULongLongAdd(a, b, res);
 +
 +static inline int checked_sub_int(int a, int b, int *res) {
 +  long long result = (long long)a - (long long)b;
 +  if (result > INT_MAX || result < INT_MIN) return 1;
 +  *res = (int)result;
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_sub(short a, short b, short *res) {
+-  return ShortSub(a, b, res);
 +
 +static inline int checked_mul_int(int a, int b, int *res) {
 +  long long result = (long long)a * (long long)b;
 +  if (result > INT_MAX || result < INT_MIN) return 1;
 +  *res = (int)result;
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_sub(unsigned short a, unsigned short b,
+-                                     unsigned short *res) {
+-  return UShortSub(a, b, res);
 +
 +static inline int checked_add_short(short a, short b, short *res) {
 +  int result = (int)a + (int)b;
 +  if (result > SHRT_MAX || result < SHRT_MIN) return 1;
 +  *res = (short)result;
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_sub(int a, int b, int *res) {
+-  return IntSub(a, b, res);
 +
 +static inline int checked_sub_short(short a, short b, short *res) {
 +  int result = (int)a - (int)b;
 +  if (result > SHRT_MAX || result < SHRT_MIN) return 1;
 +  *res = (short)result;
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_sub(unsigned int a, unsigned int b,
+-                                     unsigned int *res) {
+-  return UIntSub(a, b, res);
 +
 +static inline int checked_mul_short(short a, short b, short *res) {
 +  int result = (int)a * (int)b;
 +  if (result > SHRT_MAX || result < SHRT_MIN) return 1;
 +  *res = (short)result;
 +  return 0;
-+}
+ }
+-static inline HRESULT pd_checked_sub(long a, long b, long *res) {
+-  return LongSub(a, b, res);
 +
++#ifdef __cplusplus
++// _Generic (below) is C-only; C++ translation units get overloads instead.
++static inline int pd_checked_add(short a, short b, short *res) {
++  return checked_add_short(a, b, res);
+ }
+-static inline HRESULT pd_checked_sub(unsigned long a, unsigned long b,
+-                                     unsigned long *res) {
+-  return ULongSub(a, b, res);
++static inline int pd_checked_add(int a, int b, int *res) {
++  return checked_add_int(a, b, res);
+ }
+-static inline HRESULT pd_checked_sub(long long a, long long b, long long *res) {
+-  return LongLongSub(a, b, res);
++static inline int pd_checked_add(long a, long b, long *res) {
++  return checked_add_int32(a, b, res);
+ }
+-static inline HRESULT pd_checked_sub(unsigned long long a, unsigned long long b,
+-                                     unsigned long long *res) {
+-  return ULongLongSub(a, b, res);
++static inline int pd_checked_add(long long a, long long b, long long *res) {
++  return checked_add_int64(a, b, res);
+ }
+-static inline HRESULT pd_checked_mul(short a, short b, short *res) {
+-  return ShortMult(a, b, res);
++static inline int pd_checked_sub(short a, short b, short *res) {
++  return checked_sub_short(a, b, res);
+ }
+-static inline HRESULT pd_checked_mul(unsigned short a, unsigned short b,
+-                                     unsigned short *res) {
+-  return UShortMult(a, b, res);
++static inline int pd_checked_sub(int a, int b, int *res) {
++  return checked_sub_int(a, b, res);
+ }
+-static inline HRESULT pd_checked_mul(int a, int b, int *res) {
+-  return IntMult(a, b, res);
++static inline int pd_checked_sub(long a, long b, long *res) {
++  return checked_sub_int32(a, b, res);
+ }
+-static inline HRESULT pd_checked_mul(unsigned int a, unsigned int b,
+-                                     unsigned int *res) {
+-  return UIntMult(a, b, res);
++static inline int pd_checked_sub(long long a, long long b, long long *res) {
++  return checked_sub_int64(a, b, res);
+ }
+-static inline HRESULT pd_checked_mul(long a, long b, long *res) {
+-  return LongMult(a, b, res);
++static inline int pd_checked_mul(short a, short b, short *res) {
++  return checked_mul_short(a, b, res);
+ }
+-static inline HRESULT pd_checked_mul(unsigned long a, unsigned long b,
+-                                     unsigned long *res) {
+-  return ULongMult(a, b, res);
++static inline int pd_checked_mul(int a, int b, int *res) {
++  return checked_mul_int(a, b, res);
+ }
+-static inline HRESULT pd_checked_mul(long long a, long long b, long long *res) {
+-  return LongLongMult(a, b, res);
++static inline int pd_checked_mul(long a, long b, long *res) {
++  return checked_mul_int32(a, b, res);
+ }
+-static inline HRESULT pd_checked_mul(unsigned long long a, unsigned long long b,
+-                                     unsigned long long *res) {
+-  return ULongLongMult(a, b, res);
++static inline int pd_checked_mul(long long a, long long b, long long *res) {
++  return checked_mul_int64(a, b, res);
+ }
+-#    define checked_add(a, b, res) pd_checked_add((a), (b), (res))
+-#    define checked_sub(a, b, res) pd_checked_sub((a), (b), (res))
+-#    define checked_mul(a, b, res) pd_checked_mul((a), (b), (res))
+-#  else
+-#    define checked_add(a, b, res)                                             \
+-      _Generic((res),                                                          \
+-          int *: IntAdd,                                                       \
+-          unsigned int *: UIntAdd,                                             \
+-          long *: LongAdd,                                                     \
+-          unsigned long *: ULongAdd,                                           \
+-          long long *: LongLongAdd,                                            \
+-          unsigned long long *: ULongLongAdd,                                  \
+-          short *: ShortAdd,                                                   \
+-          unsigned short *: UShortAdd)(a, b, res)
++#define checked_add(a, b, res) pd_checked_add((a), (b), (res))
++#define checked_sub(a, b, res) pd_checked_sub((a), (b), (res))
++#define checked_mul(a, b, res) pd_checked_mul((a), (b), (res))
++#else
+ 
+-#    define checked_sub(a, b, res)                                             \
+-      _Generic((res),                                                          \
+-          int *: IntSub,                                                       \
+-          unsigned int *: UIntSub,                                             \
+-          long *: LongSub,                                                     \
+-          unsigned long *: ULongSub,                                           \
+-          long long *: LongLongSub,                                            \
+-          unsigned long long *: ULongLongSub,                                  \
+-          short *: ShortSub,                                                   \
+-          unsigned short *: UShortSub)(a, b, res)
 +#define checked_add(a, b, res)                                                 \
 +  _Generic((res),                                                              \
 +      int *: checked_add_int,                                                  \
 +      long *: checked_add_int32,                                               \
 +      long long *: checked_add_int64,                                          \
 +      short *: checked_add_short)(a, b, res)
-+
+ 
+-#    define checked_mul(a, b, res)                                             \
+-      _Generic((res),                                                          \
+-          int *: IntMult,                                                      \
+-          unsigned int *: UIntMult,                                            \
+-          long *: LongMult,                                                    \
+-          unsigned long *: ULongMult,                                          \
+-          long long *: LongLongMult,                                           \
+-          unsigned long long *: ULongLongMult,                                 \
+-          short *: ShortMult,                                                  \
+-          unsigned short *: UShortMult)(a, b, res)
+-#  endif
 +#define checked_sub(a, b, res)                                                 \
 +  _Generic((res),                                                              \
 +      int *: checked_sub_int,                                                  \
 +      long *: checked_sub_int32,                                               \
 +      long long *: checked_sub_int64,                                          \
 +      short *: checked_sub_short)(a, b, res)
-+
+ 
 +#define checked_mul(a, b, res)                                                 \
 +  _Generic((res),                                                              \
 +      int *: checked_mul_int,                                                  \
 +      long *: checked_mul_int32,                                               \
 +      long long *: checked_mul_int64,                                          \
 +      short *: checked_mul_short)(a, b, res)
- 
++#endif
++
++
  #elif (defined(__has_builtin) && __has_builtin(__builtin_add_overflow)) ||     \
      __GNUC__ > 7
 -#  define checked_add(a, b, res) __builtin_add_overflow(a, b, res)
@@ -189,11 +300,9 @@ index 5a5b39e..b83d58f 100644
  #else
  _Static_assert(0,
                 "Overflow checking not detected; please try a newer compiler");
-diff --git a/pandas/_libs/include/pandas/vendored/ujson/lib/ultrajson.h b/pandas/_libs/include/pandas/vendored/ujson/lib/ultrajson.h
-index 3a8bf82..3c4ed09 100644
 --- a/pandas/_libs/include/pandas/vendored/ujson/lib/ultrajson.h
 +++ b/pandas/_libs/include/pandas/vendored/ujson/lib/ultrajson.h
-@@ -93,7 +93,7 @@ typedef unsigned __int16 JSUTF16;
+@@ -93,7 +93,7 @@
  typedef unsigned __int32 JSUTF32;
  typedef __int64 JSLONG;
  
