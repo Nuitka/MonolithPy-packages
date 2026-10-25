@@ -1,8 +1,6 @@
-diff --git a/mesonpy/__init__.py b/mesonpy/__init__.py
-index cc25284..d4c68b9 100644
 --- a/mesonpy/__init__.py
 +++ b/mesonpy/__init__.py
-@@ -100,7 +100,7 @@ _MESON_ARGS_KEYS = ['dist', 'setup', 'compile', 'install']
+@@ -100,7 +100,7 @@
  
  _SUFFIXES = importlib.machinery.all_suffixes()
  _EXTENSION_SUFFIX_REGEX = re.compile(r'^[^.]+\.(?:(?P<abi>[^.-]+)(?:-[^.]+)?\.)?(?:so|pyd|dll)$')
@@ -11,7 +9,7 @@ index cc25284..d4c68b9 100644
  
  # Map Meson installation path placeholders to wheel installation paths.
  # See https://docs.python.org/3/library/sysconfig.html#installation-paths
-@@ -114,6 +114,7 @@ _INSTALLATION_PATH_MAP = {
+@@ -114,6 +114,7 @@
      # custom location
      '{libdir}': 'mesonpy-libs',
      '{libdir_shared}': 'mesonpy-libs',
@@ -19,7 +17,7 @@ index cc25284..d4c68b9 100644
  }
  
  
-@@ -371,7 +372,8 @@ class _WheelBuilder():
+@@ -406,7 +407,8 @@
              # distribute any file in {platlib}) thus use generic
              # implementation and ABI tags.
              return mesonpy._tags.Tag('py3', 'none', None)
@@ -29,7 +27,7 @@ index cc25284..d4c68b9 100644
  
      @property
      def name(self) -> str:
-@@ -428,7 +430,7 @@ class _WheelBuilder():
+@@ -463,7 +465,7 @@
          # ABI, therefore extension modules using the limited API do
          # not use the stable ABI filename suffix and wheels should not
          # be tagged with the abi3 tag.
@@ -38,7 +36,17 @@ index cc25284..d4c68b9 100644
              # On free-threaded Python 3.15 or later, we expect to be
              # building 'abi3t' wheels for the time being. In the future
              # we will want an option to target 'abi3t' from GIL-enabled
-@@ -938,7 +940,8 @@ class Project():
+@@ -524,7 +526,8 @@
+                 whl.write(f, f'{self._distinfo_dir}/licenses/{pathlib.Path(f).as_posix()}')
+ 
+     def build(self, directory: Path) -> pathlib.Path:
+-        if sys.platform == 'win32' and self._has_internal_libs and not self._allow_windows_shared_libs:
++        if sys.platform == 'win32' and not self._allow_windows_shared_libs and \
++                any(_is_native(entry.src) for entry in self._manifest['mesonpy-libs']):
+             raise NotImplementedError(
+                 'Loading shared libraries bundled in the Python wheel on Windows requires '
+                 'setting the DLL load path or preloading. See the documentation for '
+@@ -969,7 +972,8 @@
              # default build options
              '-Dbuildtype=release',
              '-Db_ndebug=if-release',
@@ -48,7 +56,7 @@ index cc25284..d4c68b9 100644
              # user build options
              *self._meson_args['setup'],
              # pass native file last to have it override the python
-@@ -998,10 +1001,10 @@ class Project():
+@@ -1029,10 +1033,10 @@
          sources: DefaultDict[str, Dict[str, Dict[str, str]]] = collections.defaultdict(dict)
          for key, targets in install_plan.items():
              for target, details in targets.items():
@@ -61,7 +69,7 @@ index cc25284..d4c68b9 100644
                      continue
                  sources[key][target] = details
  
-@@ -1183,7 +1186,7 @@ def _project(config_settings: Optional[Dict[Any, Any]] = None) -> Iterator[Proje
+@@ -1222,7 +1226,7 @@
  
      with contextlib.ExitStack() as ctx:
          if build_dir is None:
