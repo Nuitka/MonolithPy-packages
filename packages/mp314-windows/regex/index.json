@@ -5,13 +5,10 @@
       "metadata": {
         "Version": "*"
       },
-      "build_tools": [
-        "patch"
-      ],
+      "build_tools": [],
       "dependencies": [],
       "files": [
-        "build.py",
-        "regex-static.patch"
+        "build.py"
       ],
       "build_requires": [
         "setuptools",
