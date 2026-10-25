@@ -26,7 +26,9 @@ def run(wheel_directory):
     env["PATH"] = (os.path.dirname(__mp__.find_build_tool_exe("cmake", "cmake")) + os.pathsep + os.environ["PATH"])
     env["FFLAGS"] = "-static-libgcc"
     if platform.machine() == "arm64":
-        platform_args = ["-DCMAKE_OSX_ARCHITECTURES=arm64", "-DCMAKE_OSX_DEPLOYMENT_TARGET=11", "-DCMAKE_BUILD_TYPE=Debug"]
+        # Release needs OpenBLAS >= 0.3.34: before it, Clang's if-conversion in zgetf2_k
+        # divides by zero and raises spurious FP exceptions (OpenMathLib/OpenBLAS#5818).
+        platform_args = ["-DCMAKE_OSX_ARCHITECTURES=arm64", "-DCMAKE_OSX_DEPLOYMENT_TARGET=11", "-DCMAKE_BUILD_TYPE=Release"]
     else:
         platform_args = ["-DCMAKE_OSX_ARCHITECTURES=x86_64", "-DCMAKE_OSX_DEPLOYMENT_TARGET=10.13", "-DCMAKE_BUILD_TYPE=Debug"]  # Must build in Debug to workaround bug.
     __mp__.run_build_tool_exe("cmake", "cmake",
@@ -35,9 +37,9 @@ def run(wheel_directory):
                               "-DBUILD_TESTING=OFF", *platform_args, src_dir, env=env)
     __mp__.run_with_output("make", "-j4", "install", env=env)
 
-    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_openblas", "0.3.28"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_openblas", "0.3.34"))
     with WheelFile(result_wheel, 'w') as w:
-        __mp__.add_wheel_manifest(w, "mpy-dep-openblas", "0.3.28")
+        __mp__.add_wheel_manifest(w, "mpy-dep-openblas", "0.3.34")
         __mp__.add_wheel_dep_libs(w, "openblas", os.path.join(install_dir, "lib", "*"),
                                   base_dir=os.path.join(install_dir, "lib"))
         __mp__.add_wheel_dep_include(w, "openblas", os.path.join(install_dir, "include", "*"),
