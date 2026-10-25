@@ -87,7 +87,7 @@ jobs:
           dest: monolithpy
 
       - name: Download tool wheels
-        uses: actions/download-artifact@v4
+        uses: ./.github/actions/download-wheels
         with:
           name: r1-wheels-windows-tools
           path: built_wheels/
@@ -148,7 +148,7 @@ jobs:
           dest: monolithpy
 
       - name: Download dep wheels
-        uses: actions/download-artifact@v4
+        uses: ./.github/actions/download-wheels
         with:
           name: r1-wheels-windows-deps
           path: built_wheels/
@@ -287,7 +287,7 @@ jobs:
           dest: monolithpy
 
       - name: Download tool wheels
-        uses: actions/download-artifact@v4
+        uses: ./.github/actions/download-wheels
         with:
           name: r1-wheels-macos-${{ matrix.arch }}-tools
           path: built_wheels/
@@ -364,7 +364,7 @@ jobs:
           dest: monolithpy
 
       - name: Download dep wheels
-        uses: actions/download-artifact@v4
+        uses: ./.github/actions/download-wheels
         with:
           name: r1-wheels-macos-${{ matrix.arch }}-deps
           path: built_wheels/
@@ -441,7 +441,7 @@ jobs:
           dest: monolithpy
 
       - name: Download Round 1 wheels
-        uses: actions/download-artifact@v4
+        uses: ./.github/actions/download-wheels
         with:
           name: round1-wheels-windows
           path: round1-wheels/
@@ -516,7 +516,7 @@ jobs:
           dest: monolithpy
 
       - name: Download Round 1 wheels
-        uses: actions/download-artifact@v4
+        uses: ./.github/actions/download-wheels
         with:
           name: round1-wheels-macos-${{ matrix.arch }}
           path: round1-wheels/

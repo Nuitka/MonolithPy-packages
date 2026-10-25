@@ -1,0 +1,45 @@
+name: Download wheel artifact (verified)
+description: >
+  actions/download-artifact, then check that every wheel opens as a zip and
+  download once more if one does not. download-artifact@v4 can end a stalled
+  download with a truncated file and still report success; the build that
+  then reads the wheel fails much later with only "wheel is invalid".
+
+inputs:
+  name:
+    description: Artifact name.
+    required: true
+  path:
+    description: Directory to download into.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Download
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    - name: Verify
+      id: verify
+      shell: bash
+      run: python "${GITHUB_ACTION_PATH}/../../scripts/verify_wheel_zips.py" "${{ inputs.path }}" || echo "retry=true" >> "$GITHUB_OUTPUT"
+
+    - name: Clear partial download
+      if: steps.verify.outputs.retry == 'true'
+      shell: bash
+      run: rm -rf "${{ inputs.path }}"
+
+    - name: Download again
+      if: steps.verify.outputs.retry == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    - name: Verify again
+      if: steps.verify.outputs.retry == 'true'
+      shell: bash
+      run: python "${GITHUB_ACTION_PATH}/../../scripts/verify_wheel_zips.py" "${{ inputs.path }}"
