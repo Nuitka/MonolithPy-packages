@@ -29,7 +29,9 @@ def run(wheel_directory):
     __mp__.filter_paths_containing("gfortran.exe")
     env = os.environ.copy()
     env["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + env["PATH"]
-    env["LIB"] = env["LIB"] + os.pathsep + __mp__.find_dep_libs("openblas")
+    # OpenBLAS's LAPACK is flang-compiled and its objects /DEFAULTLIB the flang
+    # runtime by name; without flang-rt on LIB, meson's LAPACK probe cannot link.
+    env["LIB"] = os.pathsep.join([env["LIB"], __mp__.find_dep_libs("openblas"), __mp__.find_dep_libs("flang-rt")])
     env["INCLUDE"] = env["INCLUDE"] + os.pathsep + __mp__.find_dep_include("openblas")
     # Build with clang-cl: MSVC miscompiles numpy's float-predicate SIMD kernel's
     # 0-d/scalar broadcast path (isfinite/isnan/isinf wrong on scalars -> arange
@@ -49,7 +51,7 @@ def run(wheel_directory):
     env["LDFLAGS"] = (env.get("LDFLAGS", "") + " " + _embed
                       + " Shlwapi.lib /FORCE:UNRESOLVED").strip()
     config_args = ["-Csetup-args=-Dblas=openblas", "-Csetup-args=-Dlapack=openblas",
-                   "-Csetup-args=-Db_lto=false"]
+                   "-Csetup-args=-Dallow-noblas=false", "-Csetup-args=-Db_lto=false"]
     if "MP_JOBS" in env:
         config_args += ["-Ccompile-args=-j" + env["MP_JOBS"]]
     __mp__.run(sys.executable, "-m", "build", "-w", "--no-isolation", "-o", ".", *config_args, env=env)
