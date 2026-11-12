@@ -1,5 +1,5 @@
 {
-  "version": "1.6.50",
+  "version": "1.6.59",
   "build_tools": [
     "cmake",
     "ninja"
@@ -12,8 +12,8 @@
   ],
   "sources": [
     {
-      "version": "1.6.50",
-      "link": "http://prdownloads.sourceforge.net/libpng/lpng1650.zip?download"
+      "version": "1.6.59",
+      "link": "http://prdownloads.sourceforge.net/libpng/lpng1659.zip?download"
     }
   ],
   "build_script": "build.py"

@@ -21,14 +21,15 @@ def run(wheel_directory):
     os.environ["PATH"] = os.path.dirname(__mp__.find_build_tool_exe("ninja", "ninja.exe")) + os.pathsep + os.environ["PATH"]
     __mp__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
                               "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=OFF",
+                              "-Dtiff-tools=OFF", "-Dtiff-tests=OFF", "-Dtiff-contrib=OFF", "-Dtiff-docs=OFF",
                               "-DZLIB_ROOT=" + __mp__.find_dep_root("zlib"),
                               "-DJPEG_ROOT=" + __mp__.find_dep_root("jpeg"),
                               src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja.exe")
 
-    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_tiff", "4.3.0"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_tiff", "4.7.2"))
     with WheelFile(result_wheel, 'w') as w:
-        __mp__.add_wheel_manifest(w, "mpy-dep-tiff", "4.3.0")
+        __mp__.add_wheel_manifest(w, "mpy-dep-tiff", "4.7.2")
         __mp__.add_wheel_dep_libs(w, "tiff", os.path.join(build_dir, "libtiff", "*.lib"))
         __mp__.add_wheel_dep_include(w, "tiff", os.path.join(src_dir, "libtiff", "*.h"))
         __mp__.add_wheel_dep_include(w, "tiff", os.path.join(build_dir, "libtiff", "*.h"))

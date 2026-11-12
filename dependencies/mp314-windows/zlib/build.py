@@ -21,16 +21,20 @@ def run(wheel_directory):
     __mp__.run_build_tool_exe("cmake", "cmake.exe", "-G", "Ninja",
                               "-DCMAKE_BUILD_TYPE=Release",
                               "-DBUILD_SHARED_LIBS=OFF",
+                              "-DZLIB_BUILD_TESTING=OFF",
                               src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja.exe", "zlibstatic")
 
-    # Normalize output name: zlib's CMake build produces zlibstatic.lib;
-    # downstream packages expect zlib.lib.
-    shutil.copy(os.path.join(build_dir, "zlibstatic.lib"), os.path.join(build_dir, "zlib.lib"))
+    # Normalize output name: zlib's CMake build produces libzs.lib on MSVC
+    # since 1.4 (zlibstatic.lib before); downstream packages expect zlib.lib.
+    built = os.path.join(build_dir, "libzs.lib")
+    if not os.path.isfile(built):
+        built = os.path.join(build_dir, "zlibstatic.lib")
+    shutil.copy(built, os.path.join(build_dir, "zlib.lib"))
 
-    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_zlib", "1.2.12"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_zlib", "1.4"))
     with WheelFile(result_wheel, 'w') as w:
-        __mp__.add_wheel_manifest(w, "mpy-dep-zlib", "1.2.12")
+        __mp__.add_wheel_manifest(w, "mpy-dep-zlib", "1.4")
         __mp__.add_wheel_dep_libs(w, "zlib", os.path.join(build_dir, "zlib.lib"))
         __mp__.add_wheel_dep_include(w, "zlib", os.path.join(src_dir, "*.h"))
         __mp__.add_wheel_dep_include(w, "zlib", os.path.join(build_dir, "*.h"))

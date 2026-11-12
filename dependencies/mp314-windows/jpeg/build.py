@@ -32,9 +32,9 @@ def run(wheel_directory):
     shutil.copy(os.path.join(install_dir, "lib", "jpeg-static.lib"), os.path.join(install_dir, "lib", "jpeg.lib"))
     shutil.copy(os.path.join(install_dir, "lib", "turbojpeg-static.lib"), os.path.join(install_dir, "lib", "turbojpeg.lib"))
 
-    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_jpeg", "3.1.0"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_jpeg", "3.2.1"))
     with WheelFile(result_wheel, 'w') as w:
-        __mp__.add_wheel_manifest(w, "mpy-dep-jpeg", "3.1.0")
+        __mp__.add_wheel_manifest(w, "mpy-dep-jpeg", "3.2.1")
         __mp__.add_wheel_dep_libs(w, "jpeg", os.path.join(install_dir, "lib", "*.lib"))
         __mp__.add_wheel_dep_libs(w, "jpeg", os.path.join(install_dir, "lib", "cmake"),
                                   base_dir=os.path.join(install_dir, "lib"))

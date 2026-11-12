@@ -1,5 +1,5 @@
 {
-  "version": "4.3.0",
+  "version": "4.7.2",
   "build_tools": [
     "cmake",
     "ninja"
@@ -10,8 +10,8 @@
   ],
   "sources": [
     {
-      "version": "4.3.0",
-      "link": "http://download.osgeo.org/libtiff/tiff-4.3.0.zip"
+      "version": "4.7.2",
+      "link": "http://download.osgeo.org/libtiff/tiff-4.7.2.zip"
     }
   ],
   "build_script": "build.py"

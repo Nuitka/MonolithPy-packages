@@ -1,5 +1,5 @@
 {
-  "version": "1.2.12",
+  "version": "1.4",
   "build_tools": [
     "cmake",
     "ninja"
@@ -9,8 +9,8 @@
   ],
   "sources": [
     {
-      "version": "1.2.12",
-      "link": "https://github.com/madler/zlib/archive/refs/tags/v1.2.12.zip"
+      "version": "1.4",
+      "link": "https://github.com/madler/zlib/archive/refs/tags/v1.4.zip"
     }
   ],
   "build_script": "build.py"

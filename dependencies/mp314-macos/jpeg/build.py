@@ -23,9 +23,9 @@ def run(wheel_directory):
                               "-DCMAKE_INSTALL_PREFIX=" + install_dir, src_dir)
     __mp__.run_build_tool_exe("ninja", "ninja", "install")
 
-    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_jpeg", "3.1.0"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_jpeg", "3.2.1"))
     with WheelFile(result_wheel, 'w') as w:
-        __mp__.add_wheel_manifest(w, "mpy-dep-jpeg", "3.1.0")
+        __mp__.add_wheel_manifest(w, "mpy-dep-jpeg", "3.2.1")
         __mp__.add_wheel_dep_libs(w, "jpeg", os.path.join(install_dir, "lib", "*.a"))
         __mp__.add_wheel_dep_libs(w, "jpeg", os.path.join(install_dir, "lib", "cmake"),
                                   base_dir=os.path.join(install_dir, "lib"))

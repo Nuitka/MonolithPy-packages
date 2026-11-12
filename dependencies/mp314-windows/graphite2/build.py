@@ -9,10 +9,9 @@ from wheel.wheelfile import WheelFile
 
 def run(wheel_directory):
     # graphite2 is the SIL Graphite shaping engine. HarfBuzz is built against it
-    # (HB_HAVE_GRAPHITE2=ON) so the MonolithPy harfbuzz matches the depLibs
-    # harfbuzz byte-for-byte in configuration -- both reference gr_* and both are
-    # satisfied by this one static graphite2 the bundle now ships. Mirrors the
-    # depLibs graphite2 1.3.14 build (see TrySail .github/build_dep_libs_win.ps1).
+    # (HB_HAVE_GRAPHITE2=ON), the same configuration as a harfbuzz an embedding
+    # application links alongside MonolithPy: both reference gr_* and both are
+    # satisfied by this one static graphite2 the bundle ships.
     src_dir = os.getcwd()
 
     __mp__.setup_compiler_env()
@@ -65,9 +64,9 @@ def run(wheel_directory):
 
     __mp__.run_build_tool_exe("ninja", "ninja.exe", "install")
 
-    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_graphite2", "1.3.14"))
+    result_wheel = os.path.join(wheel_directory, __mp__.get_wheel_name("mpy_dep_graphite2", "1.3.15"))
     with WheelFile(result_wheel, 'w') as w:
-        __mp__.add_wheel_manifest(w, "mpy-dep-graphite2", "1.3.14")
+        __mp__.add_wheel_manifest(w, "mpy-dep-graphite2", "1.3.15")
         __mp__.add_wheel_dep_libs(w, "graphite2", os.path.join(install_dir, "lib", "*.lib"))
         # base_dir preserves the graphite2/ subdir (headers are #included as
         # <graphite2/Font.h>): without it add_wheel_dep_include flattens to

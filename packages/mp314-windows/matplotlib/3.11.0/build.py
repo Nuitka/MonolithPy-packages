@@ -32,7 +32,7 @@ def run(wheel_directory):
 
     raqm_root = __mp__.find_dep_root("raqm")
     # Pin freetype (+ its only external dep, zlib) to the mpy-dep copies so
-    # ft2font compiles against the SAME freetype the embed links (2.14.3). meson's
+    # ft2font compiles against the SAME freetype the embed links. meson's
     # dependency('freetype') was picking a stray 2.13.3 on CI -> header/lib skew ->
     # heap corruption in set_text at render time.
     freetype_root = __mp__.find_dep_root("freetype")
